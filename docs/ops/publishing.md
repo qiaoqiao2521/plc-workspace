@@ -94,8 +94,9 @@ Windows:
 git clone https://github.com/muqiao215/plc-workspace.git fresh-plc-workspace
 cd fresh-plc-workspace
 Expand-Archive ..\runtime-assets.zip -DestinationPath . -Force
-pwsh .\container\run-validator.ps1 -Project FB_MainSequence -Build
-pwsh .\container\run-smoke.ps1 -Project FB_MainSequence
+docker compose -f .\container\docker-compose.release.yml build validator openplc
+docker compose -f .\container\docker-compose.release.yml run --rm validator
+docker compose -f .\container\docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke
 ```
 
 Linux:
@@ -104,9 +105,9 @@ Linux:
 git clone https://github.com/muqiao215/plc-workspace.git fresh-plc-workspace
 cd fresh-plc-workspace
 unzip ../runtime-assets.zip -d .
-docker compose -f container/docker-compose.yml build validator
-VALIDATOR_PROJECT=/workspace/projects/FB_MainSequence docker compose -f container/docker-compose.yml run --rm validator
-SMOKE_PROJECT=/workspace/projects/FB_MainSequence docker compose -f container/docker-compose.yml up --build --abort-on-container-exit --exit-code-from smoke openplc smoke
+docker compose -f container/docker-compose.release.yml build validator openplc
+VALIDATOR_PROJECT=/workspace/projects/FB_MainSequence docker compose -f container/docker-compose.release.yml run --rm validator
+SMOKE_PROJECT=/workspace/projects/FB_MainSequence docker compose -f container/docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke
 ```
 
 ## Boundary Reminder

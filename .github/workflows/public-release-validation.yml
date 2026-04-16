@@ -1,0 +1,157 @@
+name: Public Release Validation
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to validate. Defaults to latest release.
+        required: false
+        type: string
+
+jobs:
+  docs-and-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify public release files exist
+        run: |
+          test -f README.md
+          test -f docs/ops/publishing.md
+          test -f scripts/export-runtime-assets.ps1
+          test -f container/docker-compose.release.yml
+
+      - name: Verify README references public workflow
+        run: |
+          grep -q 'runtime-assets.zip' README.md
+          grep -q 'docker-compose.release.yml' README.md
+          grep -q 'docs/ops/publishing.md' README.md
+
+      - name: Parse release compose YAML
+        run: |
+          python -m pip install --disable-pip-version-check --quiet pyyaml
+          python - <<'PY'
+          import pathlib
+          import yaml
+
+          path = pathlib.Path("container/docker-compose.release.yml")
+          data = yaml.safe_load(path.read_text(encoding="utf-8"))
+          assert "services" in data, "missing services section"
+          for service in ("validator", "smoke", "openplc"):
+              assert service in data["services"], f"missing service: {service}"
+          assert "build" in data["services"]["validator"], "validator must build locally"
+          assert "build" in data["services"]["openplc"], "openplc must build from runtime assets"
+          print("release compose YAML parsed successfully")
+          PY
+
+      - name: Parse runtime asset exporter
+        shell: pwsh
+        run: |
+          $errors = $null
+          [void][System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw 'scripts/export-runtime-assets.ps1'), [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.ToString() }
+            exit 1
+          }
+
+  validate-release-assets:
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$(gh release list --repo "${{ github.repository }}" --limit 1 --json tagName --jq '.[0].tagName')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download release assets
+        run: |
+          mkdir -p release-assets
+          gh release download "${{ steps.tag.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern 'runtime-assets.zip' \
+            --pattern 'runtime-assets.manifest.json' \
+            --pattern 'runtime-assets.sha256' \
+            --dir release-assets
+
+      - name: Verify checksum
+        working-directory: release-assets
+        run: sha256sum -c runtime-assets.sha256
+
+      - name: Validate asset structure
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import re
+          import zipfile
+
+          base = pathlib.Path("release-assets")
+          manifest = json.loads((base / "runtime-assets.manifest.json").read_text(encoding="utf-8"))
+          zip_path = base / "runtime-assets.zip"
+
+          required_roots = [
+              "docs/harness",
+              "PLC素材库",
+              "validation/tools/plcverif",
+              "validation/tools/OpenPLC_v3",
+              "validation/config",
+              "validation/templates",
+              "validation/docker",
+              "projects/FB_MainSequence",
+          ]
+
+          forbidden_patterns = [
+              r"04_reports",
+              r"PLCreX_outputs",
+              r"\.git/",
+              r"toolchain\.local\.json$",
+              r"plcverif/output/",
+              r"plcverif/workspace/",
+              r"\.venv39/",
+          ]
+
+          included_roots = set(manifest.get("included_roots", []))
+          missing_roots = [root for root in required_roots if root not in included_roots]
+          if missing_roots:
+              raise SystemExit(f"manifest missing required roots: {missing_roots}")
+
+          with zipfile.ZipFile(zip_path) as zf:
+              names = [info.filename for info in zf.infolist()]
+
+          for root in required_roots:
+              if not any(name.startswith(root.rstrip("/") + "/") or name == root for name in names):
+                  raise SystemExit(f"zip missing required root payload: {root}")
+
+          unexpected = []
+          for pattern in forbidden_patterns:
+              regex = re.compile(pattern)
+              unexpected.extend(name for name in names if regex.search(name))
+
+          if unexpected:
+              sample = unexpected[:20]
+              raise SystemExit(f"zip contains forbidden paths: {sample}")
+
+          print("release asset structure validated")
+          PY

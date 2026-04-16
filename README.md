@@ -53,15 +53,18 @@ Expand-Archive .\runtime-assets.zip -DestinationPath . -Force
 Run validation:
 
 ```powershell
-pwsh .\container\run-validator.ps1 -Project FB_MainSequence -Build
-pwsh .\container\run-smoke.ps1 -Project FB_MainSequence
+docker compose -f .\container\docker-compose.release.yml build validator openplc
+docker compose -f .\container\docker-compose.release.yml run --rm validator
+docker compose -f .\container\docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke
 ```
 
 If Docker build needs an explicit proxy:
 
 ```powershell
-pwsh .\container\run-validator.ps1 -Project FB_MainSequence -Build -ProxyUrl http://host.docker.internal:3067
-pwsh .\container\run-smoke.ps1 -Project FB_MainSequence -ProxyUrl http://host.docker.internal:3067
+$env:PLC_HTTP_PROXY = 'http://host.docker.internal:3067'
+$env:PLC_HTTPS_PROXY = 'http://host.docker.internal:3067'
+$env:PLC_ALL_PROXY = 'http://host.docker.internal:3067'
+docker compose -f .\container\docker-compose.release.yml build validator openplc
 ```
 
 ## Linux Server Quick Start
@@ -83,13 +86,13 @@ unzip runtime-assets.zip -d .
 Run validation:
 
 ```bash
-docker compose -f container/docker-compose.yml build validator
+docker compose -f container/docker-compose.release.yml build validator openplc
 
 VALIDATOR_PROJECT=/workspace/projects/FB_MainSequence \
-  docker compose -f container/docker-compose.yml run --rm validator
+  docker compose -f container/docker-compose.release.yml run --rm validator
 
 SMOKE_PROJECT=/workspace/projects/FB_MainSequence \
-  docker compose -f container/docker-compose.yml up --build --abort-on-container-exit --exit-code-from smoke openplc smoke
+  docker compose -f container/docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke
 ```
 
 If the server requires a proxy, export Docker build proxy variables first:
@@ -98,6 +101,7 @@ If the server requires a proxy, export Docker build proxy variables first:
 export PLC_HTTP_PROXY=http://proxy.example:3128
 export PLC_HTTPS_PROXY=http://proxy.example:3128
 export PLC_ALL_PROXY=http://proxy.example:3128
+docker compose -f container/docker-compose.release.yml build validator openplc
 ```
 
 ## Outputs
