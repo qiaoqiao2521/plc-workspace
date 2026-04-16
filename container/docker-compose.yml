@@ -1,0 +1,65 @@
+name: plc-workspace-validation
+
+services:
+  validator:
+    build:
+      context: .
+      dockerfile: validator.Dockerfile
+      args:
+        HTTP_PROXY: ${PLC_HTTP_PROXY:-}
+        HTTPS_PROXY: ${PLC_HTTPS_PROXY:-}
+        ALL_PROXY: ${PLC_ALL_PROXY:-}
+        http_proxy: ${PLC_http_proxy:-}
+        https_proxy: ${PLC_https_proxy:-}
+        all_proxy: ${PLC_all_proxy:-}
+    image: plc-workspace-validator:local
+    working_dir: /workspace
+    entrypoint:
+      - /usr/bin/pwsh
+      - -NoLogo
+      - -File
+      - /workspace/container/run-validator-container.ps1
+    environment:
+      WORKSPACE_ROOT: /workspace
+      VALIDATOR_PROJECT: ${VALIDATOR_PROJECT:-/workspace/projects/FB_MainSequence}
+    volumes:
+      - ../:/workspace
+      - validator-wine-prefix:/root/.wine
+
+  smoke:
+    build:
+      context: .
+      dockerfile: validator.Dockerfile
+      args:
+        HTTP_PROXY: ${PLC_HTTP_PROXY:-}
+        HTTPS_PROXY: ${PLC_HTTPS_PROXY:-}
+        ALL_PROXY: ${PLC_ALL_PROXY:-}
+        http_proxy: ${PLC_http_proxy:-}
+        https_proxy: ${PLC_https_proxy:-}
+        all_proxy: ${PLC_all_proxy:-}
+    image: plc-workspace-validator:local
+    working_dir: /workspace
+    depends_on:
+      openplc:
+        condition: service_started
+    entrypoint:
+      - /usr/bin/pwsh
+      - -NoLogo
+      - -File
+      - /workspace/container/run-smoke-container.ps1
+    environment:
+      WORKSPACE_ROOT: /workspace
+      SMOKE_PROJECT: ${SMOKE_PROJECT:-/workspace/projects/FB_MainSequence}
+    volumes:
+      - ../:/workspace
+
+  openplc:
+    image: plc-workspace-openplc:v3-smoke
+    pull_policy: never
+    restart: "no"
+    volumes:
+      - openplc-data:/docker_persistent
+
+volumes:
+  openplc-data:
+  validator-wine-prefix:

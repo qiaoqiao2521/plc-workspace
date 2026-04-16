@@ -1,0 +1,40 @@
+# Local agent/editor state
+.claude/
+*.log
+task_plan.md
+findings.md
+progress.md
+
+# Historical and external workspace material
+workspace/
+以往项目/
+
+# Python and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local validation environments
+validation/.venv39/
+
+# Large third-party validation tool payloads
+validation/tools/OpenPLC_v3/
+validation/tools/plcverif/
+validation/tools/iec-checker/
+
+# Generated PLC verification artifacts
+projects/*/03_checks/plcrex/PLCreX_outputs/
+projects/*/03_checks/iec-checker/*.log
+projects/*/03_checks/plcverif/output/
+
+# Reports are generated evidence, not source
+projects/*/04_reports/
+
+# Local release packages or archives
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
