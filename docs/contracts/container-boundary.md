@@ -101,7 +101,13 @@ This keeps:
 2. `04_reports` as the single report sink
 3. `release-manifest.yaml` able to reference the newest reports without post-copy sync
 
-Container reports must keep tool failures explicit. A Wine failure from a Windows-only validation binary is evidence for remediation, not a substitute for a successful static/modelcheck result.
+Container reports must keep tool failures explicit. Native Linux validation tools may still return parser errors, backend errors, or unsupported-language diagnostics; those are real findings, not substitutes for a successful static/modelcheck result.
+
+The validator image is allowed to fetch and run native Linux validation binaries such as `iec-checker` and `nuXmv`, but this does not change the Siemens boundary:
+
+1. container-native validation is still harness-level evidence
+2. Siemens final proof still belongs to host-side `TIA Portal` and `PLCSIM`
+3. `blocked_missing_tia_final` remains valid until host-side final evidence exists
 
 ## Non-Goals
 

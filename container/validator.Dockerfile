@@ -9,13 +9,15 @@ ARG all_proxy=
 ARG PLCREX_VERSION=2.0.0
 ARG PYMODBUS_VERSION=2.5.3
 ARG PYYAML_VERSION=6.0.3
+ARG IEC_CHECKER_VERSION=v0.4
+ARG NUXMV_VERSION=2.1.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    WINEDEBUG=-all \
-    WINEPREFIX=/root/.wine
+    IEC_CHECKER_BIN=/opt/iec-checker/iec_checker \
+    PLCVERIF_NUXMV_BIN=/opt/nuxmv/bin/nuXmv
 
 RUN if [ -n "${HTTP_PROXY}" ]; then \
         printf 'Acquire::http::Proxy "%s";\nAcquire::https::Proxy "%s";\n' "${HTTP_PROXY}" "${HTTPS_PROXY:-${HTTP_PROXY}}" >/etc/apt/apt.conf.d/99proxy; \
@@ -32,38 +34,42 @@ RUN if [ -n "${HTTP_PROXY}" ]; then \
         python3-dev \
         python3-pip \
         python3-venv \
-        wine \
-        wine-binfmt \
-        wine64 \
-        wine64-tools \
+        xz-utils \
     && python3 -m pip install --no-cache-dir --break-system-packages \
         "plcrex==${PLCREX_VERSION}" \
         "pymodbus==${PYMODBUS_VERSION}" \
         "PyYAML==${PYYAML_VERSION}" \
     && rm -rf /var/lib/apt/lists/*
 
-RUN cat <<'EOF' >/usr/local/bin/ensure-wine-prefix
-#!/usr/bin/env bash
-set -euo pipefail
-if [ ! -f "${WINEPREFIX:-/root/.wine}/system.reg" ]; then
-  wineboot --init >/tmp/wineboot.log 2>&1 || true
-fi
-EOF
+RUN mkdir -p /opt/iec-checker /opt/nuxmv \
+    && curl -fsSL \
+        -o /opt/iec-checker/iec_checker \
+        "https://github.com/iec-checker/iec-checker/releases/download/${IEC_CHECKER_VERSION}/iec_checker_Linux_x86_64" \
+    && chmod +x /opt/iec-checker/iec_checker \
+    && cd /tmp \
+    && curl -fsSL \
+        -o "nuXmv-${NUXMV_VERSION}-linux64.tar.xz" \
+        "https://nuxmv.fbk.eu/theme/download.php?file=nuXmv-${NUXMV_VERSION}-linux64.tar.xz" \
+    && curl -fsSL \
+        -o "nuXmv-${NUXMV_VERSION}-linux64.tar.xz.sha256sum" \
+        "https://nuxmv.fbk.eu/theme/download.php?file=nuXmv-${NUXMV_VERSION}-linux64.tar.xz.sha256sum" \
+    && sha256sum -c "nuXmv-${NUXMV_VERSION}-linux64.tar.xz.sha256sum" \
+    && tar -C /opt/nuxmv --strip-components=1 -xf "nuXmv-${NUXMV_VERSION}-linux64.tar.xz" \
+    && chmod +x /opt/nuxmv/bin/nuXmv \
+    && rm -f "nuXmv-${NUXMV_VERSION}-linux64.tar.xz" "nuXmv-${NUXMV_VERSION}-linux64.tar.xz.sha256sum"
 
 RUN cat <<'EOF' >/usr/local/bin/iec-checker-wrapper
 #!/usr/bin/env bash
 set -euo pipefail
-/usr/local/bin/ensure-wine-prefix
-target="${IEC_CHECKER_WINDOWS_EXE:-/workspace/validation/tools/iec-checker/iec_checker_Windows_x86_64.exe}"
-exec /usr/lib/wine/wine64 "$target" "$@"
+target="${IEC_CHECKER_BIN:-/opt/iec-checker/iec_checker}"
+exec "$target" "$@"
 EOF
 
 RUN cat <<'EOF' >/usr/local/bin/nuxmv-wrapper
 #!/usr/bin/env bash
 set -euo pipefail
-/usr/local/bin/ensure-wine-prefix
-target="${PLCVERIF_NUXMV_EXE:-/workspace/validation/tools/plcverif/tools/tools/nuxmv/nuXmv.exe}"
-exec /usr/lib/wine/wine64 "$target" "$@"
+target="${PLCVERIF_NUXMV_BIN:-/opt/nuxmv/bin/nuXmv}"
+exec "$target" "$@"
 EOF
 
 RUN cat <<'EOF' >/usr/local/bin/plcverif-entry
@@ -201,7 +207,6 @@ $config | ConvertTo-Json -Depth 10 | Set-Content -Path $configPath -Encoding UTF
 EOF
 
 RUN chmod +x \
-    /usr/local/bin/ensure-wine-prefix \
     /usr/local/bin/iec-checker-wrapper \
     /usr/local/bin/nuxmv-wrapper \
     /usr/local/bin/plcverif-entry \

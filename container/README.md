@@ -71,7 +71,7 @@ Two Dockerfiles are kept intentionally:
 
 1. `validator.Dockerfile`
    - tiny build context: only `container/`
-   - contains PowerShell, Python, Java, Wine wrappers
+   - contains PowerShell, Python, Java, native Linux `iec-checker` and native Linux `nuXmv`
    - executes `run-static-gate.ps1` and `run-modelcheck-gate.ps1`
 2. `openplc-smoke.Dockerfile`
    - build context is only `validation/tools/OpenPLC_v3`
@@ -130,9 +130,18 @@ Large directories intentionally kept out of validator build context:
 - `workspace/` Eclipse metadata
 - `以往项目/` historical assets
 
+Additional downloads performed inside the validator image:
+
+- `iec-checker` Linux release asset from the upstream GitHub release
+- `nuXmv` Linux x86_64 tarball from the upstream FBK download page
+
+This keeps the Docker build context small while avoiding vendoring large binary archives into the repo.
+
 ## Notes
 
 - `PLCverif` is launched from the mounted workspace via JVM, not by copying the vendor bundle into the image.
-- `iec-checker` and `nuXmv.exe` are bridged through Wine because the current workspace only contains Windows-side vendor binaries for those tools. If those binaries fail under Wine, the report records the real failure and the gate does not fake a pass.
+- `iec-checker` now uses the upstream Linux x86_64 binary in the validator image. This avoids the previous Wine failure mode while keeping the report truthful about parser or rule-check failures.
+- `PLCverif` still comes from the mounted workspace, but its backend now points to the upstream Linux `nuXmv` binary in the validator image. The failing Windows `nuXmv.exe` under Wine is no longer the default path.
+- `nuXmv` is not redistributed in the git repo. It is fetched during image build because its licensing model is different from the LGPL `NuSMV` lineage and should stay an explicit upstream dependency.
 - `PLCreX` is invoked through `container/plcrex-entry.py` so its Linux package can run with the current Windows-authored resource paths.
 - `release-manifest.yaml` keeps referencing the newest reports because reports are still written in place under `04_reports`.

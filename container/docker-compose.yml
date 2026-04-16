@@ -24,7 +24,6 @@ services:
       VALIDATOR_PROJECT: ${VALIDATOR_PROJECT:-/workspace/projects/FB_MainSequence}
     volumes:
       - ../:/workspace
-      - validator-wine-prefix:/root/.wine
 
   smoke:
     build:
@@ -62,4 +61,3 @@ services:
 
 volumes:
   openplc-data:
-  validator-wine-prefix:
