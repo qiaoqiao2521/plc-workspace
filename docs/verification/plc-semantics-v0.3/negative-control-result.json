@@ -3,10 +3,10 @@
   "tool_exit": 0,
   "parameter_domain": "all UINT timeout values, independently sampled on each scan",
   "algorithm": "Classic; dynamic reordering; CTL assertion requirement",
-  "source_sha256": "d758b09b6c8b9aed71b81a65cfe65c3bf5ffd2da89b629958c0d76d31d63d69f",
-  "case_sha256": "20321daea00e30e2fff572727ffd2fb783f6ec6d43c7ce7071fab4fc9caf4013",
-  "projection_manifest_sha256": "6e0c291da2016d72596a875385d3089904bec6b39f38768d05933cdc2bec3c55",
+  "source_sha256": "e7f3e673d0c05462721a74ba3d8427c42306173506b346c266aaddf354852f1d",
+  "case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
+  "projection_manifest_sha256": "2039dd0cb41e47aeff7d142efda93bd211de0c3a3ceeb7cfd210731986f44789",
   "assertion_count": 1,
-  "run_dir": "/audit/plc-implementation/negative-formal/20260922T135350594919Z",
+  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-lab/evidence-staging/negative-formal/20260922T165158671482Z",
   "siemens_final": "unverified"
 }

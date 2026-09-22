@@ -26,7 +26,7 @@ One explicit scan contract, one canonical implementation, generated/checkable pr
 
 ## Current State
 
-The v0.3 abstract scan contract and interface 0.2.0 are implemented: internal state/output separation, continuous enable, edge-consumed commands, distinct current error and timeout history. Twenty-four compiled-ST tests include 160 control combinations and 5,000 differential calls; eight tooling tests pass. The 26-assertion conjunction passes with a full UINT timeout input. The complete OpenPLC test program passes natively after 50 calls, without running its service. Source-bound current evidence is in `projects/FB_MainSequence/04_reports/semantics/v0.3/`. Compact published verification records are in `docs/verification/plc-semantics-v0.3/`. Old v0.2 proof is historical. No Siemens/machine acceptance or full PLCopen conformance is claimed.
+The v0.3 abstract scan contract and interface 0.2.0 are implemented: internal state/output separation, continuous enable, edge-consumed commands, distinct current error and timeout history. Twenty-five compiled-ST tests include 160 control combinations and 5,000 differential calls; eight tooling tests pass. The 31-assertion conjunction passes with a full UINT timeout input. The complete OpenPLC test program passes natively after 50 calls, without running its service. Source-bound current evidence is in `projects/FB_MainSequence/04_reports/semantics/v0.3/`. Compact published verification records are in `docs/verification/plc-semantics-v0.3/`. Old v0.2 proof is historical. No Siemens/machine acceptance or full PLCopen conformance is claimed.
 
 ## Current Priority
 

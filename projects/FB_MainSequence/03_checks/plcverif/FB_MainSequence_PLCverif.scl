@@ -362,5 +362,16 @@ xTimeoutDiagnostic := xDiagnosticNext;
 //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND NOT xFaultLatched AND xBusyPhase AND NOT xStepDone AND NOT xTimeoutReached AND xError) : P24_NoEarlyFault
 //#ASSERT NOT ((NOT xClearReq) AND xTimeoutFaultPrev AND NOT xTimeoutFault) : P25_TimeoutReasonHeld
 //#ASSERT NOT (xTimeoutFault AND NOT xTimeoutDiagnostic) : P26_DiagnosticRecordsFault
+// Added after the 2026-09-22 adversarial variant pass; see docs/DECISIONS.md.
+//#ASSERT (xStartPrev = xEvtStart) AND (xResetPrev = xReset) AND (xEnablePrev = xEnable) : P27_EdgeMemoriesTrackInputs
+//#ASSERT NOT ((iPhasePrev = 0) AND (iPhase = 1) AND xCommandAborted) : P28_AbortClearedOnAcceptedStart
+// P29-P31 derive the deadline from the threshold input, the prior timer and the
+// completion levels only; xTimeoutReached never gates a check. The deadline
+// "prevTimer+1 >= N" is written overflow-free as "prev < 65535 AND prev >= N-1";
+// at prev = 65535 the typed +1 wraps to 0, so no threshold is due and the count
+// law is checked against the same wrapped addition on both sides.
+//#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (NOT xTimeoutFaultPrev) AND (uiStepTimeoutScans > 0) AND ((uiStepTimerPrev = 65535) OR (uiStepTimerPrev < (uiStepTimeoutScans - 1))) AND xError) : P29_NoEarlyExpiration
+//#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND (uiStepTimerPrev < 65535) AND (uiStepTimerPrev >= (uiStepTimeoutScans - 1)) AND ((iPhase <> 900) OR (NOT xError) OR (NOT xTimeoutFault))) : P30_DeadlineObligation
+//#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND ((uiStepTimerPrev = 65535) OR (uiStepTimerPrev < (uiStepTimeoutScans - 1))) AND (uiStepTimerStat <> (uiStepTimerPrev + 1))) : P31_WaitingCallCountsOne
 
 END_FUNCTION_BLOCK

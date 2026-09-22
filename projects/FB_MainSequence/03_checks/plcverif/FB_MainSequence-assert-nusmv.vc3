@@ -1,11 +1,11 @@
--description = "Generated continuous-enable core with 26 assertions; real UINT timeout; separate state, outputs and timeout diagnostics."
+-description = "Generated continuous-enable core with 31 assertions; real UINT timeout; separate state, outputs and timeout diagnostics."
 -id = FB_MainSequence-assert-nusmv
 -job = verif
 -job.backend = nusmv
 -job.backend.algorithm = Classic
 -job.backend.df = false
 -job.backend.dynamic = false
--job.backend.timeout = 30
+-job.backend.timeout = 60
 -job.reporters.0 = plaintext
 -job.reporters.0.include_settings = true
 -job.reporters.0.max_output_length = 1000

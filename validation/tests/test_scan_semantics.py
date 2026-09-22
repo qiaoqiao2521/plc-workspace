@@ -42,7 +42,8 @@ class ScanContractTests(unittest.TestCase):
             self.assertFalse(result["error"])
 
     def test_timeout_exact_boundary(self):
-        for timeout in (1, 2, 3, 8, 65535):
+        # Sampled thresholds only; the universally quantified deadline is P30.
+        for timeout in (1, 2, 3, 8, 31, 65535):
             with self.subTest(timeout=timeout):
                 self.r.reset()
                 self.start(timeout)
@@ -140,6 +141,17 @@ class ScanContractTests(unittest.TestCase):
             self.assertEqual(result["phase"], 900)
             self.assertTrue(result["error"])
             self.assertFalse(any(result[k] for k in ("belt_forward", "q1", "q2", "done")))
+
+    def test_illegal_phase_reports_no_timeout(self):
+        # Contract: "Invalid phase raises Error without falsely reporting a timeout."
+        for phase in (-32768, -1, 4, 899, 901, 32767):
+            self.r.reset()
+            self.r.inject(phase)
+            result = self.scan()
+            self.assertEqual(result["phase"], 900)
+            self.assertTrue(result["error"])
+            self.assertFalse(result["timeout_fault"])
+            self.assertFalse(result["timeout_diagnostic"])
 
     def test_enable_loss_cancels_motion(self):
         self.start()

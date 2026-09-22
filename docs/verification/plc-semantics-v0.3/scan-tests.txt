@@ -9,6 +9,7 @@ test_full_cycle_and_done_pulse (__main__.ScanContractTests.test_full_cycle_and_d
 test_generated_projections_match_scan_by_scan (__main__.ScanContractTests.test_generated_projections_match_scan_by_scan) ... ok
 test_held_start_does_not_restart_after_stop (__main__.ScanContractTests.test_held_start_does_not_restart_after_stop) ... ok
 test_illegal_phase_fails_closed (__main__.ScanContractTests.test_illegal_phase_fails_closed) ... ok
+test_illegal_phase_reports_no_timeout (__main__.ScanContractTests.test_illegal_phase_reports_no_timeout) ... ok
 test_live_timeout_reduction_preserves_reason (__main__.ScanContractTests.test_live_timeout_reduction_preserves_reason) ... ok
 test_multiple_done_levels_do_not_cascade_within_scan (__main__.ScanContractTests.test_multiple_done_levels_do_not_cascade_within_scan) ... ok
 test_no_start_no_init_exit (__main__.ScanContractTests.test_no_start_no_init_exit) ... ok
@@ -24,6 +25,6 @@ test_timeout_exact_boundary (__main__.ScanContractTests.test_timeout_exact_bound
 test_zero_disables_timeout (__main__.ScanContractTests.test_zero_disables_timeout) ... ok
 
 ----------------------------------------------------------------------
-Ran 24 tests in 0.108s
+Ran 25 tests in 0.114s
 
 OK

@@ -29,7 +29,7 @@ def main() -> int:
     parser.add_argument("--backend", type=Path, required=True)
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--java", default="java")
-    parser.add_argument("--timeout", type=int, default=30)
+    parser.add_argument("--timeout", type=int, default=60)
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")

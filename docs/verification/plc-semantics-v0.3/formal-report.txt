@@ -7,33 +7,33 @@ Requirement: All the assertions are to be checked.
 **Result: the requirement is SATISFIED**
 
 Backend: NusmvBackend
-Parameters:
-Input bindings:
+Parameters: 
+Input bindings: 
 
 
 
 Stages
 ------
 * Parsing source code (0 ms): Successful
-* Control-flow declaration generation (591 ms): Successful
-* Requirement representation (44 ms): Successful
-* Reductions (CFD) (101 ms): Successful
-* Model preparation (54 ms): Successful
-* Reductions (CFI) (672 ms): Successful
-* NuSMV model building (38 ms): Successful
-* NuSMV execution (29207 ms): Successful
-* NuSMV output parsing (3 ms): Successful
+* Control-flow declaration generation (722 ms): Successful
+* Requirement representation (81 ms): Successful
+* Reductions (CFD) (100 ms): Successful
+* Model preparation (82 ms): Successful
+* Reductions (CFI) (1148 ms): Successful
+* NuSMV model building (47 ms): Successful
+* NuSMV execution (50941 ms): Successful
+* NuSMV output parsing (2 ms): Successful
 * Result diagnosis (0 ms): Successful
 * Reporting (0 ms): Unknown
 
 Settings
 --------
-  -description = "Generated continuous-enable core with 26 assertions; real UINT timeout; separate state, outputs and timeout diagnostics."
+  -description = "Generated continuous-enable core with 31 assertions; real UINT timeout; separate state, outputs and timeout diagnostics."
   -id = FB_MainSequence-assert-nusmv
   -job = verif
   -job.backend = nusmv
   -job.backend.algorithm = Classic
-  -job.backend.binary_path = /opt/nuxmv/bin/nuXmv
+  -job.backend.binary_path = /home/muqiao/repo-revival/plc-adversarial-lab/tools/nuxmv/bin/nuXmv
   -job.backend.df = true
   -job.backend.dynamic = true
   -job.backend.locref_req_strategy = false
@@ -54,7 +54,7 @@ Settings
   -lf.compiler = Tia1500
   -lf.entry = FB_MainSequence
   -name = "FB_MainSequence property assertions"
-  -output = /audit/plc-implementation/formal/20260922T135007290292Z/output/2026-09-22_13-50-08
+  -output = /home/muqiao/repo-revival/plc-adversarial-lab/evidence-staging/formal/20260922T165103846706Z/output/2026-09-23_00-51-04
   -reductions.0 = basic_reductions
   -reductions.0.ExpressionPropagation_maxage = 50
   -reductions.0.ExpressionPropagation_maxexprsize = 100
@@ -84,10 +84,12 @@ STDOUT
 *** This version of nuXmv is linked to the CUDD library version 2.4.1
 *** Copyright (c) 1995-2004, Regents of the University of Colorado
 
-*** This version of nuXmv is linked to the MiniSat SAT solver.
+*** This version of nuXmv is linked to the MiniSat SAT solver. 
 *** See http://minisat.se/MiniSat.html
 *** Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
 *** Copyright (c) 2007-2010, Niklas Sorensson
 
 *** This version of nuXmv is linked to MathSAT
 *** Copyright (C) 2009-2019 by [...]
+
+
