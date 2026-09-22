@@ -1,0 +1,96 @@
+schema_version: 1
+project: FB_MainSequence
+maintainer_scope: project-local
+updated_at: "2026-09-22"
+semantic_contract: ../01_specs/scan-contract.md
+current_status: implemented_abstract_core
+current_evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+
+spec_sources:
+  requirements: ../01_specs/requirements.md
+  state_machine: ../01_specs/state_machine.md
+  fb_specs: ../01_specs/fb_specs.md
+  properties: ../01_specs/properties.md
+
+implementation:
+  source_dir: ../02_src/st
+  units:
+    - FB_MainSequence.st
+    - FC_MainSequence_BusyPhase.st
+    - FC_MainSequence_InvalidPhase.st
+    - FC_MainSequence_NextPhase.st
+    - FC_MainSequence_NextTimeoutFault.st
+    - FC_MainSequence_NextTimer.st
+    - FC_MainSequence_StepDone.st
+    - FC_MainSequence_SuccessPhase.st
+    - FC_MainSequence_TimeoutReached.st
+
+check_inputs:
+  plcverif_case: ../03_checks/plcverif/FB_MainSequence-assert-nusmv.vc3
+  plcverif_source_projection: ../03_checks/plcverif/FB_MainSequence_PLCverif.scl
+  openplc_source_projection: ../03_checks/openplc/FB_MainSequence_OpenPLC.st
+
+historical_evidence_not_valid_for_current_source:
+  static_report: ../04_reports/static/static-gate-20260402-194851.md
+  modelcheck_report: ../04_reports/modelcheck/modelcheck-gate-20260415-010118.md
+  smoke_report: ../04_reports/smoke/smoke-gate-20260402-201547.md
+  tia_final_report: null
+
+requirements:
+  - id: REQ-START-001
+    statement: Fresh enabled Start required
+    properties: [P8]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SEQ-001
+    statement: Transport completes
+    properties: [P9]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SEQ-002
+    statement: Flip completes
+    properties: [P10]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SEQ-003
+    statement: Output completes
+    properties: [P11, P18]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SAFETY-001
+    statement: External safety inhibit
+    properties: [P3, P4, P7]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SAFETY-002
+    statement: Stop cancels without acknowledging error
+    properties: [P3, P4, P5]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SAFETY-003
+    statement: Belt exclusion
+    properties: [P1]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SAFETY-004
+    statement: Exact timeout commits together
+    properties: [P13, P14, P17, P24]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-SAFETY-005
+    statement: Error retained until disable
+    properties: [P2, P7, P25]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-ENABLE-001
+    statement: Continuous enable
+    properties: [P2, P3, P8, P21]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-DIAG-001
+    statement: Separate timeout history
+    properties: [P19, P20, P26]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-RESET-001
+    statement: Healthy reset only
+    properties: [P6, P7, P8]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-COMMAND-001
+    statement: Command status
+    properties: [P22, P23]
+    evidence: ../../../docs/verification/plc-semantics-v0.3/summary.json
+  - id: REQ-OWNERSHIP-001
+    statement: Internal state and output publication are separate
+    evidence: ../../../docs/verification/plc-semantics-v0.3/scan-tests.txt
+
+separate_acceptance_not_claimed: [TIA, PLCSIM, full_OpenPLC_service, physical_machine, F_safety]

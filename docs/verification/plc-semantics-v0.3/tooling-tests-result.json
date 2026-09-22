@@ -1,0 +1,11 @@
+{
+  "projection_tests": {
+    "run": 4,
+    "passed": 4
+  },
+  "verdict_tests": {
+    "run": 4,
+    "passed": 4
+  },
+  "evidence_kind": "results observed from unittest commands in this implementation turn"
+}

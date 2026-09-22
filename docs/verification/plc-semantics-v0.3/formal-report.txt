@@ -1,0 +1,93 @@
+FB_MainSequence property assertions
+===================================
+
+Requirement: All the assertions are to be checked.
+             (AG (EoC --> (__assertion_error = 0)))
+
+**Result: the requirement is SATISFIED**
+
+Backend: NusmvBackend
+Parameters:
+Input bindings:
+
+
+
+Stages
+------
+* Parsing source code (0 ms): Successful
+* Control-flow declaration generation (591 ms): Successful
+* Requirement representation (44 ms): Successful
+* Reductions (CFD) (101 ms): Successful
+* Model preparation (54 ms): Successful
+* Reductions (CFI) (672 ms): Successful
+* NuSMV model building (38 ms): Successful
+* NuSMV execution (29207 ms): Successful
+* NuSMV output parsing (3 ms): Successful
+* Result diagnosis (0 ms): Successful
+* Reporting (0 ms): Unknown
+
+Settings
+--------
+  -description = "Generated continuous-enable core with 26 assertions; real UINT timeout; separate state, outputs and timeout diagnostics."
+  -id = FB_MainSequence-assert-nusmv
+  -job = verif
+  -job.backend = nusmv
+  -job.backend.algorithm = Classic
+  -job.backend.binary_path = /opt/nuxmv/bin/nuXmv
+  -job.backend.df = true
+  -job.backend.dynamic = true
+  -job.backend.locref_req_strategy = false
+  -job.backend.req_as_invar = false
+  -job.backend.timeout = 60
+  -job.reporters.0 = plaintext
+  -job.reporters.0.include_settings = true
+  -job.reporters.0.max_output_length = 1000
+  -job.reporters.0.min_log_level = Warning
+  -job.reporters.0.show_logitem_timestapms = false
+  -job.reporters.0.write_to_console = true
+  -job.reporters.0.write_to_file = true
+  -job.req = assertion
+  -job.req.assert_representation_strategy = INTEGER
+  -job.req.assertion_to_check.0 = *
+  -job.req.max_expr_size_for_detailed_diagnosis = 250
+  -lf = step7
+  -lf.compiler = Tia1500
+  -lf.entry = FB_MainSequence
+  -name = "FB_MainSequence property assertions"
+  -output = /audit/plc-implementation/formal/20260922T135007290292Z/output/2026-09-22_13-50-08
+  -reductions.0 = basic_reductions
+  -reductions.0.ExpressionPropagation_maxage = 50
+  -reductions.0.ExpressionPropagation_maxexprsize = 100
+  -reductions.0.ExpressionPropagation_maxlocations = 50000
+  -reductions.0.fine_logging = false
+  -reductions.0.print_vardep_graph = false
+  -reductions.0.show_progress = false
+  -sourcefiles.0 = FB_MainSequence_PLCverif.scl
+
+Console output
+--------------
+STDOUT
+
+*** This is nuXmv 2.1.0 (compiled on Fri Nov 29 13:41:31 2024)
+*** Copyright (c) 2014-2024, Fondazione Bruno Kessler
+*** For more information on nuXmv see https://nuxmv.fbk.eu
+*** or email to <nuxmv@fbk.eu>.
+*** Please report bugs at Please report bugs to <nusmv-users@fbk.eu>
+*** (click on "Login Anonymously" to access)
+*** Alternatively write to <nuxmv@fbk.eu>.
+
+*** This version of nuXmv is linked to NuSMV 2.7.0.
+*** For more information on NuSMV see <http://nusmv.fbk.eu>
+*** or email to <nusmv-users@fbk.eu>.
+*** Copyright (C) 2010-2024, Fondazione Bruno Kessler
+
+*** This version of nuXmv is linked to the CUDD library version 2.4.1
+*** Copyright (c) 1995-2004, Regents of the University of Colorado
+
+*** This version of nuXmv is linked to the MiniSat SAT solver.
+*** See http://minisat.se/MiniSat.html
+*** Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+*** Copyright (c) 2007-2010, Niklas Sorensson
+
+*** This version of nuXmv is linked to MathSAT
+*** Copyright (C) 2009-2019 by [...]

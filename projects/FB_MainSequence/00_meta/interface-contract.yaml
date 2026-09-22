@@ -1,0 +1,74 @@
+schema_version: 1
+project: FB_MainSequence
+block: FB_MainSequence
+updated_at: "2026-09-22"
+semantic_status: implemented_abstract_core
+scan_contract: ../01_specs/scan-contract.md
+
+compatibility_policy:
+  current_contract_version: "0.2.0"
+  versioning_rule: semantic
+  non_breaking_changes:
+    - append_output
+    - append_input_with_safe_default
+    - append_internal_state
+  breaking_changes:
+    - rename_input_or_output
+    - change_data_type
+    - remove_input_or_output
+    - change_phase_numeric_meaning
+    - change_command_or_error_lifecycle
+
+io_contract:
+  inputs:
+    - { name: xEnable, type: BOOL, required: true }
+    - { name: xEvtStart, type: BOOL, required: true }
+    - { name: xEStop, type: BOOL, required: true }
+    - { name: xStop, type: BOOL, required: true }
+    - { name: xReset, type: BOOL, required: true }
+    - { name: xInitDone, type: BOOL, required: true }
+    - { name: xTransportDone, type: BOOL, required: true }
+    - { name: xFlipDone, type: BOOL, required: true }
+    - { name: xOutputDone, type: BOOL, required: true }
+    - { name: uiStepTimeoutScans, type: UINT, required: true }
+  outputs:
+    - { name: iPhase, type: INT, required: true }
+    - { name: xBeltForward, type: BOOL, required: true }
+    - { name: xBeltReverse, type: BOOL, required: true }
+    - { name: xStartLamp, type: BOOL, required: true }
+    - { name: xResetLamp, type: BOOL, required: true }
+    - { name: xQ1, type: BOOL, required: true }
+    - { name: xQ2, type: BOOL, required: true }
+    - { name: xDone, type: BOOL, required: true }
+    - { name: xError, type: BOOL, required: true }
+    - { name: xTimeoutFault, type: BOOL, required: true }
+    - { name: xValid, type: BOOL, required: true }
+    - { name: xBusy, type: BOOL, required: true }
+    - { name: xCommandBusy, type: BOOL, required: true }
+    - { name: xCommandAborted, type: BOOL, required: true }
+    - { name: xTimeoutDiagnostic, type: BOOL, required: true }
+
+state_contract:
+  phase_enum:
+    - { value: 0, name: Init }
+    - { value: 1, name: Transport }
+    - { value: 2, name: Flip }
+    - { value: 3, name: Output }
+    - { value: 900, name: Error }
+  required_invariants:
+    - "xBeltForward and xBeltReverse must not be true in the same scan"
+    - "Disable ends execution; current errors clear while diagnostics survive until enable rising"
+    - "Stop/EStop revoke actions without acknowledging existing block errors"
+    - "Timeout in busy phase forces Error"
+
+sync_contract:
+  source_of_truth: ../02_src/st/
+  projection_generator: ../../../validation/scripts/sync-semantics.py
+  projection_manifest: projection-manifest.json
+  projections:
+    - ../03_checks/plcverif/FB_MainSequence_PLCverif.scl
+    - ../03_checks/openplc/FB_MainSequence_OpenPLC.st
+  required_after_projection_change:
+    - static
+    - modelcheck
+    - smoke

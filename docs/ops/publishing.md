@@ -12,6 +12,8 @@ The public git repository contains:
 - validation scripts
 - contracts and operations documentation
 - runtime asset export tooling
+- the versioned FB_MainSequence abstract core, semantic tests and generated projections
+- compact source-bound verification records under docs/verification/
 
 The GitHub Release asset `runtime-assets.zip` contains runtime payloads that are
 needed to execute the harness but are intentionally not committed to git:
@@ -60,12 +62,16 @@ releases/runtime-assets.zip
 releases/runtime-assets.manifest.json
 ```
 
-The zip is meant to be extracted over a fresh clone:
+Old archives can contain an obsolete copy of the versioned project. Extract
+outside the checkout and copy only external validation payloads:
 
 ```powershell
 git clone https://github.com/muqiao215/plc-workspace.git
 cd plc-workspace
-Expand-Archive .\runtime-assets.zip -DestinationPath . -Force
+Expand-Archive .\runtime-assets.zip -DestinationPath ..\plc-runtime-assets -Force
+foreach ($folder in @("tools", "config", "docker", "templates")) {
+    Copy-Item "..\plc-runtime-assets\validation\$folder" .\validation\ -Recurse -Force
+}
 ```
 
 ## Create A GitHub Release
@@ -93,7 +99,10 @@ Windows:
 ```powershell
 git clone https://github.com/muqiao215/plc-workspace.git fresh-plc-workspace
 cd fresh-plc-workspace
-Expand-Archive ..\runtime-assets.zip -DestinationPath . -Force
+Expand-Archive ..\runtime-assets.zip -DestinationPath ..\plc-runtime-assets -Force
+foreach ($folder in @("tools", "config", "docker", "templates")) {
+    Copy-Item "..\plc-runtime-assets\validation\$folder" .\validation\ -Recurse -Force
+}
 docker compose -f .\container\docker-compose.release.yml build validator openplc
 docker compose -f .\container\docker-compose.release.yml run --rm validator
 docker compose -f .\container\docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke
@@ -104,7 +113,8 @@ Linux:
 ```bash
 git clone https://github.com/muqiao215/plc-workspace.git fresh-plc-workspace
 cd fresh-plc-workspace
-unzip ../runtime-assets.zip -d .
+unzip ../runtime-assets.zip -d ../plc-runtime-assets
+cp -a ../plc-runtime-assets/validation/{tools,config,docker,templates} validation/
 docker compose -f container/docker-compose.release.yml build validator openplc
 VALIDATOR_PROJECT=/workspace/projects/FB_MainSequence docker compose -f container/docker-compose.release.yml run --rm validator
 SMOKE_PROJECT=/workspace/projects/FB_MainSequence docker compose -f container/docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke

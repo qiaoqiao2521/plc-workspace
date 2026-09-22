@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "source_of_truth": "02_src/st",
+  "formal_abstraction": "none; input timeout is not replaced by a constant",
+  "siemens_final": "unverified",
+  "generator_sha256": "b3b316ba1f95f5b04e7d06599bac849ebbb6e2bdaa384c4a78e5fc968487126c",
+  "inputs": {
+    "02_src/st/FC_MainSequence_BusyPhase.st": "145356b709ad2a0988e0b2f6b5b8e885cfd3905661c3a3261509c9c91aa2d7da",
+    "02_src/st/FC_MainSequence_InvalidPhase.st": "6330a673583aa950ffa69683e7de32acf112b8d2c6ef2451b75909dc8d7bb2ae",
+    "02_src/st/FC_MainSequence_StepDone.st": "e00a9265638eff4806a248687c3828023af705132317f79965e93e482bf68061",
+    "02_src/st/FC_MainSequence_SuccessPhase.st": "2953dd433fd02eb1e47044900e8fc890220fb4d1dfa47f70123d36779c5d4ca9",
+    "02_src/st/FC_MainSequence_TimeoutReached.st": "670e515e4c04e8ba6b6b70b6177702bd614387d497d65d1e02eb4ece41516bb0",
+    "02_src/st/FC_MainSequence_NextPhase.st": "4d2b57efb17b6634553e78957e9b672ce6b435edd1c3f65da9ee2fa1a464bb2a",
+    "02_src/st/FC_MainSequence_NextTimer.st": "a24fe2bbbde76ad2a602ff94bb1d6ba34f5bfa7aa731faf7398cb626e87bb81a",
+    "02_src/st/FC_MainSequence_NextTimeoutFault.st": "351e61904ec63f661b0d71b894043e1f06a26cb6277847ae725a9f308390533e",
+    "02_src/st/FB_MainSequence.st": "18dff7f71de08a2ce52150fa8741bcc50cacf7758513a999ac30a347faaf6c41",
+    "03_checks/plcverif/assertions.scl": "cc684e7d67f0495bfdad9607e8291cc744f4fd13161b3b0d1dfefd317d6ab939",
+    "03_checks/openplc/driver.st": "d4fb6586c497097b96ecd40bc900aec3efb07d1d53b829527652da7ddaf6f8c9",
+    "01_specs/scan-contract.md": "a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca"
+  },
+  "outputs": {
+    "03_checks/plcverif/FB_MainSequence_PLCverif.scl": "2b89042be6b9f923a10b6bfe4de312c666e8004617e1a438a8b6e591bddc9e90",
+    "03_checks/openplc/FB_MainSequence_OpenPLC.st": "84b6b8fc0ce584f18f5eb6da04d084690005044ad355f6d1cca4bcbd498d2be8",
+    "05_tia_sync/exported_scl/FC_MainSequence_BusyPhase.st": "145356b709ad2a0988e0b2f6b5b8e885cfd3905661c3a3261509c9c91aa2d7da",
+    "05_tia_sync/exported_scl/FC_MainSequence_InvalidPhase.st": "6330a673583aa950ffa69683e7de32acf112b8d2c6ef2451b75909dc8d7bb2ae",
+    "05_tia_sync/exported_scl/FC_MainSequence_StepDone.st": "e00a9265638eff4806a248687c3828023af705132317f79965e93e482bf68061",
+    "05_tia_sync/exported_scl/FC_MainSequence_SuccessPhase.st": "2953dd433fd02eb1e47044900e8fc890220fb4d1dfa47f70123d36779c5d4ca9",
+    "05_tia_sync/exported_scl/FC_MainSequence_TimeoutReached.st": "670e515e4c04e8ba6b6b70b6177702bd614387d497d65d1e02eb4ece41516bb0",
+    "05_tia_sync/exported_scl/FC_MainSequence_NextPhase.st": "4d2b57efb17b6634553e78957e9b672ce6b435edd1c3f65da9ee2fa1a464bb2a",
+    "05_tia_sync/exported_scl/FC_MainSequence_NextTimer.st": "a24fe2bbbde76ad2a602ff94bb1d6ba34f5bfa7aa731faf7398cb626e87bb81a",
+    "05_tia_sync/exported_scl/FC_MainSequence_NextTimeoutFault.st": "351e61904ec63f661b0d71b894043e1f06a26cb6277847ae725a9f308390533e",
+    "05_tia_sync/exported_scl/FB_MainSequence.st": "18dff7f71de08a2ce52150fa8741bcc50cacf7758513a999ac30a347faaf6c41"
+  }
+}

@@ -1,5 +1,9 @@
 # PLC Workspace Validation Layer
 
+For PLC semantics and current work, start with [PROJECT.md](PROJECT.md),
+[the scan contract](projects/FB_MainSequence/01_specs/scan-contract.md), and
+[semantic verification](validation/tests/README.md). The v0.3 continuous-enable contract is implemented; passing a legacy gate or generating a TIA payload is not final acceptance.
+
 This repository publishes the containerized validation layer for a Siemens PLC
 workspace. It does not containerize TIA Portal, PLCSIM, or Siemens GUI tools.
 
@@ -14,8 +18,10 @@ host-owned and must be stored under `projects/*/04_reports/tia_final`.
 
 ## Repository vs Runtime Assets
 
-The public git repository intentionally contains only the reusable harness
-logic, container definitions, and documentation.
+The public git repository contains the reusable harness, the versioned
+FB_MainSequence abstract core, semantic tests and generated checker/export
+projections. Compact verification records are in
+[docs/verification/plc-semantics-v0.3](docs/verification/plc-semantics-v0.3).
 
 Large or project-specific runtime assets are shipped separately as a GitHub
 Release asset named `runtime-assets.zip`.
@@ -24,10 +30,14 @@ The release asset is expected to provide:
 
 - `validation/tools/plcverif/`
 - `validation/tools/OpenPLC_v3/`
-- `projects/FB_MainSequence/`
-- `docs/harness/`
+- historical project payloads (do not overwrite the versioned core)
+- additional historical harness documentation
 - `PLC素材库/`
 - selected validation config and template files
+
+Extract old runtime archives outside the checkout. Copy only external validation
+payloads; never overwrite the versioned project or its documentation with an old
+archive. Run the semantic checks in `validation/tests/README.md` for this core.
 
 Generated reports, logs, Eclipse workspaces, Python caches, and historical
 outputs are excluded from that zip.
@@ -47,7 +57,10 @@ git clone https://github.com/muqiao215/plc-workspace.git
 cd plc-workspace
 
 # Download runtime-assets.zip from the GitHub Release page, then:
-Expand-Archive .\runtime-assets.zip -DestinationPath . -Force
+Expand-Archive .\runtime-assets.zip -DestinationPath ..\plc-runtime-assets -Force
+foreach ($folder in @("tools", "config", "docker", "templates")) {
+    Copy-Item "..\plc-runtime-assets\validation\$folder" .\validation\ -Recurse -Force
+}
 ```
 
 Run validation:
@@ -80,7 +93,8 @@ Setup:
 ```bash
 git clone https://github.com/muqiao215/plc-workspace.git
 cd plc-workspace
-unzip runtime-assets.zip -d .
+unzip runtime-assets.zip -d ../plc-runtime-assets
+cp -a ../plc-runtime-assets/validation/{tools,config,docker,templates} validation/
 ```
 
 Run validation:

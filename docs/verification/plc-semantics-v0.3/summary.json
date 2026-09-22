@@ -1,0 +1,39 @@
+{
+  "status": "implemented_and_verified_abstract_core",
+  "contract": "v0.3",
+  "interface_version": "0.2.0",
+  "base_head": "e8c282f4defdea8f7c8c8501cf149ecb11ada129",
+  "scan_tests": 24,
+  "control_combinations": 160,
+  "differential_calls": 5000,
+  "tooling_tests": 8,
+  "formal_assertions": 26,
+  "formal_result": "pass",
+  "formal_parameter_domain": "all UINT timeout values, independently sampled on each scan",
+  "formal_source_sha256": "2b89042be6b9f923a10b6bfe4de312c666e8004617e1a438a8b6e591bddc9e90",
+  "formal_case_sha256": "20321daea00e30e2fff572727ffd2fb783f6ec6d43c7ce7071fab4fc9caf4013",
+  "projection_manifest_sha256": "d93fa42be7ba0d58fef306a910e252b508bcb3ca370238cd42388333c734949f",
+  "negative_control_gate_exit": 1,
+  "native_openplc_driver": {
+    "result": "pass",
+    "detail": "PASS at call 50; phase=0; scenario=99; cycles=2",
+    "source_sha256": "84b6b8fc0ce584f18f5eb6da04d084690005044ad355f6d1cca4bcbd498d2be8",
+    "scope": "native complete test program; no OpenPLC service or Siemens acceptance"
+  },
+  "migration": [
+    "Maintain Enable; always invoke FB even while disabled",
+    "Current block errors clear on an observed disabled call, not business Reset",
+    "Enable rising clears historical timeout diagnostic",
+    "Start/Reset edges are consumed even while rejected",
+    "Five appended outputs and changed instance memory layout"
+  ],
+  "not_verified": [
+    "TIA compilation/import and instance DB migration",
+    "PLCSIM and real machine",
+    "F safety implementation",
+    "full OpenPLC service",
+    "restart retention",
+    "complete PLCopen conformance"
+  ],
+  "record_kind": "verification snapshot before publication; not Siemens acceptance"
+}

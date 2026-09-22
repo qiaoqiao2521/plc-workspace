@@ -1,0 +1,6 @@
+{
+  "result": "pass",
+  "detail": "PASS at call 50; phase=0; scenario=99; cycles=2",
+  "source_sha256": "84b6b8fc0ce584f18f5eb6da04d084690005044ad355f6d1cca4bcbd498d2be8",
+  "scope": "native complete test program; no OpenPLC service or Siemens acceptance"
+}
