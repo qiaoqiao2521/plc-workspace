@@ -25,6 +25,6 @@ test_timeout_exact_boundary (__main__.ScanContractTests.test_timeout_exact_bound
 test_zero_disables_timeout (__main__.ScanContractTests.test_zero_disables_timeout) ... ok
 
 ----------------------------------------------------------------------
-Ran 25 tests in 0.114s
+Ran 25 tests in 0.103s
 
 OK

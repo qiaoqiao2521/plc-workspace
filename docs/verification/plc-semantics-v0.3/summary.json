@@ -2,7 +2,7 @@
   "status": "implemented_and_verified_abstract_core",
   "contract": "v0.3",
   "interface_version": "0.2.0",
-  "base_head": "21bfa0ab479a513444d91428c9abb76927aeecbc",
+  "base_head": "3c05dd6bce6343733e9cb5878233790d1efbaada",
   "scan_tests": 25,
   "control_combinations": 160,
   "differential_calls": 5000,
@@ -10,9 +10,9 @@
   "formal_assertions": 31,
   "formal_result": "pass",
   "formal_parameter_domain": "all UINT timeout values, independently sampled on each scan",
-  "formal_source_sha256": "6678401ffcbb76662ce4418c1361f784c5ae7583202e75ac4cf33d00e0974de8",
+  "formal_source_sha256": "01bd115f4525cd7a9366f96a28f77f1e9ae75ebab0d2d7faaacbb98aef510bca",
   "formal_case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
-  "projection_manifest_sha256": "f946ce79cfb49db027b19d711dbf0798601db21e2caf6f67f3c3022afd68ac54",
+  "projection_manifest_sha256": "d8ce6ca4481a2263b934ca5365a0b93b07872c2dfdf331f2908f65d7b17276c2",
   "negative_control_gate_exit": 1,
   "adversarial_variant_pass": {
     "dates": "2026-09-22/23",
@@ -37,6 +37,6 @@
     "restart retention",
     "complete PLCopen conformance"
   ],
-  "committed": true,
-  "pushed": true
+  "committed": false,
+  "pushed": false
 }

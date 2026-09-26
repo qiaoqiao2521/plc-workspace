@@ -15,14 +15,14 @@ Input bindings:
 Stages
 ------
 * Parsing source code (0 ms): Successful
-* Control-flow declaration generation (722 ms): Successful
-* Requirement representation (81 ms): Successful
-* Reductions (CFD) (100 ms): Successful
-* Model preparation (82 ms): Successful
-* Reductions (CFI) (1148 ms): Successful
-* NuSMV model building (47 ms): Successful
-* NuSMV execution (50941 ms): Successful
-* NuSMV output parsing (2 ms): Successful
+* Control-flow declaration generation (772 ms): Successful
+* Requirement representation (112 ms): Successful
+* Reductions (CFD) (173 ms): Successful
+* Model preparation (158 ms): Successful
+* Reductions (CFI) (1298 ms): Successful
+* NuSMV model building (51 ms): Successful
+* NuSMV execution (42108 ms): Successful
+* NuSMV output parsing (3 ms): Successful
 * Result diagnosis (0 ms): Successful
 * Reporting (0 ms): Unknown
 
@@ -54,7 +54,7 @@ Settings
   -lf.compiler = Tia1500
   -lf.entry = FB_MainSequence
   -name = "FB_MainSequence property assertions"
-  -output = /home/muqiao/repo-revival/plc-adversarial-lab/evidence-staging/formal/20260922T165103846706Z/output/2026-09-23_00-51-04
+  -output = /home/muqiao/repo-revival/plc-adversarial-lab/evidence-staging/formal/20260926T115937886495Z/output/2026-09-26_19-59-39
   -reductions.0 = basic_reductions
   -reductions.0.ExpressionPropagation_maxage = 50
   -reductions.0.ExpressionPropagation_maxexprsize = 100

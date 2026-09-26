@@ -31,8 +31,10 @@
 // P29-P31 derive the deadline from the threshold input, the prior timer and the
 // completion levels only; xTimeoutReached never gates a check. The deadline
 // "prevTimer+1 >= N" is written overflow-free as "prev < 65535 AND prev >= N-1";
-// at prev = 65535 the typed +1 wraps to 0, so no threshold is due and the count
-// law is checked against the same wrapped addition on both sides.
+// From initialization, prev never exceeds 65534: N=0 clears the timer,
+// and any positive UINT threshold expires before another increment can reach 65535.
+// The prev=65535 branches are outside this reachable-state proof; they do not
+// establish behavior for injected state or cross-tool overflow equivalence.
 //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (NOT xTimeoutFaultPrev) AND (uiStepTimeoutScans > 0) AND ((uiStepTimerPrev = 65535) OR (uiStepTimerPrev < (uiStepTimeoutScans - 1))) AND xError) : P29_NoEarlyExpiration
 //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND (uiStepTimerPrev < 65535) AND (uiStepTimerPrev >= (uiStepTimeoutScans - 1)) AND ((iPhase <> 900) OR (NOT xError) OR (NOT xTimeoutFault))) : P30_DeadlineObligation
 //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND ((uiStepTimerPrev = 65535) OR (uiStepTimerPrev < (uiStepTimeoutScans - 1))) AND (uiStepTimerStat <> (uiStepTimerPrev + 1))) : P31_WaitingCallCountsOne
