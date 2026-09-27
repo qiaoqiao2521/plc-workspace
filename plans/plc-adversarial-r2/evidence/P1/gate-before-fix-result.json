@@ -1,0 +1,13 @@
+{
+  "result": "pass",
+  "tool_exit": 0,
+  "parameter_domain": "all UINT timeout values, independently sampled on each scan",
+  "algorithm": "Classic; dynamic reordering; CTL assertion requirement",
+  "source_sha256": "df3681afe2b05f5d1d88a228b0c37d4a78957c52edcfa303c481cb17ea400f66",
+  "case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
+  "projection_manifest_sha256": "7c25519d49cf6d32302e7d260d1c976f8b53cf9f943fd28f2c667bcb28840644",
+  "assertion_count": 32,
+  "required_assertions_missing": [],
+  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-r2/results/P1-true-kept-ids/formal-precheck/20260927T070619596862Z",
+  "siemens_final": "unverified"
+}

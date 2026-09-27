@@ -13,6 +13,21 @@ import subprocess
 import sys
 
 
+def missing_required_assertions(source_text: str, required_text: str) -> list:
+    """Required assertion lines (verbatim) that the formal source must contain.
+    IDs alone are not enough: a variant that keeps every name and rewrites every
+    expression to TRUE passed the solver, so each pinned line is matched in full.
+    Additional assertion lines (e.g. the negative control's appended FALSE) are
+    tolerated; they cannot satisfy a violated required assertion."""
+    found = set(line.rstrip() for line in source_text.splitlines())
+    baseline = [line.rstrip() for line in required_text.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")]
+    if not baseline or any(not re.fullmatch(r"//#ASSERT .+ : P\d+_\w+", line)
+                           for line in baseline):
+        raise ValueError("required assertion baseline must contain valid, nonempty assertion lines")
+    return [line for line in baseline if line not in found]
+
+
 def verdict(output: str, exit_code: int) -> str:
     results = re.findall(r"\*\*Result: the requirement is (SATISFIED|VIOLATED|UNKNOWN)\*\*", output)
     if "VIOLATED" in results:
@@ -48,6 +63,16 @@ def main() -> int:
     run.mkdir(parents=True, exist_ok=False)
     checkdir = args.project / "03_checks/plcverif"
     source = checkdir / "FB_MainSequence_PLCverif.scl"
+    try:
+        missing = missing_required_assertions(source.read_text(),
+                                              (checkdir / "required-assertions.txt").read_text())
+    except (OSError, ValueError) as exc:
+        print(f"BLOCKED: {exc}", file=sys.stderr)
+        return 2
+    if missing:
+        print("BLOCKED: formal source is missing required assertions: "
+              + ", ".join(missing), file=sys.stderr)
+        return 2
     case = checkdir / "FB_MainSequence-assert-nusmv.vc3"
     for path in (source, case):
         shutil.copy2(path, run / path.name)
@@ -80,6 +105,8 @@ def main() -> int:
         "case_sha256": sha(run / case.name),
         "projection_manifest_sha256": sha(args.project / "00_meta/projection-manifest.json"),
         "assertion_count": len(re.findall(r"(?m)^\s*//#ASSERT ", source.read_text())),
+        "required_assertions_missing": [],
+        "required_assertions_sha256": sha(checkdir / "required-assertions.txt"),
         "run_dir": str(run),
         "siemens_final": "unverified",
     }

@@ -1,0 +1,503 @@
+{
+  "schema_version": "capmesh.experiment.v1",
+  "id": "exp-da2a4f55f6876751b86ea28e",
+  "spec": {
+    "identity": {
+      "repo": "plc-workspace",
+      "capability": "plc-scan-semantics-verification",
+      "contract": "scan-contract-v0.3",
+      "error_class": "verification-evasion",
+      "subject": "live-threshold-commonmode-and-evidence-gate-mutation"
+    },
+    "repository_ref": "qiaoqiao2521/plc-workspace",
+    "workflow": "mutation",
+    "question": "现有验证体系能否拒绝违反 scan contract v0.3 的跨扫描行为（运行中阈值切零的计时语义、Reset 边沿接受要求），以及不满足验收条件的证据发布（正向断言集被削弱仍刷新成功）？",
+    "reopen_when": "scan-contract 语义变更、02_src/st 重写、验证层（扫描套件/形式断言/同步门禁/刷新门禁）替换、或新增被证实的错误机制时才重开；仅换阈值、改名、换随机种子不构成重开理由",
+    "contract": {
+      "reference": "projects/FB_MainSequence/01_specs/scan-contract.md v0.3 — 节 Continuous block lifecycle / Commands and priority / Outputs and command lifecycle / Scan-count timeout；发布验收条件见 plc-adversarial-lab/refresh_evidence.sh 头注与 04_reports/semantics/v0.3/README.md 声明内容",
+      "version": "sha256:a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+      "expectation": "独立判定表先于变体保存于 plans/plc-adversarial-r2/oracle/expected-behavior.md；实现已读（非盲测，如实声明），判据全部从契约文本推导"
+    },
+    "scope": {
+      "root": "/home/muqiao/repo-revival/plc-workspace",
+      "paths": [
+        "projects/FB_MainSequence/01_specs/scan-contract.md",
+        "projects/FB_MainSequence/02_src/st/FB_MainSequence.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_BusyPhase.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_InvalidPhase.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextPhase.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimeoutFault.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimer.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_StepDone.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_SuccessPhase.st",
+        "projects/FB_MainSequence/02_src/st/FC_MainSequence_TimeoutReached.st",
+        "projects/FB_MainSequence/03_checks/plcverif/assertions.scl",
+        "projects/FB_MainSequence/03_checks/openplc/driver.st",
+        "projects/FB_MainSequence/00_meta/projection-manifest.json",
+        "validation/scripts/sync-semantics.py",
+        "validation/scripts/run-semantic-modelcheck.py",
+        "validation/tests/test_scan_semantics.py",
+        "validation/tests/scan_runtime.py",
+        "validation/tests/run_openplc_driver.py",
+        "validation/tests/test_modelcheck_verdict.py",
+        "validation/tests/test_projection_sync.py"
+      ]
+    },
+    "budget": {
+      "attempts": 6,
+      "corrections": 3,
+      "stability": 0
+    },
+    "quality_dimensions": {
+      "correctness": "covered",
+      "data_integrity": "covered",
+      "privacy_permissions": "not_applicable",
+      "performance": "not_covered",
+      "compatibility": "not_covered",
+      "accessibility": "not_applicable"
+    },
+    "baseline_notes": "基线 @ cf37971（2026-09-26 实测）：漂移门 exit0；扫描套件 25/25 OK；原生驱动 pass；工具套件 4+4 OK；形式 31 断言 60s 预算 UNKNOWN（nuXmv 后端超时，历史实测 ~47s，当前机器变慢），300s 扩展重跑 = pass/SATISFIED（results/baseline/formal-300/）。60s 默认预算在本机已不足以完成正向联合证明，属环境事实而非判定缺陷；各变体形式层默认先 60s，unknown 时按每变体一次 300s 扩展归因。仓库工作树含无关脏文件（container/* 暂存 mode 变更、docs/harness 等未跟踪），验证链 scope 文件全部干净；不 reset、不 clean。预算依据：3 机制 x (1 探索 + 1 纠偏) = 6 尝试上限，其中纠偏至多 3；总运行次数含中断与失败。形式预算：门禁默认 60s；必要时每变体至多一次 300s 扩展诊断，全部计入命令记录。"
+  },
+  "created_at": "2026-09-26T16:14:13.681390+00:00",
+  "attempts": [
+    {
+      "number": 1,
+      "started_at": "2026-09-26T16:14:48.998878+00:00",
+      "kind": "exploration",
+      "execution": "completed",
+      "fingerprint": "5dd2f09178fcdc84608972b8c1b79fb63593f7d85b5d20630161451c4a3c6139",
+      "baseline": {
+        "head": "cf37971d5ebba4beff0860f64e81ed5a89a630b6",
+        "files": {
+          "projects/FB_MainSequence/01_specs/scan-contract.md": "a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+          "projects/FB_MainSequence/02_src/st/FB_MainSequence.st": "18dff7f71de08a2ce52150fa8741bcc50cacf7758513a999ac30a347faaf6c41",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_BusyPhase.st": "145356b709ad2a0988e0b2f6b5b8e885cfd3905661c3a3261509c9c91aa2d7da",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_InvalidPhase.st": "6330a673583aa950ffa69683e7de32acf112b8d2c6ef2451b75909dc8d7bb2ae",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextPhase.st": "4d2b57efb17b6634553e78957e9b672ce6b435edd1c3f65da9ee2fa1a464bb2a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimeoutFault.st": "351e61904ec63f661b0d71b894043e1f06a26cb6277847ae725a9f308390533e",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimer.st": "a24fe2bbbde76ad2a602ff94bb1d6ba34f5bfa7aa731faf7398cb626e87bb81a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_StepDone.st": "e00a9265638eff4806a248687c3828023af705132317f79965e93e482bf68061",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_SuccessPhase.st": "2953dd433fd02eb1e47044900e8fc890220fb4d1dfa47f70123d36779c5d4ca9",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_TimeoutReached.st": "670e515e4c04e8ba6b6b70b6177702bd614387d497d65d1e02eb4ece41516bb0",
+          "projects/FB_MainSequence/03_checks/plcverif/assertions.scl": "89f43d99d42963eb319750f8f1b76ac70e31cbb6e6f457dd513fc742d410f1b7",
+          "projects/FB_MainSequence/03_checks/openplc/driver.st": "d4fb6586c497097b96ecd40bc900aec3efb07d1d53b829527652da7ddaf6f8c9",
+          "projects/FB_MainSequence/00_meta/projection-manifest.json": "d8ce6ca4481a2263b934ca5365a0b93b07872c2dfdf331f2908f65d7b17276c2",
+          "validation/scripts/sync-semantics.py": "b3b316ba1f95f5b04e7d06599bac849ebbb6e2bdaa384c4a78e5fc968487126c",
+          "validation/scripts/run-semantic-modelcheck.py": "11911951072f9221acccdbd35038881f22212570efb51cc9fbd26546655b632e",
+          "validation/tests/test_scan_semantics.py": "01b10bfc718c439aa562d2999f9efe0ab2f21d5802fbff08cb7599139933b394",
+          "validation/tests/scan_runtime.py": "58d2e2a30dd2830aff9d2c8a7cf74dd038222d255dc878a5351ec35e3bb434bc",
+          "validation/tests/run_openplc_driver.py": "703454117d8a6ae94265a5a3f2edec2db9f397808c010c2c7adc498277075da8",
+          "validation/tests/test_modelcheck_verdict.py": "954b4e8a6f7e48a9c88e785686ac5c67a94c99e350d5b4b6a668e9675a36221b",
+          "validation/tests/test_projection_sync.py": "44e91ccb4f88eb70d862940233c757e8ed5458a5d1aa348cb5976cb893fcb380"
+        },
+        "dirty": ""
+      },
+      "coverage": {
+        "inputs": "oracle 判定表 §1 序列 S0: start↑ 进相 N=8 → 3 等待拍(timer 1..3) → N=0 两拍(预期 timer=0) → N=2 恢复(预期 timer=1 再到期 900) + 完成同拍对照; 逐拍独立预期见 plans/plc-adversarial-r2/oracle/expected-behavior.md",
+        "fault": "FC_MainSequence_NextTimer.st: xBusyPhase AND N>0 计数分支后, 新增 ELSIF xBusyPhase THEN 保持 uiStepTimerStat（切零冻结 timer, 违反 F2\"keeps timer zero\"）——等待中切零后恢复正值导致提前到期",
+        "entrypoint": "validation/tests/test_scan_semantics.py 编译 ST 扫描套件; run_openplc_driver.py; run-semantic-modelcheck.py (PLCverif+nuXmv); sync-semantics.py 漂移门",
+        "oracle": "独立判定表 §1: N=0 等待拍 timer 必须为 0, 恢复 N 后按 F1 从 prev 计拍到; 责任检查=扫描套件断言/形式断言/驱动; 预测无既有断言覆盖(P17/P29-P31 均以 N>0 为前提)"
+      },
+      "environment": {
+        "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; GCC 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04.1); OpenJDK 17.0.20; matiec iec2c (lab tools/bin, 2026-09-22 build); nuXmv 2.1.0; PLCverif CLI launcher org.eclipse.equinox.launcher_1.4.0.v20161219-1356",
+        "command": "变体隔离副本上: sync-semantics.py --check(漂移门) → --write → run_layers.sh(扫描套件/原生驱动/形式60s/工具套件)；形式 unknown 时一次 --timeout 300 扩展"
+      },
+      "reason": "新错误机制 M1：运行中阈值切零的计时语义（契约 F2\"切零禁用计数且 timer 保持为零\"）。既有 V1-V8 全部固定 N>0 或从零起步（test_zero_disables 仅覆盖 N=0 起步），无任何层覆盖等待中切零再恢复正值的跨扫描行为；预测：实现若把切零实现为冻结 timer，全部检查放过（missed）。",
+      "sample": null,
+      "contract": {
+        "reference": "projects/FB_MainSequence/01_specs/scan-contract.md v0.3 — 节 Continuous block lifecycle / Commands and priority / Outputs and command lifecycle / Scan-count timeout；发布验收条件见 plc-adversarial-lab/refresh_evidence.sh 头注与 04_reports/semantics/v0.3/README.md 声明内容",
+        "version": "sha256:a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+        "expectation": "独立判定表先于变体保存于 plans/plc-adversarial-r2/oracle/expected-behavior.md；实现已读（非盲测，如实声明），判据全部从契约文本推导"
+      },
+      "result": {
+        "conclusion": "missed",
+        "observation": "M1(切零冻结计时器)系统级漏检。planted: NextTimer.mutant.st + NextTimer.planted.diff(新增 ELSIF xBusyPhase 保持分支)。reached+contract_violation: probe_S0.json 显示 N=0 两拍 timer=3(契约 F2 要求为0)，恢复 N=2 首拍即 900+error(契约 F1 要求 phase=1,timer=1)；对照基线 probe_S0.json(根目录副本)逐拍符合判定表。责任检查核对——漂移门: 未同步时 exit1 拦截(door本职,非语义检出)，同步后 exit0 放行；扫描套件 25/25 OK(exit0)；原生驱动 pass(exit0)；形式 31 断言 60s=unknown(后端超时,与基线环境一致)，300s 扩展一次=pass/SATISFIED(formal-300-result.json)；工具套件 exit0。无任何具名检查因该违反失败 → missed。注: 探针首轮曾因等待拍漏传 enable 而无效,属实验仪表缺陷(已修正并重跑),非仓库检查结果,总运行命令数已含。",
+        "decision": "最小修复: assertions.scl 增契约导出 P32(N=0 等待拍 timer 必须为0)+原生回归 test_zero_midwait_keeps_timer_zero(判定表§1 独立预期),同步投影,重跑基线与本变体验证拒绝",
+        "regression": "unverified",
+        "artifacts": {
+          "variant_probe_S0": {
+            "path": "evidence/M1/probe_S0_mutant.json",
+            "sha256": "fe893f1d6846fac96cc652a8e66e4a2e5a8b8452c7afce0e476819be6508f523"
+          },
+          "baseline_probe_S0": {
+            "path": "evidence/M1/probe_S0_baseline.json",
+            "sha256": "bb97c3704d2dd47aacd013ba1cd9302850786eb1a6fc7f78058629d88eea7b0f"
+          },
+          "planted_diff": {
+            "path": "evidence/M1/NextTimer.planted.diff",
+            "sha256": "f7284255bfd424a8669f2b7ce13cba5c42d743175a3e43cb56a6f8eea5cb02fd"
+          },
+          "mutant_source": {
+            "path": "evidence/M1/NextTimer.mutant.st",
+            "sha256": "68f279e91c4e204273ea958193130e6e66d5620dcbddecb7941b1c6eaffeaef0"
+          },
+          "drift_prewrite": {
+            "path": "evidence/M1/drift_prewrite.exit",
+            "sha256": "01f549bd6cb6c08d176208a1274986016c46b4f5e5e9b39dbf3fe710aae3a675"
+          },
+          "scan_exit": {
+            "path": "evidence/M1/scan.exit",
+            "sha256": "940ef6abce055dd6237be97dc70000b6791a7b7b55ad5aa47206e41086fa0e35"
+          },
+          "driver_exit": {
+            "path": "evidence/M1/driver.exit",
+            "sha256": "d50c642d50fc6ecc59f5c8e96f0b1514c3cb471ae1fca5f5379a4888c315d642"
+          },
+          "formal_exit_60s": {
+            "path": "evidence/M1/formal.exit",
+            "sha256": "556c630dbfed1af6527c1d463deabf8ecb26f2b90273607bac0375561cd05ff1"
+          },
+          "formal_300s_result": {
+            "path": "evidence/M1/formal-300-result.json",
+            "sha256": "76cd57b75e62214a4a0ad607712f5aba3e9e1dd865b8670b97fc61603b9ef2bb"
+          }
+        },
+        "tokens": null,
+        "seconds": null,
+        "proof": {
+          "planted": [
+            "planted_diff",
+            "mutant_source"
+          ],
+          "reached": [
+            "variant_probe_S0"
+          ],
+          "responsible_check": [
+            "scan_exit",
+            "driver_exit",
+            "formal_exit_60s",
+            "formal_300s_result",
+            "drift_prewrite"
+          ],
+          "contract_violation": [
+            "variant_probe_S0",
+            "baseline_probe_S0"
+          ]
+        }
+      },
+      "finished_at": "2026-09-26T17:01:30.644089+00:00"
+    },
+    {
+      "number": 2,
+      "started_at": "2026-09-26T17:01:58.416014+00:00",
+      "kind": "exploration",
+      "execution": "completed",
+      "fingerprint": "019995c3d60a4d7e41be75bd51425225725fb9ecb112db74c4e07c38a31c822c",
+      "baseline": {
+        "head": "cf37971d5ebba4beff0860f64e81ed5a89a630b6",
+        "files": {
+          "projects/FB_MainSequence/01_specs/scan-contract.md": "a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+          "projects/FB_MainSequence/02_src/st/FB_MainSequence.st": "18dff7f71de08a2ce52150fa8741bcc50cacf7758513a999ac30a347faaf6c41",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_BusyPhase.st": "145356b709ad2a0988e0b2f6b5b8e885cfd3905661c3a3261509c9c91aa2d7da",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_InvalidPhase.st": "6330a673583aa950ffa69683e7de32acf112b8d2c6ef2451b75909dc8d7bb2ae",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextPhase.st": "4d2b57efb17b6634553e78957e9b672ce6b435edd1c3f65da9ee2fa1a464bb2a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimeoutFault.st": "351e61904ec63f661b0d71b894043e1f06a26cb6277847ae725a9f308390533e",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimer.st": "a24fe2bbbde76ad2a602ff94bb1d6ba34f5bfa7aa731faf7398cb626e87bb81a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_StepDone.st": "e00a9265638eff4806a248687c3828023af705132317f79965e93e482bf68061",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_SuccessPhase.st": "2953dd433fd02eb1e47044900e8fc890220fb4d1dfa47f70123d36779c5d4ca9",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_TimeoutReached.st": "670e515e4c04e8ba6b6b70b6177702bd614387d497d65d1e02eb4ece41516bb0",
+          "projects/FB_MainSequence/03_checks/plcverif/assertions.scl": "89f43d99d42963eb319750f8f1b76ac70e31cbb6e6f457dd513fc742d410f1b7",
+          "projects/FB_MainSequence/03_checks/openplc/driver.st": "d4fb6586c497097b96ecd40bc900aec3efb07d1d53b829527652da7ddaf6f8c9",
+          "projects/FB_MainSequence/00_meta/projection-manifest.json": "d8ce6ca4481a2263b934ca5365a0b93b07872c2dfdf331f2908f65d7b17276c2",
+          "validation/scripts/sync-semantics.py": "b3b316ba1f95f5b04e7d06599bac849ebbb6e2bdaa384c4a78e5fc968487126c",
+          "validation/scripts/run-semantic-modelcheck.py": "11911951072f9221acccdbd35038881f22212570efb51cc9fbd26546655b632e",
+          "validation/tests/test_scan_semantics.py": "01b10bfc718c439aa562d2999f9efe0ab2f21d5802fbff08cb7599139933b394",
+          "validation/tests/scan_runtime.py": "58d2e2a30dd2830aff9d2c8a7cf74dd038222d255dc878a5351ec35e3bb434bc",
+          "validation/tests/run_openplc_driver.py": "703454117d8a6ae94265a5a3f2edec2db9f397808c010c2c7adc498277075da8",
+          "validation/tests/test_modelcheck_verdict.py": "954b4e8a6f7e48a9c88e785686ac5c67a94c99e350d5b4b6a668e9675a36221b",
+          "validation/tests/test_projection_sync.py": "44e91ccb4f88eb70d862940233c757e8ed5458a5d1aa348cb5976cb893fcb380"
+        },
+        "dirty": ""
+      },
+      "coverage": {
+        "inputs": "oracle 判定表 §2 序列 S1: start↑ 进相 → stop 取消(aborted=1) → stop+reset↑(拒绝) → stop 释放 reset 保持(契约:仍不接受,aborted 保持1) → release(reset=0) → start↑ 新沿(接受,aborted=0)",
+        "fault": "FB_MainSequence.st: xResetRise := xReset AND NOT xResetPrev 改为 xResetRise := xReset（接受条件沿→电平；停止释放后保持的 reset 被当作新接受，违反 C3，经 E3 表现为 commandAborted 提前清除）",
+        "entrypoint": "validation/tests/test_scan_semantics.py; run_openplc_driver.py; run-semantic-modelcheck.py; sync-semantics.py 漂移门",
+        "oracle": "独立判定表 §2: 未被接受的 Reset(无本拍上升沿)不得清除 commandAborted、不得产生接受；责任检查=扫描套件/形式断言/驱动；预测无断言钉住'接受⇒本拍存在相对记忆寄存器的上升沿'"
+      },
+      "environment": {
+        "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; GCC 13.3.0; OpenJDK 17.0.20; matiec iec2c (lab tools/bin); nuXmv 2.1.0; PLCverif CLI launcher 1.4.0.v20161219-1356",
+        "command": "变体隔离副本上: sync --check(漂移门) → --write → run_layers.sh(扫描套件/原生驱动/形式60s→300s一次/工具套件) + probe S1"
+      },
+      "reason": "新错误机制 M2：Reset 接受的上升沿要求失效并与断言共模（契约 C3/E3）。与 V3(Start 边沿)不同信号不同条款；P6 以 xResetAccepted 为基准、P27 只钉记忆寄存器、P23 仅忙相、160 组合矩阵每例单拍且 resetPrev 恒 0——沿/电平差异只出现在跨拍保持场景，预测全部层放过(missed)。",
+      "sample": null,
+      "contract": {
+        "reference": "projects/FB_MainSequence/01_specs/scan-contract.md v0.3 — 节 Continuous block lifecycle / Commands and priority / Outputs and command lifecycle / Scan-count timeout；发布验收条件见 plc-adversarial-lab/refresh_evidence.sh 头注与 04_reports/semantics/v0.3/README.md 声明内容",
+        "version": "sha256:a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+        "expectation": "独立判定表先于变体保存于 plans/plc-adversarial-r2/oracle/expected-behavior.md；实现已读（非盲测，如实声明），判据全部从契约文本推导"
+      },
+      "result": {
+        "conclusion": "missed",
+        "observation": "M2(Reset 接受沿→电平,共模)系统级漏检。planted: FB.planted.diff(xResetRise := xReset)。reached+contract_violation: probe_S1_mutant.json vs probe_S1_baseline.json——'停止释放、reset 保持'拍: 契约要求不接受(C3)且 commandAborted 保持 1(E3),基线 0/1,变体 0/0(被电平接受并提前清除)。责任检查核对——漂移门: 未同步 exit1(门禁本职),同步后 exit0; 扫描套件 25/25 OK; 原生驱动 pass; 形式 31 断言 @60s=pass/exit0(无需扩展;P6 以 xResetAccepted 为基准随实现共模,P27 只钉记忆寄存器,P23 仅忙相,无'接受⇒本拍上升沿'义务); 160 组合矩阵单拍且 resetPrev 恒 0,结构上无法区分沿/电平; 工具套件 exit0。无任何具名检查因该违反失败 → missed。",
+        "decision": "最小修复: assertions.scl 增契约导出 P33(xResetAccepted ⇒ xReset AND NOT xResetPrev,用记忆寄存器独立导出上升沿义务)+原生回归 test_held_reset_not_accepted_after_stop_release(判定表§2 独立预期),同步投影,重跑基线与本变体验证拒绝",
+        "regression": "unverified",
+        "artifacts": {
+          "variant_probe_S1": {
+            "path": "evidence/M2/probe_S1_mutant.json",
+            "sha256": "800479e6a7689c9f10c5863b547a995523dd964e563db27a0a488ba9e751433c"
+          },
+          "baseline_probe_S1": {
+            "path": "evidence/M2/probe_S1_baseline.json",
+            "sha256": "0fb8ca23a87f2d0446c8e28b4626c7c70071be9dc0626fda779002a527160479"
+          },
+          "planted_diff": {
+            "path": "evidence/M2/FB.planted.diff",
+            "sha256": "e71e94c1dde0061bfc9415bdb8d56afca549abd0fb5beea8e0da73c91e61ab94"
+          },
+          "mutant_source": {
+            "path": "evidence/M2/FB.mutant.st",
+            "sha256": "513601f16a7882899dec684e5c74e75a266ce4ffe0b262fc9653d16698202c11"
+          },
+          "drift_prewrite": {
+            "path": "evidence/M2/drift_prewrite.exit",
+            "sha256": "01f549bd6cb6c08d176208a1274986016c46b4f5e5e9b39dbf3fe710aae3a675"
+          },
+          "scan_exit": {
+            "path": "evidence/M2/scan.exit",
+            "sha256": "940ef6abce055dd6237be97dc70000b6791a7b7b55ad5aa47206e41086fa0e35"
+          },
+          "driver_exit": {
+            "path": "evidence/M2/driver.exit",
+            "sha256": "d50c642d50fc6ecc59f5c8e96f0b1514c3cb471ae1fca5f5379a4888c315d642"
+          },
+          "formal_exit_60s": {
+            "path": "evidence/M2/formal.exit",
+            "sha256": "4e8a60be3aed55905bc21f5088b1e942084163fde997c2168d0099e2d505e1ae"
+          }
+        },
+        "proof": {
+          "planted": [
+            "planted_diff",
+            "mutant_source"
+          ],
+          "reached": [
+            "variant_probe_S1"
+          ],
+          "responsible_check": [
+            "scan_exit",
+            "driver_exit",
+            "formal_exit_60s",
+            "drift_prewrite"
+          ],
+          "contract_violation": [
+            "variant_probe_S1",
+            "baseline_probe_S1"
+          ]
+        },
+        "tokens": null,
+        "seconds": null
+      },
+      "finished_at": "2026-09-26T17:04:04.688407+00:00"
+    },
+    {
+      "number": 3,
+      "started_at": "2026-09-26T17:05:05.683042+00:00",
+      "kind": "exploration",
+      "execution": "completed",
+      "fingerprint": "6248ac6bce3001d30c036d6f04186a3d38452cca9b8e73d003a21bb743fac448",
+      "baseline": {
+        "head": "cf37971d5ebba4beff0860f64e81ed5a89a630b6",
+        "files": {
+          "projects/FB_MainSequence/01_specs/scan-contract.md": "a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+          "projects/FB_MainSequence/02_src/st/FB_MainSequence.st": "18dff7f71de08a2ce52150fa8741bcc50cacf7758513a999ac30a347faaf6c41",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_BusyPhase.st": "145356b709ad2a0988e0b2f6b5b8e885cfd3905661c3a3261509c9c91aa2d7da",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_InvalidPhase.st": "6330a673583aa950ffa69683e7de32acf112b8d2c6ef2451b75909dc8d7bb2ae",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextPhase.st": "4d2b57efb17b6634553e78957e9b672ce6b435edd1c3f65da9ee2fa1a464bb2a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimeoutFault.st": "351e61904ec63f661b0d71b894043e1f06a26cb6277847ae725a9f308390533e",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimer.st": "a24fe2bbbde76ad2a602ff94bb1d6ba34f5bfa7aa731faf7398cb626e87bb81a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_StepDone.st": "e00a9265638eff4806a248687c3828023af705132317f79965e93e482bf68061",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_SuccessPhase.st": "2953dd433fd02eb1e47044900e8fc890220fb4d1dfa47f70123d36779c5d4ca9",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_TimeoutReached.st": "670e515e4c04e8ba6b6b70b6177702bd614387d497d65d1e02eb4ece41516bb0",
+          "projects/FB_MainSequence/03_checks/plcverif/assertions.scl": "89f43d99d42963eb319750f8f1b76ac70e31cbb6e6f457dd513fc742d410f1b7",
+          "projects/FB_MainSequence/03_checks/openplc/driver.st": "d4fb6586c497097b96ecd40bc900aec3efb07d1d53b829527652da7ddaf6f8c9",
+          "projects/FB_MainSequence/00_meta/projection-manifest.json": "d8ce6ca4481a2263b934ca5365a0b93b07872c2dfdf331f2908f65d7b17276c2",
+          "validation/scripts/sync-semantics.py": "b3b316ba1f95f5b04e7d06599bac849ebbb6e2bdaa384c4a78e5fc968487126c",
+          "validation/scripts/run-semantic-modelcheck.py": "11911951072f9221acccdbd35038881f22212570efb51cc9fbd26546655b632e",
+          "validation/tests/test_scan_semantics.py": "01b10bfc718c439aa562d2999f9efe0ab2f21d5802fbff08cb7599139933b394",
+          "validation/tests/scan_runtime.py": "58d2e2a30dd2830aff9d2c8a7cf74dd038222d255dc878a5351ec35e3bb434bc",
+          "validation/tests/run_openplc_driver.py": "703454117d8a6ae94265a5a3f2edec2db9f397808c010c2c7adc498277075da8",
+          "validation/tests/test_modelcheck_verdict.py": "954b4e8a6f7e48a9c88e785686ac5c67a94c99e350d5b4b6a668e9675a36221b",
+          "validation/tests/test_projection_sync.py": "44e91ccb4f88eb70d862940233c757e8ed5458a5d1aa348cb5976cb893fcb380"
+        },
+        "dirty": ""
+      },
+      "coverage": {
+        "inputs": "oracle 判定表 §3 N4/N5; 植入对象=隔离副本 projects/FB_MainSequence/03_checks/plcverif/assertions.scl 删除 P29/P30/P31 三行",
+        "fault": "验收准则违反类：证书内容(31 条契约导出断言的联合)被削弱为 28 条,负控件(N1 恒假断言)仍被拒,正向仍 pass——发布接受弱化证据,README 硬编码'satisfied 31-assertion conjunction'与实际 28 不符且无检查拒绝",
+        "entrypoint": "plc-adversarial-lab/refresh_evidence.sh 的路径适配副本(隔离副本为 REPO); 所有 gate 判定逻辑保持原样",
+        "oracle": "判定表 §3: N4 弱化正向集必须拒绝发布; N5 发布与否以 04_reports 与 docs/verification 目标文件哈希为准,不以脚本打印为准; 责任检查=刷新门禁的各步验收条件"
+      },
+      "environment": {
+        "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; OpenJDK 17.0.20; nuXmv 2.1.0; PLCverif CLI launcher 1.4.0.v20161219-1356; matiec iec2c (lab tools/bin)",
+        "command": "隔离副本(独立 git init 以满足刷新脚本 HEAD 记录)植入断言削弱 → sync --write → 适配版 refresh_evidence.sh(唯一偏差: 正/负形式步显式 --timeout 300,归因当前机器 60s 不足,验收逻辑未动) → 以目标文件哈希核验发布"
+      },
+      "reason": "新错误机制 M3：证据刷新错误接受——正向断言集被削弱（删除契约导出的三条期限义务 P29-P31）后余集仍可满足，刷新七步验收是否拒绝发布。既有验收只含'正向 pass + 负控件(恒假断言)被拒'，预测：削弱正向集不被任何检查拒绝，发布照常成功且发布文本仍声称 31 断言(N4 missed)。",
+      "sample": null,
+      "contract": {
+        "reference": "projects/FB_MainSequence/01_specs/scan-contract.md v0.3 — 节 Continuous block lifecycle / Commands and priority / Outputs and command lifecycle / Scan-count timeout；发布验收条件见 plc-adversarial-lab/refresh_evidence.sh 头注与 04_reports/semantics/v0.3/README.md 声明内容",
+        "version": "sha256:a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+        "expectation": "独立判定表先于变体保存于 plans/plc-adversarial-r2/oracle/expected-behavior.md；实现已读（非盲测，如实声明），判据全部从契约文本推导"
+      },
+      "result": {
+        "conclusion": "missed",
+        "observation": "M3(弱化正向断言集仍发布)按验收准则判系统级漏检。planted: assertions.planted.diff(删除 P29/P30/P31,31→28)。reached: 本次刷新正形式 run 的 formal-gate.log assertion_count=28(被验证的就是削弱后的集)。acceptance violation(判定表 N4): refresh-run.log 显示七步全过、exit 0、证据发布成功; published-README.md 仍硬编码声称 'the satisfied 31-assertion conjunction',与本次 28 不符,无任何步骤把被满足的断言集与要求集比较。发布已按 N5 以目标文件存在性与内容核对(非仅脚本打印): published-summary.json/published-README.md/published-formal-gate.log 均写入副本。责任检查=刷新门禁各验收条件,均通过未拒 → missed。负控件(N1)在该弱化集下仍被拒(步骤[6]通过),证明负控验收无法覆盖正向削弱。纠偏记录: 首次刷新因装备缺陷(PVCLI 指向不含 tools 的副本)中断,已修正适配脚本并保留 refresh-run.aborted-harness.log;总运行命令数含该次失败。",
+        "decision": "最小修复两部分: (a) 仓库正式门禁 run-semantic-modelcheck.py 增 required-assertions 检查(03_checks/plcverif/required-assertions.txt 钉住全部属性 ID,缺失即 BLOCKED exit2),并加单元测试; (b) refresh_evidence.sh 发布文本中的计数从本次运行产物派生,不再硬编码。修复后重跑同削弱变体验证拒绝,并用哈希确认未发布",
+        "regression": "unverified",
+        "artifacts": {
+          "planted_diff": {
+            "path": "evidence/M3/assertions.planted.diff",
+            "sha256": "0b161c3d4617928d22c46be18b6b28df27b12b0033ac1002accfc141edc78f61"
+          },
+          "weakened_source": {
+            "path": "evidence/M3/assertions.weakened.scl",
+            "sha256": "da15261ee2038783769d3aca91624e4d7ea37ae70e1492d6b1a8d72c8ce76e41"
+          },
+          "original_source": {
+            "path": "evidence/M3/assertions.original.scl",
+            "sha256": "89f43d99d42963eb319750f8f1b76ac70e31cbb6e6f457dd513fc742d410f1b7"
+          },
+          "refresh_run": {
+            "path": "evidence/M3/refresh-run.log",
+            "sha256": "9710fc9e560334fefd720452d63fc2d262a4ac4e6bdb25c141515754702cd2ad"
+          },
+          "published_README": {
+            "path": "evidence/M3/published-README.md",
+            "sha256": "73a0fdc19a5c627c9126feb8c4342b44120bcad52730557f05cf98e171a7691a"
+          },
+          "published_summary": {
+            "path": "evidence/M3/published-summary.json",
+            "sha256": "7ebf03060e8e680c6b0abf532065cda2ed95252ab24744548455c4b3e73236f5"
+          },
+          "published_formal_gate": {
+            "path": "evidence/M3/published-formal-gate.log",
+            "sha256": "d6453e086f6d8259dd1e781c86ad259ff48e0e6da91a9fcb7444dc330c4e1739"
+          },
+          "harness_aborted_run": {
+            "path": "evidence/M3/refresh-run.aborted-harness.log",
+            "sha256": "ead6880313e5b59e8f3b1c06c1e689e62fd1489a199218979034c6f2c2d7be43"
+          },
+          "adapted_script": {
+            "path": "evidence/M3/refresh_m3.adapted.sh",
+            "sha256": "0797de0e35581b3a4c8dcf75499fa99ace0f558049dd26a80cf60542a245134b"
+          }
+        },
+        "proof": {
+          "planted": [
+            "planted_diff",
+            "weakened_source"
+          ],
+          "reached": [
+            "published_formal_gate"
+          ],
+          "responsible_check": [
+            "refresh_run",
+            "published_formal_gate"
+          ],
+          "contract_violation": [
+            "published_README",
+            "published_summary",
+            "published_formal_gate"
+          ]
+        },
+        "tokens": null,
+        "seconds": null
+      },
+      "finished_at": "2026-09-27T06:15:23.778402+00:00"
+    },
+    {
+      "number": 4,
+      "started_at": "2026-09-27T06:21:49.316991+00:00",
+      "kind": "correction",
+      "execution": "completed",
+      "fingerprint": "4050e6cfacc426e91f629d0cd45c571d4e7806597a37159b3bcb0e947e02a493",
+      "baseline": {
+        "head": "cf37971d5ebba4beff0860f64e81ed5a89a630b6",
+        "files": {
+          "projects/FB_MainSequence/01_specs/scan-contract.md": "a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+          "projects/FB_MainSequence/02_src/st/FB_MainSequence.st": "18dff7f71de08a2ce52150fa8741bcc50cacf7758513a999ac30a347faaf6c41",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_BusyPhase.st": "145356b709ad2a0988e0b2f6b5b8e885cfd3905661c3a3261509c9c91aa2d7da",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_InvalidPhase.st": "6330a673583aa950ffa69683e7de32acf112b8d2c6ef2451b75909dc8d7bb2ae",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextPhase.st": "4d2b57efb17b6634553e78957e9b672ce6b435edd1c3f65da9ee2fa1a464bb2a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimeoutFault.st": "351e61904ec63f661b0d71b894043e1f06a26cb6277847ae725a9f308390533e",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimer.st": "a24fe2bbbde76ad2a602ff94bb1d6ba34f5bfa7aa731faf7398cb626e87bb81a",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_StepDone.st": "e00a9265638eff4806a248687c3828023af705132317f79965e93e482bf68061",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_SuccessPhase.st": "2953dd433fd02eb1e47044900e8fc890220fb4d1dfa47f70123d36779c5d4ca9",
+          "projects/FB_MainSequence/02_src/st/FC_MainSequence_TimeoutReached.st": "670e515e4c04e8ba6b6b70b6177702bd614387d497d65d1e02eb4ece41516bb0",
+          "projects/FB_MainSequence/03_checks/plcverif/assertions.scl": "afe66b69446dec49ae4c93c53217f50c48a2b045f14554c2445fc15b72541e1b",
+          "projects/FB_MainSequence/03_checks/openplc/driver.st": "d4fb6586c497097b96ecd40bc900aec3efb07d1d53b829527652da7ddaf6f8c9",
+          "projects/FB_MainSequence/00_meta/projection-manifest.json": "e6dc1eb1d04007628cec14f9bceccfa5749160fa3e04c615e14a0919c72ca4f5",
+          "validation/scripts/sync-semantics.py": "b3b316ba1f95f5b04e7d06599bac849ebbb6e2bdaa384c4a78e5fc968487126c",
+          "validation/scripts/run-semantic-modelcheck.py": "b7597316061e0464072130fc49f2865f63c4ca54c928b67b0af3cf62fb11bb30",
+          "validation/tests/test_scan_semantics.py": "5f1f1c297d3ac94007f496130c330dd41bcd155813291e66f7e9c57100c22922",
+          "validation/tests/scan_runtime.py": "58d2e2a30dd2830aff9d2c8a7cf74dd038222d255dc878a5351ec35e3bb434bc",
+          "validation/tests/run_openplc_driver.py": "703454117d8a6ae94265a5a3f2edec2db9f397808c010c2c7adc498277075da8",
+          "validation/tests/test_modelcheck_verdict.py": "28d21fc2e2f7344db7bb2057a2f62c85d44c7598f546a17226c9c1037c2b13a1",
+          "validation/tests/test_projection_sync.py": "44e91ccb4f88eb70d862940233c757e8ed5458a5d1aa348cb5976cb893fcb380"
+        },
+        "dirty": "M projects/FB_MainSequence/00_meta/projection-manifest.json\n M projects/FB_MainSequence/03_checks/plcverif/assertions.scl\n M validation/scripts/run-semantic-modelcheck.py\n M validation/tests/test_modelcheck_verdict.py\n M validation/tests/test_scan_semantics.py"
+      },
+      "coverage": {
+        "inputs": "同 E1 判定表 §1 S0（冻结计时器变体）",
+        "fault": "同 E1：FC_MainSequence_NextTimer 增 ELSIF xBusyPhase 保持分支（切零冻结 timer）",
+        "entrypoint": "validation/tests/test_scan_semantics.py（含新回归）; run-semantic-modelcheck.py（含 required-assertions 检查与 P32）",
+        "oracle": "判定表 §1 独立预期; 责任检查=test_zero_threshold_midwait_keeps_timer_zero 与 P32_ZeroThresholdKeepsTimerZero"
+      },
+      "environment": {
+        "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; GCC 13.3.0; OpenJDK 17.0.20; matiec iec2c (lab tools/bin); nuXmv 2.1.0; PLCverif CLI launcher 1.4.0.v20161219-1356",
+        "command": "修复后基线(32断言@300s pass, 27/27 scan, 7+4 tooling)之上: M1-postfix 隔离副本 sync→扫描套件→形式(60s, unknown 则 300s 一次)"
+      },
+      "reason": "E1 判定 missed 后修复责任层（新增契约导出 P32_ZeroThresholdKeepsTimerZero + 原生回归 test_zero_threshold_midwait_keeps_timer_zero，同步投影），用同一 M1 错误机制在修复后体系上重验证：预测原生层新测试与形式层 P32 均拒绝。",
+      "sample": null,
+      "contract": {
+        "reference": "projects/FB_MainSequence/01_specs/scan-contract.md v0.3 — 节 Continuous block lifecycle / Commands and priority / Outputs and command lifecycle / Scan-count timeout；发布验收条件见 plc-adversarial-lab/refresh_evidence.sh 头注与 04_reports/semantics/v0.3/README.md 声明内容",
+        "version": "sha256:a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+        "expectation": "独立判定表先于变体保存于 plans/plc-adversarial-r2/oracle/expected-behavior.md；实现已读（非盲测，如实声明），判据全部从契约文本推导"
+      },
+      "result": {
+        "conclusion": "detected",
+        "observation": "C1: 同一 M1 错误机制在修复后体系被拒绝。planted/reached/contract_violation 证据同 E1（同错误、同判定表 §1）。责任检查（修复后）: (1) 原生 test_zero_threshold_midwait_keeps_timer_zero 失败（scan.log, 27 tests 1 failure, exit1）; (2) 形式 32 断言 @300s=VIOLATED（formal-300-result.json）,反例错误码 0ud16_32 经 SMV case 表对应 P32_ZeroThresholdKeepsTimerZero 守卫条件((N=0)&(timer<>0)&busy&非完成&无清除/中止)。60s 默认预算仍 unknown(超时),300s 扩展一次。修复后正常实现基线全绿(fixed-baseline: 32 断言 SATISFIED, 27/27 扫描, 工具套件 7+4)。",
+        "decision": "把 P32/新回归的效果纳入回归矩阵; 对既有变体中受断言集变化影响者做回归",
+        "regression": "no_new_regression",
+        "artifacts": {
+          "scan_fail_log": {
+            "path": "evidence/C1/scan.log",
+            "sha256": "9eac0b0bd1953c344a4e3b66f058641225098bc0209ba119c35636004b6a16e4"
+          },
+          "formal_300s_result": {
+            "path": "evidence/C1/formal-300-result.json",
+            "sha256": "d769932a353692e0239a36ebf5fa26234e92565c4f60a5dfd3e76f77853f6d22"
+          },
+          "fixed_baseline_formal": {
+            "path": "evidence/C1/fixed-baseline-formal-result.json",
+            "sha256": "3000b1477e86ad610b997778e935ef8141905f274e8c985bd056b930e4231ade"
+          },
+          "drift_post": {
+            "path": "evidence/C1/drift.exit",
+            "sha256": "bc1799eafc8e97170107defe5ae6eea027b0176ec572d477e5eeb6be7556fc59"
+          }
+        },
+        "proof": {
+          "planted": [
+            "scan_fail_log"
+          ],
+          "reached": [
+            "scan_fail_log"
+          ],
+          "responsible_check": [
+            "scan_fail_log",
+            "formal_300s_result"
+          ],
+          "contract_violation": [
+            "scan_fail_log",
+            "formal_300s_result"
+          ]
+        },
+        "tokens": null,
+        "seconds": null
+      },
+      "finished_at": "2026-09-27T06:26:05.397942+00:00"
+    }
+  ],
+  "budget_extensions": [],
+  "spec_revisions": []
+}

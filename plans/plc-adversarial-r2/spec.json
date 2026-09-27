@@ -1,0 +1,57 @@
+{
+  "identity": {
+    "repo": "plc-workspace",
+    "capability": "plc-scan-semantics-verification",
+    "contract": "scan-contract-v0.3",
+    "error_class": "verification-evasion",
+    "subject": "live-threshold-commonmode-and-evidence-gate-mutation"
+  },
+  "repository_ref": "qiaoqiao2521/plc-workspace",
+  "workflow": "mutation",
+  "question": "现有验证体系能否拒绝违反 scan contract v0.3 的跨扫描行为（运行中阈值切零的计时语义、Reset 边沿接受要求），以及不满足验收条件的证据发布（正向断言集被削弱仍刷新成功）？",
+  "reopen_when": "scan-contract 语义变更、02_src/st 重写、验证层（扫描套件/形式断言/同步门禁/刷新门禁）替换、或新增被证实的错误机制时才重开；仅换阈值、改名、换随机种子不构成重开理由",
+  "contract": {
+    "reference": "projects/FB_MainSequence/01_specs/scan-contract.md v0.3 — 节 Continuous block lifecycle / Commands and priority / Outputs and command lifecycle / Scan-count timeout；发布验收条件见 plc-adversarial-lab/refresh_evidence.sh 头注与 04_reports/semantics/v0.3/README.md 声明内容",
+    "version": "sha256:a9b0e239dc064fd4aa23aa98d5ff445b736de09f493dddd04f9213fcf9d161ca",
+    "expectation": "独立判定表先于变体保存于 plans/plc-adversarial-r2/oracle/expected-behavior.md；实现已读（非盲测，如实声明），判据全部从契约文本推导"
+  },
+  "scope": {
+    "root": "/home/muqiao/repo-revival/plc-workspace",
+    "paths": [
+      "projects/FB_MainSequence/01_specs/scan-contract.md",
+      "projects/FB_MainSequence/02_src/st/FB_MainSequence.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_BusyPhase.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_InvalidPhase.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextPhase.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimeoutFault.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_NextTimer.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_StepDone.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_SuccessPhase.st",
+      "projects/FB_MainSequence/02_src/st/FC_MainSequence_TimeoutReached.st",
+      "projects/FB_MainSequence/03_checks/plcverif/assertions.scl",
+      "projects/FB_MainSequence/03_checks/openplc/driver.st",
+      "projects/FB_MainSequence/00_meta/projection-manifest.json",
+      "validation/scripts/sync-semantics.py",
+      "validation/scripts/run-semantic-modelcheck.py",
+      "validation/tests/test_scan_semantics.py",
+      "validation/tests/scan_runtime.py",
+      "validation/tests/run_openplc_driver.py",
+      "validation/tests/test_modelcheck_verdict.py",
+      "validation/tests/test_projection_sync.py"
+    ]
+  },
+  "budget": {
+    "attempts": 6,
+    "corrections": 3,
+    "stability": 0
+  },
+  "quality_dimensions": {
+    "correctness": "covered",
+    "data_integrity": "covered",
+    "privacy_permissions": "not_applicable",
+    "performance": "not_covered",
+    "compatibility": "not_covered",
+    "accessibility": "not_applicable"
+  },
+  "baseline_notes": "基线 @ cf37971（2026-09-26 实测）：漂移门 exit0；扫描套件 25/25 OK；原生驱动 pass；工具套件 4+4 OK；形式 31 断言 60s 预算 UNKNOWN（nuXmv 后端超时，历史实测 ~47s，当前机器变慢），300s 扩展重跑 = pass/SATISFIED（results/baseline/formal-300/）。60s 默认预算在本机已不足以完成正向联合证明，属环境事实而非判定缺陷；各变体形式层默认先 60s，unknown 时按每变体一次 300s 扩展归因。仓库工作树含无关脏文件（container/* 暂存 mode 变更、docs/harness 等未跟踪），验证链 scope 文件全部干净；不 reset、不 clean。预算依据：3 机制 x (1 探索 + 1 纠偏) = 6 尝试上限，其中纠偏至多 3；总运行次数含中断与失败。形式预算：门禁默认 60s；必要时每变体至多一次 300s 扩展诊断，全部计入命令记录。"
+}

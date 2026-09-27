@@ -1,0 +1,14 @@
+{
+  "kind": "correction",
+  "reason": "E1 判定 missed 后修复责任层（新增契约导出 P32_ZeroThresholdKeepsTimerZero + 原生回归 test_zero_threshold_midwait_keeps_timer_zero，同步投影），用同一 M1 错误机制在修复后体系上重验证：预测原生层新测试与形式层 P32 均拒绝。",
+  "environment": {
+    "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; GCC 13.3.0; OpenJDK 17.0.20; matiec iec2c (lab tools/bin); nuXmv 2.1.0; PLCverif CLI launcher 1.4.0.v20161219-1356",
+    "command": "修复后基线(32断言@300s pass, 27/27 scan, 7+4 tooling)之上: M1-postfix 隔离副本 sync→扫描套件→形式(60s, unknown 则 300s 一次)"
+  },
+  "coverage": {
+    "inputs": "同 E1 判定表 §1 S0（冻结计时器变体）",
+    "fault": "同 E1：FC_MainSequence_NextTimer 增 ELSIF xBusyPhase 保持分支（切零冻结 timer）",
+    "entrypoint": "validation/tests/test_scan_semantics.py（含新回归）; run-semantic-modelcheck.py（含 required-assertions 检查与 P32）",
+    "oracle": "判定表 §1 独立预期; 责任检查=test_zero_threshold_midwait_keeps_timer_zero 与 P32_ZeroThresholdKeepsTimerZero"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "result": "fail",
+  "tool_exit": 0,
+  "parameter_domain": "all UINT timeout values, independently sampled on each scan",
+  "algorithm": "Classic; dynamic reordering; CTL assertion requirement",
+  "source_sha256": "4bb354ee50e53cb4320f14ce3f8fec612d41699c66f26bd42f0bb0d4cf56313c",
+  "case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
+  "projection_manifest_sha256": "f7e247799218cb0631819e41635cbc23d57c159e6540bdd5fd8d0f69366ded41",
+  "assertion_count": 32,
+  "required_assertions_missing": [],
+  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-r2/results/M1-zero-freeze-timer-postfix/formal-300/20260927T062314558153Z",
+  "siemens_final": "unverified"
+}

@@ -3,10 +3,12 @@
   "tool_exit": 0,
   "parameter_domain": "all UINT timeout values, independently sampled on each scan",
   "algorithm": "Classic; dynamic reordering; CTL assertion requirement",
-  "source_sha256": "01bd115f4525cd7a9366f96a28f77f1e9ae75ebab0d2d7faaacbb98aef510bca",
+  "source_sha256": "395e6c6a5054c37274e7da6f6ab74eb4b45c167e8741a71e422f788aa6408b01",
   "case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
-  "projection_manifest_sha256": "d8ce6ca4481a2263b934ca5365a0b93b07872c2dfdf331f2908f65d7b17276c2",
-  "assertion_count": 31,
-  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-lab/evidence-staging/formal/20260926T115937886495Z",
+  "projection_manifest_sha256": "e6dc1eb1d04007628cec14f9bceccfa5749160fa3e04c615e14a0919c72ca4f5",
+  "assertion_count": 32,
+  "required_assertions_missing": [],
+  "required_assertions_sha256": "38114196942b2e25186dbf25e82f2b91aaf24c255efcfe42d347cb043659bc98",
+  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-r2/results/final-refresh-stage/formal/20260927T071450481014Z",
   "siemens_final": "unverified"
 }

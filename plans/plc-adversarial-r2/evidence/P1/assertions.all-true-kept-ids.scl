@@ -1,0 +1,49 @@
+// End-of-invocation properties for continuous enable and explicit command policy.
+//#ASSERT TRUE : P1_BeltMutualExclusion
+//#ASSERT TRUE : P2_DisabledLifecycle
+//#ASSERT TRUE : P3_InhibitDeenergizes
+//#ASSERT TRUE : P4_StopPreservesFault
+//#ASSERT TRUE : P5_HealthyStopInit
+//#ASSERT TRUE : P6_AcceptedReset
+//#ASSERT TRUE : P7_FaultHolds
+//#ASSERT TRUE : P8_StartRequired
+//#ASSERT TRUE : P9_TransportCompletes
+//#ASSERT TRUE : P10_FlipCompletes
+//#ASSERT TRUE : P11_OutputCompletes
+//#ASSERT TRUE : P12_BusyHolds
+//#ASSERT TRUE : P13_TimeoutCommitsTogether
+//#ASSERT TRUE : P14_FaultPhaseConsistent
+//#ASSERT TRUE : P15_ErrorDeenergizes
+//#ASSERT TRUE : P16_InvalidPhase
+//#ASSERT TRUE : P17_TimerReset
+//#ASSERT TRUE : P18_DoneTransition
+//#ASSERT TRUE : P19_DiagnosticNewSession
+//#ASSERT TRUE : P20_DiagnosticRetained
+//#ASSERT TRUE : P21_ValidBusy
+//#ASSERT TRUE : P22_CommandBusy
+//#ASSERT TRUE : P23_CommandAbort
+//#ASSERT TRUE : P24_NoEarlyFault
+//#ASSERT TRUE : P25_TimeoutReasonHeld
+//#ASSERT TRUE : P26_DiagnosticRecordsFault
+// Added after the 2026-09-22 adversarial variant pass; see docs/DECISIONS.md.
+//#ASSERT TRUE : P27_EdgeMemoriesTrackInputs
+//#ASSERT TRUE : P28_AbortClearedOnAcceptedStart
+// P29-P31 derive the deadline from the threshold input, the prior timer and the
+// completion levels only; xTimeoutReached never gates a check. The deadline
+// "prevTimer+1 >= N" is written overflow-free as "prev < 65535 AND prev >= N-1";
+// From initialization, prev never exceeds 65534: N=0 clears the timer,
+// and any positive UINT threshold expires before another increment can reach 65535.
+// The prev=65535 branches are outside this reachable-state proof; they do not
+// establish behavior for injected state or cross-tool overflow equivalence.
+//#ASSERT TRUE : P29_NoEarlyExpiration
+//#ASSERT TRUE : P30_DeadlineObligation
+//#ASSERT TRUE : P31_WaitingCallCountsOne
+// P32 added after the 2026-09-26 adversarial round (plans/plc-adversarial-r2):
+// a threshold-switched-to-zero variant that froze the prior timer passed every
+// then-shipped layer. The obligation is derived from the contract sentence
+// "Zero disables counting and keeps timer zero", not from derived signals.
+// The reset-acceptance edge (contract C3) is native-only: at end of cycle the
+// edge memory is already committed to this scan's input, so a single-state
+// assertion cannot reference the previous scan's input, and the one temp that
+// encodes it (xResetRise) is exactly what an edge-to-level mutant redefines.
+//#ASSERT TRUE : P32_ZeroThresholdKeepsTimerZero

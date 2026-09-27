@@ -1,0 +1,4 @@
+80c80
+< xResetRise := xReset AND NOT xResetPrev;
+---
+> xResetRise := xReset;

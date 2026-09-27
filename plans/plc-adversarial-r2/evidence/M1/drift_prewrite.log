@@ -1,0 +1,4 @@
+STALE: /home/muqiao/repo-revival/plc-adversarial-r2/variants/M1-zero-freeze-timer/projects/FB_MainSequence/03_checks/plcverif/FB_MainSequence_PLCverif.scl
+STALE: /home/muqiao/repo-revival/plc-adversarial-r2/variants/M1-zero-freeze-timer/projects/FB_MainSequence/03_checks/openplc/FB_MainSequence_OpenPLC.st
+STALE: /home/muqiao/repo-revival/plc-adversarial-r2/variants/M1-zero-freeze-timer/projects/FB_MainSequence/05_tia_sync/exported_scl/FC_MainSequence_NextTimer.st
+STALE: /home/muqiao/repo-revival/plc-adversarial-r2/variants/M1-zero-freeze-timer/projects/FB_MainSequence/00_meta/projection-manifest.json

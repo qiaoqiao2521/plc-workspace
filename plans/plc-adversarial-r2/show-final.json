@@ -1,0 +1,61 @@
+{
+  "id": "exp-da2a4f55f6876751b86ea28e",
+  "workflow": "mutation",
+  "attempts": [
+    {
+      "number": 1,
+      "kind": "exploration",
+      "execution": "completed",
+      "conclusion": "missed",
+      "evidence_applicability": "stale",
+      "issues": [
+        "scope_changed"
+      ]
+    },
+    {
+      "number": 2,
+      "kind": "exploration",
+      "execution": "completed",
+      "conclusion": "missed",
+      "evidence_applicability": "stale",
+      "issues": [
+        "scope_changed"
+      ]
+    },
+    {
+      "number": 3,
+      "kind": "exploration",
+      "execution": "completed",
+      "conclusion": "missed",
+      "evidence_applicability": "stale",
+      "issues": [
+        "scope_changed"
+      ]
+    },
+    {
+      "number": 4,
+      "kind": "correction",
+      "execution": "completed",
+      "conclusion": "detected",
+      "evidence_applicability": "current",
+      "issues": []
+    }
+  ],
+  "budget": {
+    "attempts": 6,
+    "corrections": 3,
+    "stability": 0
+  },
+  "used_attempts": 4,
+  "measured_tokens": 0,
+  "token_measurement_complete": false,
+  "project_acceptance": "not_inferred",
+  "quality_dimensions": {
+    "correctness": "covered",
+    "data_integrity": "covered",
+    "privacy_permissions": "not_applicable",
+    "performance": "not_covered",
+    "compatibility": "not_covered",
+    "accessibility": "not_applicable"
+  }
+}

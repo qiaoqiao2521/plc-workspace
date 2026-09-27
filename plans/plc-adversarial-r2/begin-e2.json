@@ -1,0 +1,14 @@
+{
+  "kind": "exploration",
+  "reason": "新错误机制 M2：Reset 接受的上升沿要求失效并与断言共模（契约 C3/E3）。与 V3(Start 边沿)不同信号不同条款；P6 以 xResetAccepted 为基准、P27 只钉记忆寄存器、P23 仅忙相、160 组合矩阵每例单拍且 resetPrev 恒 0——沿/电平差异只出现在跨拍保持场景，预测全部层放过(missed)。",
+  "environment": {
+    "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; GCC 13.3.0; OpenJDK 17.0.20; matiec iec2c (lab tools/bin); nuXmv 2.1.0; PLCverif CLI launcher 1.4.0.v20161219-1356",
+    "command": "变体隔离副本上: sync --check(漂移门) → --write → run_layers.sh(扫描套件/原生驱动/形式60s→300s一次/工具套件) + probe S1"
+  },
+  "coverage": {
+    "inputs": "oracle 判定表 §2 序列 S1: start↑ 进相 → stop 取消(aborted=1) → stop+reset↑(拒绝) → stop 释放 reset 保持(契约:仍不接受,aborted 保持1) → release(reset=0) → start↑ 新沿(接受,aborted=0)",
+    "fault": "FB_MainSequence.st: xResetRise := xReset AND NOT xResetPrev 改为 xResetRise := xReset（接受条件沿→电平；停止释放后保持的 reset 被当作新接受，违反 C3，经 E3 表现为 commandAborted 提前清除）",
+    "entrypoint": "validation/tests/test_scan_semantics.py; run_openplc_driver.py; run-semantic-modelcheck.py; sync-semantics.py 漂移门",
+    "oracle": "独立判定表 §2: 未被接受的 Reset(无本拍上升沿)不得清除 commandAborted、不得产生接受；责任检查=扫描套件/形式断言/驱动；预测无断言钉住'接受⇒本拍存在相对记忆寄存器的上升沿'"
+  }
+}

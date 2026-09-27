@@ -37,7 +37,7 @@ Existing full static/OpenPLC/TIA gates are separate acceptance layers. Their mis
 
 ## Continuous-enable contract v0.3
 
-The scan suite has 25 tests, including 160 simultaneous-control combinations, edge consumption, current-error/diagnostic lifetime, output poisoning and 5,000 differential calls. The final formal case has 31 assertions. The complete generated OpenPLC example can also run natively:
+The scan suite has 27 tests, including 160 simultaneous-control combinations, edge consumption, current-error/diagnostic lifetime, output poisoning and 5,000 differential calls. The final formal case has 32 assertions. The complete generated OpenPLC example can also run natively:
 
 ```bash
 python3 validation/tests/run_openplc_driver.py \
@@ -48,3 +48,5 @@ python3 validation/tests/run_openplc_driver.py \
 ```
 
 This executes the generated test program and located monitor flags for at most 801 calls, returning nonzero on failure/unknown. It does not start an OpenPLC service. The driver's timeout recovery now performs an observed disabled call; business Reset no longer clears block errors.
+
+The required-assertions.txt baseline pins full assertion expressions and must be nonempty. Additional FALSE assertions remain available for negative controls. On slower hosts the 60-second default may return UNKNOWN; an explicit --timeout 300 diagnostic run does not change verdict semantics. Current evidence records the budget used.

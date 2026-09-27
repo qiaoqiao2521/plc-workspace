@@ -1,0 +1,21 @@
+{
+  "execution": "completed",
+  "conclusion": "detected",
+  "observation": "C1: 同一 M1 错误机制在修复后体系被拒绝。planted/reached/contract_violation 证据同 E1（同错误、同判定表 §1）。责任检查（修复后）: (1) 原生 test_zero_threshold_midwait_keeps_timer_zero 失败（scan.log, 27 tests 1 failure, exit1）; (2) 形式 32 断言 @300s=VIOLATED（formal-300-result.json）,反例错误码 0ud16_32 经 SMV case 表对应 P32_ZeroThresholdKeepsTimerZero 守卫条件((N=0)&(timer<>0)&busy&非完成&无清除/中止)。60s 默认预算仍 unknown(超时),300s 扩展一次。修复后正常实现基线全绿(fixed-baseline: 32 断言 SATISFIED, 27/27 扫描, 工具套件 7+4)。",
+  "decision": "把 P32/新回归的效果纳入回归矩阵; 对既有变体中受断言集变化影响者做回归",
+  "regression": "no_new_regression",
+  "artifacts": {
+    "scan_fail_log": "evidence/C1/scan.log",
+    "formal_300s_result": "evidence/C1/formal-300-result.json",
+    "fixed_baseline_formal": "evidence/C1/fixed-baseline-formal-result.json",
+    "drift_post": "evidence/C1/drift.exit"
+  },
+  "proof": {
+    "planted": ["scan_fail_log"],
+    "reached": ["scan_fail_log"],
+    "responsible_check": ["scan_fail_log", "formal_300s_result"],
+    "contract_violation": ["scan_fail_log", "formal_300s_result"]
+  },
+  "tokens": null,
+  "seconds": null
+}

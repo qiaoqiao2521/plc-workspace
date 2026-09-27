@@ -1,0 +1,13 @@
+{
+  "result": "fail",
+  "tool_exit": 0,
+  "parameter_domain": "all UINT timeout values, independently sampled on each scan",
+  "algorithm": "Classic; dynamic reordering; CTL assertion requirement",
+  "source_sha256": "20a5d8747d96c10cfdbff6c5ce890819cb14151dad045602d321afeeec316185",
+  "case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
+  "projection_manifest_sha256": "57330fa8e7b2056ae5c93ec80d3d56b9f01c41baeba2dd182a01cf514055437a",
+  "assertion_count": 32,
+  "required_assertions_missing": [],
+  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-r2/results/V7-timer-double-step-postfix/formal/20260927T063104375149Z",
+  "siemens_final": "unverified"
+}

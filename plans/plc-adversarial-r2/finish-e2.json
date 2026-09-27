@@ -1,0 +1,25 @@
+{
+  "execution": "completed",
+  "conclusion": "missed",
+  "observation": "M2(Reset 接受沿→电平,共模)系统级漏检。planted: FB.planted.diff(xResetRise := xReset)。reached+contract_violation: probe_S1_mutant.json vs probe_S1_baseline.json——'停止释放、reset 保持'拍: 契约要求不接受(C3)且 commandAborted 保持 1(E3),基线 0/1,变体 0/0(被电平接受并提前清除)。责任检查核对——漂移门: 未同步 exit1(门禁本职),同步后 exit0; 扫描套件 25/25 OK; 原生驱动 pass; 形式 31 断言 @60s=pass/exit0(无需扩展;P6 以 xResetAccepted 为基准随实现共模,P27 只钉记忆寄存器,P23 仅忙相,无'接受⇒本拍上升沿'义务); 160 组合矩阵单拍且 resetPrev 恒 0,结构上无法区分沿/电平; 工具套件 exit0。无任何具名检查因该违反失败 → missed。",
+  "decision": "最小修复: assertions.scl 增契约导出 P33(xResetAccepted ⇒ xReset AND NOT xResetPrev,用记忆寄存器独立导出上升沿义务)+原生回归 test_held_reset_not_accepted_after_stop_release(判定表§2 独立预期),同步投影,重跑基线与本变体验证拒绝",
+  "regression": "unverified",
+  "artifacts": {
+    "variant_probe_S1": "evidence/M2/probe_S1_mutant.json",
+    "baseline_probe_S1": "evidence/M2/probe_S1_baseline.json",
+    "planted_diff": "evidence/M2/FB.planted.diff",
+    "mutant_source": "evidence/M2/FB.mutant.st",
+    "drift_prewrite": "evidence/M2/drift_prewrite.exit",
+    "scan_exit": "evidence/M2/scan.exit",
+    "driver_exit": "evidence/M2/driver.exit",
+    "formal_exit_60s": "evidence/M2/formal.exit"
+  },
+  "proof": {
+    "planted": ["planted_diff", "mutant_source"],
+    "reached": ["variant_probe_S1"],
+    "responsible_check": ["scan_exit", "driver_exit", "formal_exit_60s", "drift_prewrite"],
+    "contract_violation": ["variant_probe_S1", "baseline_probe_S1"]
+  },
+  "tokens": null,
+  "seconds": null
+}

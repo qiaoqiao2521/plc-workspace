@@ -1,0 +1,4 @@
+38,40d37
+< //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (NOT xTimeoutFaultPrev) AND (uiStepTimeoutScans > 0) AND ((uiStepTimerPrev = 65535) OR (uiStepTimerPrev < (uiStepTimeoutScans - 1))) AND xError) : P29_NoEarlyExpiration
+< //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND (uiStepTimerPrev < 65535) AND (uiStepTimerPrev >= (uiStepTimeoutScans - 1)) AND ((iPhase <> 900) OR (NOT xError) OR (NOT xTimeoutFault))) : P30_DeadlineObligation
+< //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND ((uiStepTimerPrev = 65535) OR (uiStepTimerPrev < (uiStepTimeoutScans - 1))) AND (uiStepTimerStat <> (uiStepTimerPrev + 1))) : P31_WaitingCallCountsOne

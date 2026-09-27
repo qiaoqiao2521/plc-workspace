@@ -1,0 +1,5 @@
+# Current source-bound evidence: scan contract v0.3
+
+See summary.json for exact hashes and verification scope. formal/ contains the satisfied 31-assertion conjunction; negative-control/ is the deliberately false rejected assertion (the refresh flow aborts unless the negative control is rejected with gate exit 1 and verdict fail). scan-tests.log includes 25 compiled-ST tests (160 control combinations and 5,000 differential calls; boundary samples include threshold 31). native-driver-result.json covers the complete test program natively, not the OpenPLC service. P29-P31 are contract-derived deadline/count obligations revised after the 2026-09-23 independent review; see docs/DECISIONS.md. The prior parent-directory v0.2 results are historical.
+
+Interface 0.2.0 changes command/error lifecycle and instance layout; see ../../../01_specs/scan-contract.md via the project specification directory. Current errors clear on an observed disabled call, diagnostics on the subsequent enable rise. TIA/PLCSIM/DB migration/retention/F safety remain separate and unverified.

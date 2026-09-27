@@ -1,0 +1,42 @@
+{
+  "status": "implemented_and_verified_abstract_core",
+  "contract": "v0.3",
+  "interface_version": "0.2.0",
+  "base_head": "96c54d06e767b6054a8d67c93a1ebb9137da20dc",
+  "scan_tests": 25,
+  "control_combinations": 160,
+  "differential_calls": 5000,
+  "tooling_tests": 8,
+  "formal_assertions": 28,
+  "formal_result": "pass",
+  "formal_parameter_domain": "all UINT timeout values, independently sampled on each scan",
+  "formal_source_sha256": "b3ad94c15a02146e4baa68486c38245bbe5678c634d0f90971e04b7f24376602",
+  "formal_case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
+  "projection_manifest_sha256": "0eff993432b322b8e376f6960ba0171bc4a4bc7de58527f3c72e0a238c622947",
+  "negative_control_gate_exit": 1,
+  "adversarial_variant_pass": {
+    "dates": "2026-09-22/23",
+    "variants": 8,
+    "system_level_misses_found": 2,
+    "fixes": "P27-P31 (P29-P31 rewritten contract-derived after review) plus test_illegal_phase_reports_no_timeout; N=31 added to the native boundary samples",
+    "equivalent_variants": 1,
+    "detail": "see docs/DECISIONS.md and the plc-adversarial-lab report"
+  },
+  "migration": [
+    "Maintain Enable; always invoke FB even while disabled",
+    "Current block errors clear on an observed disabled call, not business Reset",
+    "Enable rising clears historical timeout diagnostic",
+    "Start/Reset edges are consumed even while rejected",
+    "Five appended outputs and changed instance memory layout"
+  ],
+  "not_verified": [
+    "TIA compilation/import and instance DB migration",
+    "PLCSIM and real machine",
+    "F safety implementation",
+    "full OpenPLC service",
+    "restart retention",
+    "complete PLCopen conformance"
+  ],
+  "committed": false,
+  "pushed": false
+}

@@ -1,0 +1,13 @@
+{
+  "result": "fail",
+  "tool_exit": 0,
+  "parameter_domain": "all UINT timeout values, independently sampled on each scan",
+  "algorithm": "Classic; dynamic reordering; CTL assertion requirement",
+  "source_sha256": "a46007ff720aaad1f97df21f9e0d08119f99a120f3ff4c2146321adeecc86baa",
+  "case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
+  "projection_manifest_sha256": "d28f34830d29215140104d33078a78f8d11f2539b1c8087ff30dadbf0b5c30e3",
+  "assertion_count": 32,
+  "required_assertions_missing": [],
+  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-r2/results/V1-timeout-boundary-late-postfix/formal/20260927T062912918544Z",
+  "siemens_final": "unverified"
+}

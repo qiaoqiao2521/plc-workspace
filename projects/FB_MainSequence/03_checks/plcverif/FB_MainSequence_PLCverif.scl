@@ -376,4 +376,14 @@ xTimeoutDiagnostic := xDiagnosticNext;
 //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND (uiStepTimerPrev < 65535) AND (uiStepTimerPrev >= (uiStepTimeoutScans - 1)) AND ((iPhase <> 900) OR (NOT xError) OR (NOT xTimeoutFault))) : P30_DeadlineObligation
 //#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans > 0) AND ((uiStepTimerPrev = 65535) OR (uiStepTimerPrev < (uiStepTimeoutScans - 1))) AND (uiStepTimerStat <> (uiStepTimerPrev + 1))) : P31_WaitingCallCountsOne
 
+// P32 added after the 2026-09-26 adversarial round (plans/plc-adversarial-r2):
+// a threshold-switched-to-zero variant that froze the prior timer passed every
+// then-shipped layer. The obligation is derived from the contract sentence
+// "Zero disables counting and keeps timer zero", not from derived signals.
+// The reset-acceptance edge (contract C3) is native-only: at end of cycle the
+// edge memory is already committed to this scan's input, so a single-state
+// assertion cannot reference the previous scan's input, and the one temp that
+// encodes it (xResetRise) is exactly what an edge-to-level mutant redefines.
+//#ASSERT NOT ((NOT xClearReq) AND (NOT xAbortReq) AND xBusyPhase AND (NOT xStepDone) AND (uiStepTimeoutScans = 0) AND (uiStepTimerStat <> 0)) : P32_ZeroThresholdKeepsTimerZero
+
 END_FUNCTION_BLOCK

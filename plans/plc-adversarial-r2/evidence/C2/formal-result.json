@@ -1,0 +1,13 @@
+{
+  "result": "pass",
+  "tool_exit": 0,
+  "parameter_domain": "all UINT timeout values, independently sampled on each scan",
+  "algorithm": "Classic; dynamic reordering; CTL assertion requirement",
+  "source_sha256": "c023ab750a96c23e067158274af7830f84c900f53ee96c423c4ea3e956943ff1",
+  "case_sha256": "0dfcb3bf461ce368544bf76d0e9231456ca7bbf4f1d96df8c57e0a7c44f9b05c",
+  "projection_manifest_sha256": "959fcf52b33a9cac3bd30663b89c6e83d5e9088dc2130e617f1227883cec8e6b",
+  "assertion_count": 32,
+  "required_assertions_missing": [],
+  "run_dir": "/home/muqiao/repo-revival/plc-adversarial-r2/results/M2-reset-level-accept-postfix/formal/20260927T062714053592Z",
+  "siemens_final": "unverified"
+}

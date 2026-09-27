@@ -1,0 +1,26 @@
+{
+  "execution": "completed",
+  "conclusion": "missed",
+  "observation": "M3(弱化正向断言集仍发布)按验收准则判系统级漏检。planted: assertions.planted.diff(删除 P29/P30/P31,31→28)。reached: 本次刷新正形式 run 的 formal-gate.log assertion_count=28(被验证的就是削弱后的集)。acceptance violation(判定表 N4): refresh-run.log 显示七步全过、exit 0、证据发布成功; published-README.md 仍硬编码声称 'the satisfied 31-assertion conjunction',与本次 28 不符,无任何步骤把被满足的断言集与要求集比较。发布已按 N5 以目标文件存在性与内容核对(非仅脚本打印): published-summary.json/published-README.md/published-formal-gate.log 均写入副本。责任检查=刷新门禁各验收条件,均通过未拒 → missed。负控件(N1)在该弱化集下仍被拒(步骤[6]通过),证明负控验收无法覆盖正向削弱。纠偏记录: 首次刷新因装备缺陷(PVCLI 指向不含 tools 的副本)中断,已修正适配脚本并保留 refresh-run.aborted-harness.log;总运行命令数含该次失败。",
+  "decision": "最小修复两部分: (a) 仓库正式门禁 run-semantic-modelcheck.py 增 required-assertions 检查(03_checks/plcverif/required-assertions.txt 钉住全部属性 ID,缺失即 BLOCKED exit2),并加单元测试; (b) refresh_evidence.sh 发布文本中的计数从本次运行产物派生,不再硬编码。修复后重跑同削弱变体验证拒绝,并用哈希确认未发布",
+  "regression": "unverified",
+  "artifacts": {
+    "planted_diff": "evidence/M3/assertions.planted.diff",
+    "weakened_source": "evidence/M3/assertions.weakened.scl",
+    "original_source": "evidence/M3/assertions.original.scl",
+    "refresh_run": "evidence/M3/refresh-run.log",
+    "published_README": "evidence/M3/published-README.md",
+    "published_summary": "evidence/M3/published-summary.json",
+    "published_formal_gate": "evidence/M3/published-formal-gate.log",
+    "harness_aborted_run": "evidence/M3/refresh-run.aborted-harness.log",
+    "adapted_script": "evidence/M3/refresh_m3.adapted.sh"
+  },
+  "proof": {
+    "planted": ["planted_diff", "weakened_source"],
+    "reached": ["published_formal_gate"],
+    "responsible_check": ["refresh_run", "published_formal_gate"],
+    "contract_violation": ["published_README", "published_summary", "published_formal_gate"]
+  },
+  "tokens": null,
+  "seconds": null
+}

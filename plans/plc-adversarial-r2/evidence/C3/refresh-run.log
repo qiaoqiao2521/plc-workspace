@@ -1,0 +1,8 @@
+[1/7] sync --check
+PASS: all projections and source hashes match
+[2/7] scan suite
+[3/7] native driver
+[4/7] tooling suites
+[5/7] formal gate (positive)
+BLOCKED: formal source is missing required assertions: P29_NoEarlyExpiration, P30_DeadlineObligation, P31_WaitingCallCountsOne
+REFRESH FAILED: formal gate exit 2 (must be 0)

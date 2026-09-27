@@ -1,0 +1,40 @@
+test_busy_start_ignored (__main__.ScanContractTests.test_busy_start_ignored) ... ok
+test_completion_on_deadline_wins (__main__.ScanContractTests.test_completion_on_deadline_wins) ... ok
+test_control_priority_matrix (__main__.ScanContractTests.test_control_priority_matrix) ... ok
+test_disable_abort_is_observable_for_one_call (__main__.ScanContractTests.test_disable_abort_is_observable_for_one_call) ... ok
+test_enable_error_and_diagnostic_lifetimes (__main__.ScanContractTests.test_enable_error_and_diagnostic_lifetimes) ... ok
+test_enable_loss_cancels_motion (__main__.ScanContractTests.test_enable_loss_cancels_motion) ... ok
+test_error_holds_without_acknowledgement (__main__.ScanContractTests.test_error_holds_without_acknowledgement) ... ok
+test_full_cycle_and_done_pulse (__main__.ScanContractTests.test_full_cycle_and_done_pulse) ... ok
+test_generated_projections_match_scan_by_scan (__main__.ScanContractTests.test_generated_projections_match_scan_by_scan) ... ok
+test_held_start_does_not_restart_after_stop (__main__.ScanContractTests.test_held_start_does_not_restart_after_stop) ... ok
+test_illegal_phase_fails_closed (__main__.ScanContractTests.test_illegal_phase_fails_closed) ... ok
+test_illegal_phase_reports_no_timeout (__main__.ScanContractTests.test_illegal_phase_reports_no_timeout) ... ok
+test_live_timeout_reduction_preserves_reason (__main__.ScanContractTests.test_live_timeout_reduction_preserves_reason) ... ok
+test_multiple_done_levels_do_not_cascade_within_scan (__main__.ScanContractTests.test_multiple_done_levels_do_not_cascade_within_scan) ... ok
+test_no_start_no_init_exit (__main__.ScanContractTests.test_no_start_no_init_exit) ... ok
+test_output_tampering_cannot_change_internal_state (__main__.ScanContractTests.test_output_tampering_cannot_change_internal_state) ... ok
+test_outputs_written_once_and_not_read_in_canonical_fb (__main__.ScanContractTests.test_outputs_written_once_and_not_read_in_canonical_fb) ... ok
+test_reset_cannot_acknowledge_block_error (__main__.ScanContractTests.test_reset_cannot_acknowledge_block_error) ... ok
+test_reset_consumes_start_without_replay (__main__.ScanContractTests.test_reset_consumes_start_without_replay) ... ok
+test_reset_held_across_stop_release_not_accepted (__main__.ScanContractTests.test_reset_held_across_stop_release_not_accepted) ... FAIL
+test_reset_prevents_same_scan_start (__main__.ScanContractTests.test_reset_prevents_same_scan_start) ... ok
+test_start_edge_consumed_while_disabled (__main__.ScanContractTests.test_start_edge_consumed_while_disabled) ... ok
+test_stop_at_deadline_aborts_without_new_timeout (__main__.ScanContractTests.test_stop_at_deadline_aborts_without_new_timeout) ... ok
+test_stop_does_not_acknowledge_fault (__main__.ScanContractTests.test_stop_does_not_acknowledge_fault) ... ok
+test_timeout_exact_boundary (__main__.ScanContractTests.test_timeout_exact_boundary) ... ok
+test_zero_disables_timeout (__main__.ScanContractTests.test_zero_disables_timeout) ... ok
+test_zero_threshold_midwait_keeps_timer_zero (__main__.ScanContractTests.test_zero_threshold_midwait_keeps_timer_zero) ... ok
+
+======================================================================
+FAIL: test_reset_held_across_stop_release_not_accepted (__main__.ScanContractTests.test_reset_held_across_stop_release_not_accepted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/muqiao/repo-revival/plc-adversarial-r2/variants/M2-reset-level-accept-postfix/validation/tests/test_scan_semantics.py", line 294, in test_reset_held_across_stop_release_not_accepted
+    self.assertTrue(result["command_aborted"])
+AssertionError: 0 is not true
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.092s
+
+FAILED (failures=1)

@@ -1,0 +1,40 @@
+{
+  "execution": "completed",
+  "conclusion": "missed",
+  "observation": "M1(切零冻结计时器)系统级漏检。planted: NextTimer.mutant.st + NextTimer.planted.diff(新增 ELSIF xBusyPhase 保持分支)。reached+contract_violation: probe_S0.json 显示 N=0 两拍 timer=3(契约 F2 要求为0)，恢复 N=2 首拍即 900+error(契约 F1 要求 phase=1,timer=1)；对照基线 probe_S0.json(根目录副本)逐拍符合判定表。责任检查核对——漂移门: 未同步时 exit1 拦截(door本职,非语义检出)，同步后 exit0 放行；扫描套件 25/25 OK(exit0)；原生驱动 pass(exit0)；形式 31 断言 60s=unknown(后端超时,与基线环境一致)，300s 扩展一次=pass/SATISFIED(formal-300-result.json)；工具套件 exit0。无任何具名检查因该违反失败 → missed。注: 探针首轮曾因等待拍漏传 enable 而无效,属实验仪表缺陷(已修正并重跑),非仓库检查结果,总运行命令数已含。",
+  "decision": "最小修复: assertions.scl 增契约导出 P32(N=0 等待拍 timer 必须为0)+原生回归 test_zero_midwait_keeps_timer_zero(判定表§1 独立预期),同步投影,重跑基线与本变体验证拒绝",
+  "regression": "unverified",
+  "artifacts": {
+    "variant_probe_S0": "evidence/M1/probe_S0_mutant.json",
+    "baseline_probe_S0": "evidence/M1/probe_S0_baseline.json",
+    "planted_diff": "evidence/M1/NextTimer.planted.diff",
+    "mutant_source": "evidence/M1/NextTimer.mutant.st",
+    "drift_prewrite": "evidence/M1/drift_prewrite.exit",
+    "scan_exit": "evidence/M1/scan.exit",
+    "driver_exit": "evidence/M1/driver.exit",
+    "formal_exit_60s": "evidence/M1/formal.exit",
+    "formal_300s_result": "evidence/M1/formal-300-result.json"
+  },
+  "tokens": null,
+  "seconds": null,
+  "proof": {
+    "planted": [
+      "planted_diff",
+      "mutant_source"
+    ],
+    "reached": [
+      "variant_probe_S0"
+    ],
+    "responsible_check": [
+      "scan_exit",
+      "driver_exit",
+      "formal_exit_60s",
+      "formal_300s_result",
+      "drift_prewrite"
+    ],
+    "contract_violation": [
+      "variant_probe_S0",
+      "baseline_probe_S0"
+    ]
+  }
+}

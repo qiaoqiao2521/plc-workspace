@@ -1,0 +1,14 @@
+{
+  "kind": "exploration",
+  "reason": "新错误机制 M1：运行中阈值切零的计时语义（契约 F2\"切零禁用计数且 timer 保持为零\"）。既有 V1-V8 全部固定 N>0 或从零起步（test_zero_disables 仅覆盖 N=0 起步），无任何层覆盖等待中切零再恢复正值的跨扫描行为；预测：实现若把切零实现为冻结 timer，全部检查放过（missed）。",
+  "environment": {
+    "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; GCC 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04.1); OpenJDK 17.0.20; matiec iec2c (lab tools/bin, 2026-09-22 build); nuXmv 2.1.0; PLCverif CLI launcher org.eclipse.equinox.launcher_1.4.0.v20161219-1356",
+    "command": "变体隔离副本上: sync-semantics.py --check(漂移门) → --write → run_layers.sh(扫描套件/原生驱动/形式60s/工具套件)；形式 unknown 时一次 --timeout 300 扩展"
+  },
+  "coverage": {
+    "inputs": "oracle 判定表 §1 序列 S0: start↑ 进相 N=8 → 3 等待拍(timer 1..3) → N=0 两拍(预期 timer=0) → N=2 恢复(预期 timer=1 再到期 900) + 完成同拍对照; 逐拍独立预期见 plans/plc-adversarial-r2/oracle/expected-behavior.md",
+    "fault": "FC_MainSequence_NextTimer.st: xBusyPhase AND N>0 计数分支后, 新增 ELSIF xBusyPhase THEN 保持 uiStepTimerStat（切零冻结 timer, 违反 F2\"keeps timer zero\"）——等待中切零后恢复正值导致提前到期",
+    "entrypoint": "validation/tests/test_scan_semantics.py 编译 ST 扫描套件; run_openplc_driver.py; run-semantic-modelcheck.py (PLCverif+nuXmv); sync-semantics.py 漂移门",
+    "oracle": "独立判定表 §1: N=0 等待拍 timer 必须为 0, 恢复 N 后按 F1 从 prev 计拍到; 责任检查=扫描套件断言/形式断言/驱动; 预测无既有断言覆盖(P17/P29-P31 均以 N>0 为前提)"
+  }
+}

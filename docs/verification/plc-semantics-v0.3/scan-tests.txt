@@ -17,14 +17,16 @@ test_output_tampering_cannot_change_internal_state (__main__.ScanContractTests.t
 test_outputs_written_once_and_not_read_in_canonical_fb (__main__.ScanContractTests.test_outputs_written_once_and_not_read_in_canonical_fb) ... ok
 test_reset_cannot_acknowledge_block_error (__main__.ScanContractTests.test_reset_cannot_acknowledge_block_error) ... ok
 test_reset_consumes_start_without_replay (__main__.ScanContractTests.test_reset_consumes_start_without_replay) ... ok
+test_reset_held_across_stop_release_not_accepted (__main__.ScanContractTests.test_reset_held_across_stop_release_not_accepted) ... ok
 test_reset_prevents_same_scan_start (__main__.ScanContractTests.test_reset_prevents_same_scan_start) ... ok
 test_start_edge_consumed_while_disabled (__main__.ScanContractTests.test_start_edge_consumed_while_disabled) ... ok
 test_stop_at_deadline_aborts_without_new_timeout (__main__.ScanContractTests.test_stop_at_deadline_aborts_without_new_timeout) ... ok
 test_stop_does_not_acknowledge_fault (__main__.ScanContractTests.test_stop_does_not_acknowledge_fault) ... ok
 test_timeout_exact_boundary (__main__.ScanContractTests.test_timeout_exact_boundary) ... ok
 test_zero_disables_timeout (__main__.ScanContractTests.test_zero_disables_timeout) ... ok
+test_zero_threshold_midwait_keeps_timer_zero (__main__.ScanContractTests.test_zero_threshold_midwait_keeps_timer_zero) ... ok
 
 ----------------------------------------------------------------------
-Ran 25 tests in 0.103s
+Ran 27 tests in 0.092s
 
 OK

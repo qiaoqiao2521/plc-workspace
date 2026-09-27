@@ -1,0 +1,14 @@
+{
+  "kind": "correction",
+  "reason": "E2 判定 missed 后修复责任层：原生回归 test_reset_held_across_stop_release_not_accepted（判定表 §2 独立预期）。形式侧经反例核实不可表达——EoC 单状态断言下边沿记忆已提交为本拍输入，唯一编码前拍输入的派生信号 xResetRise 恰是变体改写对象（共模空真），首版 P33 因此被修复后基线反例（错误码33）证伪并撤回；该义务按仓库先例（非法相位健壮性）归原生层。预测：修复后 C2 被新原生测试拒绝（detected），形式层保持 pass（已知空真，如实记录）。",
+  "environment": {
+    "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; GCC 13.3.0; OpenJDK 17.0.20; matiec iec2c (lab tools/bin); nuXmv 2.1.0; PLCverif CLI launcher 1.4.0.v20161219-1356",
+    "command": "M2-postfix 隔离副本 sync→扫描套件→形式(60s, unknown 则 300s 一次, 预期 pass 以证实空真)"
+  },
+  "coverage": {
+    "inputs": "同 E2 判定表 §2 S1（reset 电平接受变体）",
+    "fault": "同 E2：FB_MainSequence.st xResetRise := xReset（沿→电平）",
+    "entrypoint": "validation/tests/test_scan_semantics.py（含新回归）; run-semantic-modelcheck.py",
+    "oracle": "判定表 §2 独立预期; 责任检查=test_reset_held_across_stop_release_not_accepted"
+  }
+}

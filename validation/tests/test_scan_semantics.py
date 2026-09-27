@@ -262,6 +262,41 @@ class ScanContractTests(unittest.TestCase):
                     if not enable or stop or estop or reset or expected == 900:
                         self.assertFalse(any(result[k] for k in ("belt_forward", "belt_reverse", "q1", "q2", "done", "command_busy")))
 
+    def test_zero_threshold_midwait_keeps_timer_zero(self):
+        # Contract: "Zero disables counting and keeps timer zero" — switching N to
+        # zero mid-wait zeroes the timer, and a restored positive threshold counts
+        # from that zero instead of inheriting the frozen count.
+        self.start(timeout=8)
+        for _ in range(3):
+            self.scan(timeout=8)
+        result = self.scan(timeout=0)
+        self.assertEqual(result["phase"], 1)
+        self.assertEqual(result["timer"], 0)
+        self.assertFalse(result["error"])
+        self.assertEqual(self.scan(timeout=0)["timer"], 0)
+        result = self.scan(timeout=2)
+        self.assertEqual(result["phase"], 1)
+        self.assertEqual(result["timer"], 1)
+        self.assertFalse(result["error"])
+        result = self.scan(timeout=2)
+        self.assertEqual(result["phase"], 900)
+        self.assertTrue(result["error"] and result["timeout_fault"])
+
+    def test_reset_held_across_stop_release_not_accepted(self):
+        # Contract: "Healthy Reset is accepted only on a rising edge after
+        # Stop/EStop release" — a reset held across the release is not a new
+        # acceptance and must not clear CommandAborted.
+        self.start()
+        self.assertTrue(self.scan(stop=True)["command_aborted"])
+        self.scan(stop=True, reset=True)
+        result = self.scan(reset=True)
+        self.assertEqual(result["phase"], 0)
+        self.assertTrue(result["command_aborted"])
+        self.assertTrue(self.scan()["command_aborted"])
+        result = self.scan(start=True, init_done=True)
+        self.assertEqual(result["phase"], 1)
+        self.assertFalse(result["command_aborted"])
+
     def test_outputs_written_once_and_not_read_in_canonical_fb(self):
         fb = CANONICAL_SOURCE[CANONICAL_SOURCE.index("FUNCTION_BLOCK"):]
         declarations = re.search(r"VAR_OUTPUT(.*?)END_VAR", fb, re.S).group(1)

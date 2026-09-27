@@ -1,0 +1,14 @@
+{
+  "kind": "exploration",
+  "reason": "新错误机制 M3：证据刷新错误接受——正向断言集被削弱（删除契约导出的三条期限义务 P29-P31）后余集仍可满足，刷新七步验收是否拒绝发布。既有验收只含'正向 pass + 负控件(恒假断言)被拒'，预测：削弱正向集不被任何检查拒绝，发布照常成功且发布文本仍声称 31 断言(N4 missed)。",
+  "environment": {
+    "runtime": "Linux 6.8.0-139-generic x64; Python 3.12.3; OpenJDK 17.0.20; nuXmv 2.1.0; PLCverif CLI launcher 1.4.0.v20161219-1356; matiec iec2c (lab tools/bin)",
+    "command": "隔离副本(独立 git init 以满足刷新脚本 HEAD 记录)植入断言削弱 → sync --write → 适配版 refresh_evidence.sh(唯一偏差: 正/负形式步显式 --timeout 300,归因当前机器 60s 不足,验收逻辑未动) → 以目标文件哈希核验发布"
+  },
+  "coverage": {
+    "inputs": "oracle 判定表 §3 N4/N5; 植入对象=隔离副本 projects/FB_MainSequence/03_checks/plcverif/assertions.scl 删除 P29/P30/P31 三行",
+    "fault": "验收准则违反类：证书内容(31 条契约导出断言的联合)被削弱为 28 条,负控件(N1 恒假断言)仍被拒,正向仍 pass——发布接受弱化证据,README 硬编码'satisfied 31-assertion conjunction'与实际 28 不符且无检查拒绝",
+    "entrypoint": "plc-adversarial-lab/refresh_evidence.sh 的路径适配副本(隔离副本为 REPO); 所有 gate 判定逻辑保持原样",
+    "oracle": "判定表 §3: N4 弱化正向集必须拒绝发布; N5 发布与否以 04_reports 与 docs/verification 目标文件哈希为准,不以脚本打印为准; 责任检查=刷新门禁的各步验收条件"
+  }
+}

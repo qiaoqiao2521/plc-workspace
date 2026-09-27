@@ -1,0 +1,10 @@
+[1/7] sync --check
+PASS: all projections and source hashes match
+[2/7] scan suite
+[3/7] native driver
+[4/7] tooling suites
+[5/7] formal gate (positive)
+[6/7] negative control (must be rejected)
+[7/7] all gates passed; publishing evidence
+published to /home/muqiao/repo-revival/plc-workspace/projects/FB_MainSequence/04_reports/semantics/v0.3 and /home/muqiao/repo-revival/plc-workspace/docs/verification/plc-semantics-v0.3
+refresh complete: all acceptance gates passed and evidence published
