@@ -28,3 +28,13 @@ Remaining:
 - Older imported assets remain preserved with root-Codex owner and per-group shortest acceptance routes in plans/plc-frontend/legacy-handoff.md.
 
 Next: root Codex handles clarification before actuation generation, full-engineering recovery, and verification bound to each generated candidate. Runtime logs, raw prompts and CLI session IDs remain outside Git. The evaluation's synthetic requirements and two explicitly unaccepted candidates are retained as reproducible review samples; they do not modify canonical PLC source.
+
+
+## 2026-10-01 code fixes and ZCode comparison
+
+- Full engineering reopen implemented with original request/result binding and recomputed fingerprint; ordinary result import retains current-task matching. Imported engineering never receives example proof.
+- LAD title numbering normalized consistently in view/export; handoff buttons wrap on small displays.
+- Actual old exported example and conveyor reopened in a fresh browser page; refresh/reopen succeeded, edited requirement disabled stale export. 390px layout measured without page overflow.
+- Optional ZCode local CLI adapter implemented; 13 JS / 8 Python tests and build/projection checks passed. Strict JSON response validation, tool denial, process budgets and unchanged agy default retained.
+- Model invocation accounting and observed acceptance boundary are in [ZCode retest](zcode-retest.md). Earlier PLC candidates/oracle hashes unchanged; no automatic generated-source promotion.
+- Root Codex remains owner for independent new-candidate checks and ZCode service/runtime diagnosis. This turn does not introduce CM-native ZCode support or claim PLC correctness from process/connection success.

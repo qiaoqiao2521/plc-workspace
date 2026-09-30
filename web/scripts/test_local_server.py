@@ -31,12 +31,12 @@ class BridgeTests(unittest.TestCase):
         for value in [None,{}, {'schema_version':1}]:
             with self.assertRaises(ValueError):bridge.validate_schema(value,bridge.SCHEMA)
 
-    def run_stub(self, stdout, code=0, delay=0, cancel=False):
+    def run_stub(self, stdout, code=0, delay=0, cancel=False, provider="agy"):
         with tempfile.TemporaryDirectory() as td:
             script=Path(td)/'fake-agy'
             script.write_text('#!/usr/bin/env python3\nimport time\ntime.sleep('+str(delay)+')\nprint('+repr(stdout)+')\nraise SystemExit('+str(code)+')\n')
             script.chmod(0o755)
-            server=bridge.GenerationBridge(str(script),timeout=2)
+            server=bridge.GenerationBridge(str(script),timeout=2,provider=provider,node=str(script))
             job=server.begin(request(),'prompt')
             if cancel:server.cancel(job)
             deadline=time.monotonic()+5
@@ -58,6 +58,18 @@ class BridgeTests(unittest.TestCase):
     def test_cancel_before_or_during_launch_never_returns_complete(self):
         envelope={'status':'SUCCESS','structured_output':result(request())}
         self.assertEqual(self.run_stub(json.dumps(envelope),delay=1,cancel=True)['status'],'cancelled')
+
+    def test_zcode_response_is_validated_and_prose_is_rejected(self):
+        good=json.dumps({'response':json.dumps(result(request()))})
+        self.assertEqual(self.run_stub(good,provider='zcode')['status'],'complete')
+        for bad in [json.dumps({'response':'looks good'}),json.dumps({'response':'{}'}),json.dumps({'response':json.dumps(result(request())), 'error':'failed'})]:
+            self.assertEqual(self.run_stub(bad,provider='zcode')['status'],'failed')
+
+    def test_zcode_budget_does_not_inherit_agy_transport_grace(self):
+        good=json.dumps({'response':json.dumps(result(request()))})
+        outcome=self.run_stub(good,delay=4,provider='zcode')
+        self.assertEqual(outcome['status'],'failed')
+        self.assertIn('预算',outcome['error'])
 
     def test_http_rejects_foreign_origin_and_exposes_missing_provider(self):
         server=bridge.ThreadingHTTPServer(('127.0.0.1',0),bridge.Handler)

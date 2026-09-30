@@ -1,7 +1,7 @@
-import {flowDraft, makeRequest, validateResult, agentPrompt} from './generation-model.js';
+import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle} from './generation-model.js';
 const $ = id => document.getElementById(id);
 const fieldIds = {name:'project-name', block_name:'block-name', requirement:'requirement', flow:'flow', io_text:'io-text', constraints:'constraints'};
-let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 180;
+let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 180, provider = 'agy';
 const text = (id, value) => { $(id).textContent = value; };
 const node = (tag, value, className) => { const el = document.createElement(tag); if (value !== undefined) el.textContent = value; if (className) el.className = className; return el; };
 function message(value, error = false) { $('message').hidden = !value; text('message', value || ''); $('message').classList.toggle('error', error); }
@@ -11,6 +11,7 @@ function updateActions() {
   $('generate').disabled = !ready || !request || busy;
   $('export-task').disabled = !request || busy;
   $('import-result').disabled = !request || busy;
+  $('open-project').disabled = busy;
   $('export-project').disabled = !result || stale || busy;
   $('download-scl').disabled = stale || busy;
   $('download-lad').disabled = stale || busy;
@@ -58,7 +59,7 @@ function renderResult() {
   $('lad-empty').hidden = !!result.lad_networks.length; $('download-lad').hidden = !result.lad_networks.length;
   $('lad-networks').replaceChildren();
   for (const [i,n] of result.lad_networks.entries()) {
-    const article = node('article',undefined,'lad-network'); article.append(node('h3', `网络 ${i+1} · ${n.title}`));
+    const article = node('article',undefined,'lad-network'); article.append(node('h3', `网络 ${i+1} · ${ladTitle(n.title)}`));
     if (n.kind === 'call') {
       const call = node('div',undefined,'lad-call'); call.append(node('strong', `${n.block} / ${n.instance}`), node('small','周期调用 · EN = TRUE'));
       const bindings = node('div',undefined,'lad-bindings'); n.bindings.forEach(b => bindings.append(node('span', `${b.parameter} := ${b.symbol}`))); call.append(bindings); article.append(call);
@@ -107,15 +108,15 @@ async function api(path, body) {
 }
 async function generate() {
   if (!request || !ready || busy) return;
-  setBusy(true); message(`agy 正在整理规格与工程草稿。最多等待 ${generationBudget} 秒；可以取消。`);
+  setBusy(true); message(`${provider} 正在整理规格与工程草稿。最多等待 ${generationBudget} 秒；可以取消。`);
   try {
     const accepted = await api('/api/generate', {request,prompt:agentPrompt(request)}); jobId = accepted.job_id;
     let response;
     do { await new Promise(resolve => setTimeout(resolve,1200)); response = await api(`/api/jobs/${jobId}`); } while (response.status === 'running');
     if (response.status === 'cancelled') { message('生成已取消，需求草稿仍保留。'); return; }
-    if (response.status !== 'complete') throw new Error(response.error || '生成未完成，请检查本机 agy 后重试。');
+    if (response.status !== 'complete') throw new Error(response.error || `生成未完成，请检查本机 ${provider} 后重试。`);
     result = validateResult(response.result,request); generationOrigin = 'agent'; renderResult(); showTab('spec');
-    message(`agy 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。请审阅规格、待确认项和代码，再运行工程检查。`);
+    message(`${provider} 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。请审阅规格、待确认项和代码，再运行工程检查。`);
   } catch (error) { message(error.message,true); }
   finally { jobId = undefined; setBusy(false); }
 }
@@ -128,13 +129,13 @@ function saveExport() {
   const url = URL.createObjectURL(new Blob([exportFile.content],{type:exportFile.type})); const a = node('a'); a.href = url; a.download = exportFile.name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url),10000);
   text('export-feedback','已向浏览器发起下载；也可以复制上方文本。');
 }
-function ladMarkdown() { return '# Main LAD 网络规格（待 TIA 实现与编译）\n\n' + result.lad_networks.map((n,i) => `## 网络 ${i+1}：${n.title}\n\n${n.kind === 'call' ? `周期调用 ${n.block}，实例 ${n.instance}，EN=TRUE。\n\n${n.bindings.map(b => `- ${b.parameter} := ${b.symbol}`).join('\n')}` : n.contacts.map(c => `${c.negated ? '常闭' : '常开'} ${c.symbol}`).join(' 串联 ') + ` → 线圈 ${n.coil}`}\n\n${n.note}`).join('\n\n'); }
+function ladMarkdown() { return '# Main LAD 网络规格（待 TIA 实现与编译）\n\n' + result.lad_networks.map((n,i) => `## 网络 ${i+1}：${ladTitle(n.title)}\n\n${n.kind === 'call' ? `周期调用 ${n.block}，实例 ${n.instance}，EN=TRUE。\n\n${n.bindings.map(b => `- ${b.parameter} := ${b.symbol}`).join('\n')}` : n.contacts.map(c => `${c.negated ? '常闭' : '常开'} ${c.symbol}`).join(' 串联 ') + ` → 线圈 ${n.coil}`}\n\n${n.note}`).join('\n\n'); }
 async function loadExample(artifact) {
   try {
     if (!example) { const response = await fetch('./data/example.json'); if (!response.ok) throw new Error('已有工程示例加载失败，请重新构建网站。'); example = await response.json(); }
     writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; request = undefined; stale = false;
-    if (artifact) { request = structuredClone(example.request); result = validateResult(structuredClone(example.result),request); generationOrigin = 'example'; renderResult(); message('显示仓库已有工程示例。该示例没有调用模型；修改需求后可交给 agy 生成新草稿。'); }
-    else { await prepare(); message('已载入示例工艺需求。可修改后交给 agy，或查看仓库已有工程。'); }
+    if (artifact) { request = structuredClone(example.request); result = validateResult(structuredClone(example.result),request); generationOrigin = 'example'; renderResult(); message(`显示仓库已有工程示例。该示例没有调用模型；修改需求后可交给 ${provider} 生成新草稿。`); }
+    else { await prepare(); message(`已载入示例工艺需求。可修改后交给 ${provider}，或查看仓库已有工程。`); }
     showTab('spec'); updateActions();
   } catch (error) { message(error.message,true); }
 }
@@ -142,13 +143,24 @@ document.querySelectorAll('[data-tab]').forEach((b,i,buttons) => {
   b.addEventListener('click', () => showTab(b.dataset.tab));
   b.addEventListener('keydown',event => { let target; if (event.key === 'ArrowRight') target = (i+1)%buttons.length; if (event.key === 'ArrowLeft') target = (i+buttons.length-1)%buttons.length; if (event.key === 'Home') target = 0; if (event.key === 'End') target = buttons.length-1; if (target !== undefined) { event.preventDefault(); showTab(buttons[target].dataset.tab,true); } });
 });
-$('brief-form').addEventListener('submit', async event => { event.preventDefault(); try { await prepare(); message('生成任务已准备。审阅步骤后，可以交给 agy。'); } catch (error) { message(error.message,true); } });
+$('brief-form').addEventListener('submit', async event => { event.preventDefault(); try { await prepare(); message(`生成任务已准备。审阅步骤后，可以交给 ${provider}。`); } catch (error) { message(error.message,true); } });
 $('brief-form').addEventListener('input', event => { if (event.target.id === 'flow') states = []; dirty(); });
 $('generate').addEventListener('click',generate);
-$('cancel').addEventListener('click', async () => { if (jobId) { try { await api(`/api/jobs/${jobId}/cancel`,{}); message('正在取消 agy，需求草稿会保留。'); } catch (error) { message(error.message,true); } } });
+$('cancel').addEventListener('click', async () => { if (jobId) { try { await api(`/api/jobs/${jobId}/cancel`,{}); message(`正在取消 ${provider}，需求草稿会保留。`); } catch (error) { message(error.message,true); } } });
 $('load-brief').addEventListener('click', () => loadExample(false)); $('view-example').addEventListener('click', () => loadExample(true)); $('scl-files').addEventListener('change',showCode);
 $('save-draft').addEventListener('click', () => { try { localStorage.setItem('plc-workspace-brief-v1',JSON.stringify({brief:readBrief(),states})); message('需求与状态草稿已保存在此浏览器。不会保存模型凭据或生成进程。'); } catch { message('浏览器未允许本地保存，可导出 Agent 任务保留需求。',true); } });
 $('export-task').addEventListener('click', async () => { try { const response = await fetch('./data/generation-result.schema.json'); if (!response.ok) throw new Error('结果格式加载失败。'); download('plc-agent-task.json',{request,prompt:agentPrompt(request),result_schema:await response.json()}); } catch (error) { message(error.message,true); } });
+$('open-project').addEventListener('click', () => { $('project-file').value = ''; $('project-file').click(); });
+$('project-file').addEventListener('change', async event => {
+  try {
+    const file = event.target.files[0]; if (!file) return;
+    if (file.size > 1000000) throw new Error('工程文件超过 1 MB，请拆分工程。');
+    const restored = await openEngineering(JSON.parse(await file.text()));
+    request = restored.request; result = restored.result; generationOrigin = 'import';
+    writeBrief(request.brief); renderResult(); showTab('spec');
+    message('工程草稿已打开，原始需求与结果已恢复。导入文件不继承验证结论。');
+  } catch (error) { message(error instanceof SyntaxError ? '工程文件不是有效 JSON。' : error.message, true); }
+});
 $('import-result').addEventListener('click', () => { $('result-file').value = ''; $('result-file').click(); });
 $('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; generationOrigin = 'import'; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
 $('download-scl').addEventListener('click', () => { if (stale || !result) return; const file = result.scl_files[Number($('scl-files').value)]; download(file.name,file.content,'text/plain;charset=utf-8'); });
@@ -159,9 +171,10 @@ $('copy-export').addEventListener('click',async()=> { try { await navigator.clip
 $('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification_status:'not_run_for_import',lad_format:'review_networks_not_tia_project'}); });
 async function init() {
   try { const saved = JSON.parse(localStorage.getItem('plc-workspace-brief-v1')); if (saved?.brief && Array.isArray(saved.states)) { writeBrief(saved.brief); states = saved.states; message('已恢复此浏览器保存的需求草稿。请整理任务后重新生成。'); } } catch { /* Invalid/blocked local storage leaves a clean editable form. */ }
-  try { const capability = await api('/api/capabilities'); ready = capability.ready === true && capability.provider === 'agy'; generationBudget = capability.timeout_seconds || 180; } catch { ready = false; }
-  text('connection',ready ? '本机 agy 已连接' : '本机生成未连接'); $('connection').classList.toggle('ready',ready);
+  try { const capability = await api('/api/capabilities'); ready = capability.ready === true && ['agy','zcode'].includes(capability.provider); provider = capability.provider; generationBudget = capability.timeout_seconds || 180; } catch { ready = false; }
+  text('connection',ready ? `本机 ${provider} CLI 可用` : '本机生成未连接'); $('connection').classList.toggle('ready',ready);
   if (!ready) { text('generate-title','本机生成未连接'); text('generate-help','使用 npm --prefix web run dev 启动本机桥接；也可导出任务、导入 Agent 结果。'); }
+  if (ready) { text('generate-title', `交给本机 ${provider} 生成`); text('generate-help', '生成结果是待审阅草稿，编译与逐扫描检查需单独执行。'); }
   updateActions();
 }
 init();

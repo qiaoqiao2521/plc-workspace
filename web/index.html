@@ -27,7 +27,7 @@
 <div class="draft-actions"><button id="prepare" type="submit" class="secondary-button">整理步骤与生成任务</button><button id="save-draft" type="button" class="text-button">保存本机草稿</button></div>
 </form>
 <div class="generate-action"><div><strong id="generate-title">交给本机 agy</strong><p id="generate-help">使用本机已配置的模型。结果先作为工程草稿审阅。</p></div><button id="generate" class="primary-button" disabled>AI 生成工程</button><button id="cancel" class="secondary-button" hidden>取消生成</button></div>
-<div class="handoff-actions"><button id="export-task" class="text-button" disabled>导出 Agent 任务</button><button id="import-result" class="text-button" disabled>导入 Agent 结果</button><input id="result-file" type="file" accept=".json,application/json" hidden></div>
+<div class="handoff-actions"><button id="open-project" class="text-button" type="button">打开工程草稿</button><input id="project-file" type="file" accept=".json,application/json" hidden><button id="export-task" class="text-button" disabled>导出 Agent 任务</button><button id="import-result" class="text-button" disabled>导入 Agent 结果</button><input id="result-file" type="file" accept=".json,application/json" hidden></div>
 </section>
 <section class="artifact-panel" aria-labelledby="artifact-title">
 <div class="panel-heading"><div><h2 id="artifact-title">工程成果</h2><span id="artifact-status" class="artifact-status">等待需求</span></div><button id="view-example" class="text-button">查看已有工程示例</button></div>

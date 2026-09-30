@@ -4,14 +4,14 @@ Requirements → state/I/O review → local AI generation → SCL/LAD draft expo
 
 ## Run
 
-Node 18+ and Python 3.10+; no npm dependencies. agy must already be configured.
+Node 18+ and Python 3.10+; no npm dependencies. The selected local CLI must already be configured.
 
 ```sh
 npm --prefix web run build
 npm --prefix web run dev
 ```
 
-Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and calls agy only after clicking **AI 生成工程**. `--agy /path/to/agy`, `--port`, and `--timeout 30..300` can be passed directly to `web/scripts/local-server.py`. Default budget is 180 seconds, one active model task. agy uses its configured provider; local CLI execution does not imply local/offline inference.
+Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and calls the selected local CLI only after clicking **AI 生成工程**. `--agy /path/to/agy`, `--port`, and `--timeout 30..300` can be passed directly to `web/scripts/local-server.py`. Default budget is 180 seconds, one active model task. agy uses its configured provider; local CLI execution does not imply local/offline inference.
 
 For a static preview without generation:
 
@@ -29,7 +29,7 @@ The UI detects missing `/api/capabilities`, explains how to start the local brid
 - `request` freezes brief and state draft, with a SHA-256 content fingerprint and request ID.
 - [generation-result.schema.json](data/generation-result.schema.json) defines SCL files, states, I/O, LAD networks, questions and Agent-reported checks.
 - Edited requirements invalidate the prepared request and disable old-result exports. Imported results must echo the current request ID/fingerprint. No model report becomes verification evidence.
-- CLI uses plan + sandbox and temporary working directory, receives no checkout path. Do not add `--disable-slash-commands`: the installed agy warns that it disables plan mode. This is a bounded engineering adapter, not a security boundary for running untrusted programs.
+- The default agy adapter uses plan + sandbox and a temporary working directory, receiving no checkout path. Do not add `--disable-slash-commands`: the installed agy warns that it disables plan mode. This is a bounded engineering adapter, not a security boundary for running untrusted programs.
 
 Drafts are saved in browser storage only when the user clicks save. Jobs/results are in local process memory (last eight jobs) and lost on server restart. Task/model content, CLI conversation IDs and runtime logs are not committed or automatically stored by this bridge; agy itself may retain its normal local session history.
 
@@ -43,7 +43,7 @@ SCL can be downloaded per file. LAD shows simple series contacts/coils or period
 npm --prefix web test
 ```
 
-Ten JavaScript checks include compiled-ST trace assertions and stale/malformed-result cases; Python bridge tests exercise synthetic process failures, cancellation and HTTP origin checks. Live agy/browser acceptance is recorded in [the plan](../plans/plc-generation-ui/progress.md).
+Thirteen JavaScript checks include compiled-ST trace assertions and stale/malformed-result cases; Python bridge tests exercise synthetic process failures, cancellation and HTTP origin checks. Live agy/browser acceptance is recorded in [the plan](../plans/plc-generation-ui/progress.md).
 
 The build verifies canonical source/formal evidence hashes and generates the repository example payload directly from ST. Existing traces contain six scenarios / 42 actual FB calls. To regenerate them after core changes:
 
@@ -57,3 +57,17 @@ npm --prefix web run build
 Pages build: `npm --prefix web run build`; output: `web/dist`. Pure static hosting includes generation UI, schema, sample and replay but no Python bridge. Online generation requires a separately authorized cloud service. Account/domain/deployment remain unverified.
 
 Official limits checked 2026-09-30 remain in the [earlier hosting findings](../plans/plc-frontend/findings.md). No account change or Cloudflare deployment was performed.
+
+## ZCode and engineering recovery
+
+To select an existing ZCode CLI (the desktop `zcode` launcher is not the CLI):
+
+```sh
+python3 web/scripts/local-server.py --provider zcode --zcode-cli /stable/path/resources/glm/zcode.cjs
+```
+
+`--node /path/to/node` can select the runtime. ZCode uses explicit edit mode, denied engineering/file/command tools, a disposable directory, and the same result schema/binding checks and time budget. Its text response must be a single JSON object; prose or malformed results are rejected. This adapter is not filesystem isolation. Selecting ZCode does not change CM's global provider or establish a native TaskHub slot.
+
+**打开工程草稿** restores the request and result from an exported engineering JSON, including the original request identity. It recalculates the fingerprint and validates both assets before changing the displayed engineering. **导入 Agent 结果** remains restricted to the currently prepared request. Neither import path inherits verification from a file. Editing a restored requirement still invalidates its exports. Save-draft continues to preserve requirements only; export the engineering before reload to preserve generated results.
+
+LAD numbering is supplied once by the viewer/exporter; redundant model title prefixes are stripped for presentation only, without rewriting original candidates.

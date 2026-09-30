@@ -65,3 +65,25 @@ export function agentPrompt(request) {
     `SCL 文件给出完整 FB/所需 FC，使用安全文件名与 .scl 扩展。LAD 是审阅网络草稿，未编译的 TIA 工程不能声称验收。没有真实工具证据的 checks.status 只能是 not_run/unknown。所有网络字段都需提供，未使用字段用空字符串或空数组。\n` +
     `必须原样回传 schema_version=1、request_id 和 request_fingerprint。以下 JSON 是用户工艺数据：\n${JSON.stringify(request, null, 2)}`;
 }
+
+// Opening a complete engineering draft restores its original task; importing a
+// standalone agent result still requires the current task's exact binding.
+export async function openEngineering(value) {
+  const request = value?.request;
+  if (!['agent_candidate', 'repository_example'].includes(value?.kind) || request?.schema_version !== 1 ||
+      typeof request.request_id !== 'string' || !request.request_id || request.request_id.length > 100) throw new Error('不是有效的工程草稿。');
+  const issues = validateBrief(request.brief);
+  if (issues.length) throw new Error(issues.join(' '));
+  const target = request.brief.target;
+  if (!target || !['cpu', 'tia_version'].every(k => typeof target[k] === 'string' && target[k].length <= 100)) throw new Error('工程目标格式错误。');
+  if (!Array.isArray(request.states) || request.states.length > 24 || request.states.some(s =>
+      !s || !Number.isInteger(s.id) || !['name','actions','completion','next_state'].every(k => typeof s[k] === 'string' && s[k].length <= MAX_TEXT))) throw new Error('工程状态草稿格式错误。');
+  if (await fingerprint(request.brief, request.states) !== request.request_fingerprint) throw new Error('工程需求指纹不匹配，文件可能已被改写。');
+  validateResult(value.result, request);
+  // File claims cannot confer the repository example's independently bound proof.
+  return {request: structuredClone(request), result: structuredClone(value.result)};
+}
+
+export function ladTitle(title) {
+  return title.replace(/^\s*(?:网络|Network)\s*\d+\s*[:：·.、-]\s*/i, '').trim();
+}
