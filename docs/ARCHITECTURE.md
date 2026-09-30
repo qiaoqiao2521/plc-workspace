@@ -1,6 +1,14 @@
 # Architecture
 
-The repository hosts a validation layer and an abstract PLC sequencing example. It does not include the full machine project.
+The product turns human process requirements into AI-generated Main LAD / FB SCL drafts, supported by a validation layer and an abstract PLC sequencing example. It does not include the full machine project.
+
+## Generation entry
+
+`web/index.html` owns requirements and engineering review. `generation-model.js` defines immutable request fingerprints and display validation; `generation.js` drives local generation, import/export and stale-result handling. No browser module executes PLC logic.
+
+`web/scripts/local-server.py` serves the static build and a loopback-only `/api` bridge. One bounded job runs agy in plan/sandbox mode in a disposable directory with a JSON result schema. No generated source is automatically promoted into `02_src/st`. The result is a candidate even if the model self-reports passing checks. Cancellation terminates the job; wrong fingerprints, malformed output, missing structured results and non-success process status are rejected.
+
+`web/validation.html` exposes only the repository example’s existing proof and replay. The static build generates an example payload directly from canonical ST and trace metadata. LAD networks are an engineering review representation, not Siemens project serialization. Static deployment without `/api` keeps task/result file handoff; it does not connect to a visitor’s localhost. A cloud implementation can use the same request/result format later.
 
 ## Canonical flow
 

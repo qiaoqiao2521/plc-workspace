@@ -1,41 +1,59 @@
 # PLC Workspace frontend
 
-Static Chinese scan observatory. Six curated scenarios replay 42 invocations of the actual canonical ST compiled with matiec. The browser displays recorded inputs/outputs; it does not implement a second PLC state machine or connect to hardware.
+Requirements → state/I/O review → local AI generation → SCL/LAD draft export. Existing compiled-ST replay is in `validation.html`, supporting the generator’s quality.
 
-## Run locally
+## Run
 
-From the repository root (Node 18+ and Python 3):
+Node 18+ and Python 3.10+; no npm dependencies. agy must already be configured.
+
+```sh
+npm --prefix web run build
+npm --prefix web run dev
+```
+
+Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and calls agy only after clicking **AI 生成工程**. `--agy /path/to/agy`, `--port`, and `--timeout 30..300` can be passed directly to `web/scripts/local-server.py`. Default budget is 180 seconds, one active model task. agy uses its configured provider; local CLI execution does not imply local/offline inference.
+
+For a static preview without generation:
+
+```sh
+python3 -m http.server 8767 --bind 127.0.0.1 --directory web/dist
+```
+
+The UI detects missing `/api/capabilities`, explains how to start the local bridge and keeps Agent task/result handoff available. A static public website cannot execute agy on the server or visitor computer. No model credentials or local server code are included in the static asset output.
+
+## Generation protocol
+
+- `POST /api/generate`: `{request, prompt}`; returns a job identifier. Requires JSON content type, same origin and `X-PLC-Workspace: 1`.
+- `GET /api/jobs/<id>`: running/complete/failed/cancelled; complete includes structured result.
+- `POST /api/jobs/<id>/cancel`: cancel the current model process.
+- `request` freezes brief and state draft, with a SHA-256 content fingerprint and request ID.
+- [generation-result.schema.json](data/generation-result.schema.json) defines SCL files, states, I/O, LAD networks, questions and Agent-reported checks.
+- Edited requirements invalidate the prepared request and disable old-result exports. Imported results must echo the current request ID/fingerprint. No model report becomes verification evidence.
+- CLI uses plan + sandbox and temporary working directory, receives no checkout path. Do not add `--disable-slash-commands`: the installed agy warns that it disables plan mode. This is a bounded engineering adapter, not a security boundary for running untrusted programs.
+
+Drafts are saved in browser storage only when the user clicks save. Jobs/results are in local process memory (last eight jobs) and lost on server restart. Task/model content, CLI conversation IDs and runtime logs are not committed or automatically stored by this bridge; agy itself may retain its normal local session history.
+
+## Engineering output
+
+SCL can be downloaded per file. LAD shows simple series contacts/coils or periodic FB call bindings; unsupported logic stays in notes/questions. LAD Markdown and structured engineering JSON are review artifacts, not TIA project files. Exported/imported candidates still need independent compilation, scan checks and Siemens acceptance. Changing a process never inherits the example’s proof.
+
+## Checks and example data
 
 ```sh
 npm --prefix web test
-npm --prefix web run build
-python3 -m http.server 8766 --bind 127.0.0.1 --directory web/dist
 ```
 
-Open http://127.0.0.1:8766. No npm dependencies or install step. The five-file static output contains no server functions, external fonts, analytics, account data or tool binaries.
+Ten JavaScript checks include compiled-ST trace assertions and stale/malformed-result cases; Python bridge tests exercise synthetic process failures, cancellation and HTTP origin checks. Live agy/browser acceptance is recorded in [the plan](../plans/plc-generation-ui/progress.md).
 
-## Refresh traces
-
-Use the existing native toolchain; paths are explicit and machine-specific:
+The build verifies canonical source/formal evidence hashes and generates the repository example payload directly from ST. Existing traces contain six scenarios / 42 actual FB calls. To regenerate them after core changes:
 
 ```sh
 python3 web/scripts/export-traces.py --iec2c /path/to/iec2c --matiec-lib /path/to/matiec/lib
-npm --prefix web test
 npm --prefix web run build
 ```
 
-The exporter compiles canonical ST in a temporary directory and checks published formal evidence hashes. `build` rejects stale canonical source or formal evidence. If ST changes, refresh its verification evidence and regenerate traces before building. Curated scenario text and independent behavior tests must be reviewed with contract changes. The checked-in JSON is a deliberate public demonstration artifact, not a live runtime log.
+## Hosting later
 
-Playback, previous/next scan, range seeking, row seeking, scenario selection and JSON export work entirely in-browser. Playback speed changes only presentation timing, never scan results. Exports contain selected recorded data and source hashes, not simulator inputs.
+Pages build: `npm --prefix web run build`; output: `web/dist`. Pure static hosting includes generation UI, schema, sample and replay but no Python bridge. Online generation requires a separately authorized cloud service. Account/domain/deployment remain unverified.
 
-## Cloudflare preparation (not deployed)
-
-For Pages, repository root remains the root; build command: `npm --prefix web run build`; output directory: `web/dist`. No Functions directory. Workers Static Assets can serve the same directory without a Worker script. No account identifier or deployment credentials are stored here. Existing account use must be inspected before a later deployment.
-
-Official limits checked 2026-09-30: Pages 100 projects/account, free 500 builds/month; Workers static requests free and unlimited, dynamic requests on Free share an account-level 100,000/day allowance. Hosting two websites alone does not require a new account.
-
-- https://developers.cloudflare.com/pages/platform/limits/
-- https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/
-- https://developers.cloudflare.com/workers/platform/limits/
-
-This UI exposes Linux/offline evidence only. It is not TIA, PLCSIM, real-machine or F-safety acceptance.
+Official limits checked 2026-09-30 remain in the [earlier hosting findings](../plans/plc-frontend/findings.md). No account change or Cloudflare deployment was performed.

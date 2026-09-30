@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="PLC Workspace：从真实 ST 执行轨迹，逐扫描理解状态、时序和故障。">
+<meta name="theme-color" content="#17364b"><title>PLC Workspace · 验证与回放</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.js"></script>
+</head>
+<body>
+<a class="skip" href="#workbench">跳到扫描观察台</a>
+<header class="site-header"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▥</span><span>PLC <b>Workspace</b></span></a><nav aria-label="主导航"><a href="./">需求生成</a><a class="active" href="#workbench">验证与回放</a><a href="#evidence">验证记录</a><a href="#contract">语义约定</a></nav><a class="repo-link" href="https://github.com/qiaoqiao2521/plc-workspace" target="_blank" rel="noreferrer">源代码 <span aria-hidden="true">↗</span></a></header>
+<main>
+<section class="intro"><div><p class="intro-label"><span class="dot"></span> 循环执行 · 持续状态 · 明确语义</p><h1>查看已有核心的验证记录。</h1><p class="intro-copy">这里回放仓库示例 FB_MainSequence 的执行记录。<br>新生成的工程需要运行自己的检查，不继承这些结果。</p></div><div class="intro-aside"><span class="mini-signal" aria-hidden="true">▁▁▔▔▁▁▔▔▁▁</span><strong>先固定逻辑，再连接机器。</strong><span>scan contract v0.3 / interface 0.2.0</span></div></section>
+<section id="workbench" class="workbench" aria-labelledby="bench-title">
+<div class="bench-heading"><div><span class="section-icon" aria-hidden="true">⌘</span><h2 id="bench-title">扫描观察台</h2></div><span class="replay-badge">ST 执行轨迹回放</span></div>
+<div id="load-error" class="load-error" hidden role="alert">场景数据加载失败。请通过本地服务器打开页面后重试。<button id="retry">重新加载</button></div>
+<div class="bench-grid">
+<aside class="scenario-panel"><h3>选择一个场景</h3><p class="muted small">用边界行为理解状态机</p><div id="scenarios" class="scenario-list" aria-label="回放场景"></div><div class="source-note"><span class="small-icon" aria-hidden="true">⌁</span><p>数据来自编译后的 ST<br><span>无 PLC 连接，无现场操作</span></p></div></aside>
+<div class="main-panel"><div class="scene-top"><div><span id="scene-id" class="muted small">FB_MainSequence</span><h3 id="scene-title">正在加载执行轨迹…</h3></div><span id="phase-chip" class="phase-chip">等待数据</span></div><p id="scene-description" class="scene-description">每一行记录一次完整调用后的状态。</p>
+<div class="machine"><div class="machine-caption"><span>抽象工艺视图</span><span id="machine-state">等待回放</span></div>
+<svg class="machine-svg" viewBox="0 0 620 150" role="img" aria-label="输送、翻转、出料三段抽象工艺；高亮表示当前相位">
+<defs><pattern id="belt-ridges" width="16" height="10" patternUnits="userSpaceOnUse"><path d="M1 0v10" stroke="#587080" stroke-width="2"/></pattern></defs>
+<path d="M45 111H575" stroke="#425e70" stroke-width="2"/>
+<g class="station" data-machine="1"><rect class="station-glow" x="35" y="20" width="166" height="105" rx="12"/><rect x="48" y="85" width="140" height="18" rx="9" class="belt"/><rect x="56" y="90" width="124" height="8" fill="url(#belt-ridges)"/><path d="M65 104v16m105-16v16" stroke="#a2bac9" stroke-width="4"/><rect class="workpiece" x="96" y="48" width="40" height="35" rx="3"/><path d="M146 62h24m-7-6 7 6-7 6" class="direction"/></g>
+<g class="station" data-machine="2"><rect class="station-glow" x="228" y="20" width="166" height="105" rx="12"/><path d="M270 106V47h76v59" fill="none" stroke="#a2bac9" stroke-width="6"/><rect class="workpiece" x="287" y="57" width="38" height="34" rx="3" transform="rotate(-18 306 74)"/><path d="M299 30c24-10 44 2 43 21m-7-7 7 7 6-8" class="direction"/><path d="M255 110h106" stroke="#a2bac9" stroke-width="7"/></g>
+<g class="station" data-machine="3"><rect class="station-glow" x="419" y="20" width="166" height="105" rx="12"/><rect x="430" y="85" width="140" height="18" rx="9" class="belt"/><rect x="438" y="90" width="124" height="8" fill="url(#belt-ridges)"/><path d="M450 104v16m102-16v16" stroke="#a2bac9" stroke-width="4"/><rect class="workpiece" x="476" y="48" width="40" height="35" rx="3"/><path d="M527 62h27m-7-6 7 6-7 6" class="direction"/></g>
+<g fill="#b9cedb" font-size="12" text-anchor="middle"><text x="118" y="145">输送</text><text x="307" y="145">翻转</text><text x="499" y="145">出料</text></g></svg>
+<div class="phase-flow" aria-label="相位"><span data-phase="0">0 <b>初始</b></span><i>›</i><span data-phase="1">1 <b>输送</b></span><i>›</i><span data-phase="2">2 <b>翻转</b></span><i>›</i><span data-phase="3">3 <b>出料</b></span><i class="fault-divider">/</i><span data-phase="900">900 <b>故障</b></span></div>
+</div>
+<div class="scan-readout"><div><span>当前扫描</span><strong id="scan-number">—</strong></div><div><span>等待计数 / 阈值</span><strong id="timer-number">—</strong></div><div><span>命令状态</span><strong id="command-state">—</strong></div></div>
+<div class="playback"><button id="rewind" class="icon-button" title="回到第一拍" aria-label="回到第一拍">↺</button><button id="prev" disabled class="icon-button" aria-label="上一拍">‹</button><button id="play" class="play-button" disabled>播放回放</button><button id="next" disabled class="icon-button" aria-label="下一拍">›</button><div class="scrub"><label for="scan-range" class="sr-only">选择扫描拍</label><input id="scan-range" type="range" min="0" max="0" value="0" disabled><span id="scan-position">— / —</span></div><label class="speed-label">速度<select id="speed" aria-label="回放速度"><option value="1600">慢速</option><option value="900" selected>标准</option><option value="400">快速</option></select></label></div>
+<div class="explanation" aria-live="polite"><span class="explanation-icon" aria-hidden="true">i</span><p id="scan-note">选择场景后，可以逐拍查看输入与输出。</p></div>
+</div>
+<aside class="signals-panel"><div class="signal-title"><h3>这一拍的信号</h3><span>调用后</span></div><h4>输入电平</h4><div id="inputs" class="signal-list"></div><h4>动作与状态</h4><div id="outputs" class="signal-list"></div><p class="muted small signal-footnote">亮灯 = TRUE<br>信号为记录值，不是现场开关。</p></aside>
+</div>
+<div class="timeline-heading"><h3>逐拍记录</h3><span>点选任一行，回到那一拍</span><button id="download" disabled>下载场景 JSON <span aria-hidden="true">↓</span></button></div><div class="table-scroll"><table><caption class="sr-only">当前场景逐拍输入与状态</caption><thead><tr><th>扫描</th><th>本拍输入</th><th>相位</th><th>计时 / 阈值</th><th>状态</th></tr></thead><tbody id="timeline"></tbody></table></div>
+</section>
+<section id="evidence" class="evidence-section"><div class="section-intro"><div><p class="intro-label">来自仓库的验证记录</p><h2>可追溯，而不只是“通过”。</h2></div><a href="https://github.com/qiaoqiao2521/plc-workspace/tree/master/docs/verification/plc-semantics-v0.3" target="_blank" rel="noreferrer">查看原始记录 ↗</a></div><div id="metrics" class="metrics"></div><div class="evidence-note"><span class="dot"></span><p>Linux 离线验证记录，绑定生成时的源码哈希。<br><span>TIA 编译、PLCSIM、真实机器与 F 安全验收仍未完成。</span></p><code id="source-hash">—</code></div></section>
+<section id="contract" class="contract-section"><div><p class="intro-label">让下一位接手者也能理解</p><h2>约定写清楚，<br>状态才不会失忆。</h2><a href="https://github.com/qiaoqiao2521/plc-workspace/blob/master/projects/FB_MainSequence/01_specs/scan-contract.md" target="_blank" rel="noreferrer">阅读 scan contract v0.3 ↗</a></div><div class="contract-rules"><article><span>01</span><div><h3>每一次调用，都消费输入</h3><p>包括禁用和停止时的 Start / Reset 沿。保持按钮不等于排队等待执行。</p></div></article><article><span>02</span><div><h3>停止撤销动作，不确认故障</h3><p>当前块错误通过实际执行禁用调用清除。重新使能开启新的诊断会话。</p></div></article><article><span>03</span><div><h3>计时按扫描，不按墙钟</h3><p>阈值为零清空计数；完成在到期拍到达时优先。回放速度不改变执行结果。</p></div></article></div></section>
+</main><footer><a class="brand" href="#">PLC Workspace</a><p>让工业逻辑可观察、可解释、可验证。</p><span>抽象顺控核心 / 开源项目</span></footer>
+</body></html>

@@ -1,1 +1,11 @@
-{"name":"plc-workspace-web","private":true,"version":"0.1.0","type":"module","scripts":{"dev":"python3 -m http.server 8766 --bind 127.0.0.1 --directory .","build":"node scripts/build.mjs","test":"node --test scripts/test-data.mjs"}}
+{
+  "name": "plc-workspace-web",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 scripts/local-server.py",
+    "build": "node scripts/build.mjs",
+    "test": "node --test scripts/test-*.mjs && python3 -m unittest discover -s scripts -p \"test_*.py\""
+  }
+}

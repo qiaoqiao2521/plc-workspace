@@ -1,167 +1,39 @@
-# PLC Workspace Validation Layer
+# PLC Workspace
 
-For PLC semantics and current work, start with [PROJECT.md](PROJECT.md),
-[the scan contract](projects/FB_MainSequence/01_specs/scan-contract.md), and
-[semantic verification](validation/tests/README.md). The v0.3 continuous-enable contract is implemented; passing a legacy gate or generating a TIA payload is not final acceptance.
+让人输入需求或工艺流程，由 AI 整理状态机、I/O 与约束，生成 **Main LAD / FB SCL** 工程草稿，再验证该工程的扫描行为与逻辑。
 
-This repository publishes the containerized validation layer for a Siemens PLC
-workspace. It does not containerize TIA Portal, PLCSIM, or Siemens GUI tools.
+验证工具与抽象顺控示例负责约束 Agent 的质量；产品入口是需求到工程的生成工作台。
 
-The containerized layer runs:
+## 本机运行
 
-- static checks with PLCreX and iec-checker
-- model checking with PLCverif CLI and native Linux nuXmv
-- OpenPLC smoke tests driven by `projects/*/03_checks/test_vectors`
-
-TIA Portal and PLCSIM stay on the Windows host. Final Siemens evidence remains
-host-owned and must be stored under `projects/*/04_reports/tia_final`.
-
-## Repository vs Runtime Assets
-
-The public git repository contains the reusable harness, the versioned
-FB_MainSequence abstract core, semantic tests and generated checker/export
-projections. Compact verification records are in
-[docs/verification/plc-semantics-v0.3](docs/verification/plc-semantics-v0.3).
-
-Large or project-specific runtime assets are shipped separately as a GitHub
-Release asset named `runtime-assets.zip`.
-
-The release asset is expected to provide:
-
-- `validation/tools/plcverif/`
-- `validation/tools/OpenPLC_v3/`
-- historical project payloads (do not overwrite the versioned core)
-- additional historical harness documentation
-- `PLC素材库/`
-- selected validation config and template files
-
-Extract old runtime archives outside the checkout. Copy only external validation
-payloads; never overwrite the versioned project or its documentation with an old
-archive. Run the semantic checks in `validation/tests/README.md` for this core.
-
-Generated reports, logs, Eclipse workspaces, Python caches, and historical
-outputs are excluded from that zip.
-
-## Windows Quick Start
-
-Prerequisites:
-
-- Docker Desktop
-- PowerShell 7+
-- Git
-
-Setup:
-
-```powershell
-git clone https://github.com/muqiao215/plc-workspace.git
-cd plc-workspace
-
-# Download runtime-assets.zip from the GitHub Release page, then:
-Expand-Archive .\runtime-assets.zip -DestinationPath ..\plc-runtime-assets -Force
-foreach ($folder in @("tools", "config", "docker", "templates")) {
-    Copy-Item "..\plc-runtime-assets\validation\$folder" .\validation\ -Recurse -Force
-}
-```
-
-Run validation:
-
-```powershell
-docker compose -f .\container\docker-compose.release.yml build validator openplc
-docker compose -f .\container\docker-compose.release.yml run --rm validator
-docker compose -f .\container\docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke
-```
-
-If Docker build needs an explicit proxy:
-
-```powershell
-$env:PLC_HTTP_PROXY = 'http://host.docker.internal:3067'
-$env:PLC_HTTPS_PROXY = 'http://host.docker.internal:3067'
-$env:PLC_ALL_PROXY = 'http://host.docker.internal:3067'
-docker compose -f .\container\docker-compose.release.yml build validator openplc
-```
-
-## Linux Server Quick Start
-
-Prerequisites:
-
-- Docker Engine with Compose plugin
-- Git
-- unzip
-
-Setup:
-
-```bash
-git clone https://github.com/muqiao215/plc-workspace.git
-cd plc-workspace
-unzip runtime-assets.zip -d ../plc-runtime-assets
-cp -a ../plc-runtime-assets/validation/{tools,config,docker,templates} validation/
-```
-
-Run validation:
-
-```bash
-docker compose -f container/docker-compose.release.yml build validator openplc
-
-VALIDATOR_PROJECT=/workspace/projects/FB_MainSequence \
-  docker compose -f container/docker-compose.release.yml run --rm validator
-
-SMOKE_PROJECT=/workspace/projects/FB_MainSequence \
-  docker compose -f container/docker-compose.release.yml up --abort-on-container-exit --exit-code-from smoke openplc smoke
-```
-
-If the server requires a proxy, export Docker build proxy variables first:
-
-```bash
-export PLC_HTTP_PROXY=http://proxy.example:3128
-export PLC_HTTPS_PROXY=http://proxy.example:3128
-export PLC_ALL_PROXY=http://proxy.example:3128
-docker compose -f container/docker-compose.release.yml build validator openplc
-```
-
-## Outputs
-
-Reports are written back to the bind-mounted workspace:
-
-- `projects/<project>/04_reports/static`
-- `projects/<project>/04_reports/modelcheck`
-- `projects/<project>/04_reports/smoke`
-
-Smoke inputs remain:
-
-- `projects/<project>/03_checks/test_vectors/*.yaml`
-
-## Siemens Boundary
-
-The validation container can produce harness-level evidence only. It must not
-claim TIA final success.
-
-The host remains responsible for:
-
-- TIA Portal import and compile
-- PLCSIM or PLCSIM Advanced execution
-- Siemens-native watch table or final runtime evidence
-- final evidence under `projects/*/04_reports/tia_final`
-
-See `docs/contracts/container-boundary.md` for the full boundary contract.
-
-## Publishing Runtime Assets
-
-Maintainers can build a release asset from a prepared workspace:
-
-```powershell
-pwsh .\scripts\export-runtime-assets.ps1 -Project FB_MainSequence
-```
-
-See `docs/ops/publishing.md` for the full release workflow.
-
-## 扫描观察台前端
-
-新增纯静态前端，逐拍回放实际编译 ST 的6个场景，查看相位、计时器、输入输出及验证记录。浏览器不连接PLC，也不维护第二套状态机。
+需要 Node 18+、Python 3.10+ 和已配置的 `agy`。不需要安装 npm 依赖。
 
 ```sh
-npm --prefix web test
 npm --prefix web run build
-python3 -m http.server 8766 --bind 127.0.0.1 --directory web/dist
+npm --prefix web run dev
 ```
 
-访问 http://127.0.0.1:8766 。详见 [前端说明](web/README.md)。
+打开 http://127.0.0.1:8766 ：输入需求 → 整理步骤 → 审阅规格 → AI 生成工程 → 查看 SCL / LAD → 导出草稿。
+
+本机桥接复用 agy 已有登录与模型配置，点击生成才调用模型。每轮最多 180 秒、同时一项任务；支持取消。只监听本机，生成结果不会写进规范 PLC 源码。已配置模型仍可能通过其服务商处理需求，不代表本地离线推理。
+
+公开静态网站没有本机桥接时，可导出 Agent 任务并导入对应结果。云端生成服务尚未接入。
+
+## 当前能力
+
+- 中文需求、流程顺序与逐状态动作/完成条件编辑。
+- 本机 agy 生成结构化规格、I/O、SCL 和 LAD 网络审阅草稿。
+- 请求与结果绑定需求指纹；需求变化后旧结果过期。
+- SCL 文件、LAD 网络规格与工程草稿导出。
+- [验证与回放](web/README.md)：仓库已有 FB_MainSequence 的 6 个实际 ST 场景。
+
+LAD 当前为简单串联触点/线圈与周期 FB 调用网络的审阅表示，尚不是 TIA 可导入工程。新生成代码待运行它自己的检查；仓库示例的 27 项扫描测试、32 条断言不适用于任意新工程。TIA、PLCSIM 和实机验收由 Windows 工程侧完成。
+
+## 接续入口
+
+- [PROJECT.md](PROJECT.md)：产品意图、现状与边界。
+- [前端与本机生成](web/README.md)：请求格式、运行和导出。
+- [扫描契约](projects/FB_MainSequence/01_specs/scan-contract.md)：已有核心的准确语义。
+- [语义验证](validation/tests/README.md)：真实编译 ST 与形式门禁。
+- [容器验证环境](docs/validation-setup.md)：原有 Windows/Linux 工具链步骤。
+- [架构](docs/ARCHITECTURE.md)：生成入口与验证层之间的关系。

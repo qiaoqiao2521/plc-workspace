@@ -1,0 +1,226 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "request_fingerprint": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "actions": {
+            "type": "string"
+          },
+          "completion": {
+            "type": "string"
+          },
+          "next_state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "actions",
+          "completion",
+          "next_state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "io": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "input",
+              "output",
+              "internal"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction",
+          "name",
+          "type",
+          "description"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "scl_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "content"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "lad_networks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rung",
+              "call"
+            ]
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "symbol": {
+                  "type": "string"
+                },
+                "negated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "symbol",
+                "negated"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "coil": {
+            "type": "string"
+          },
+          "block": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "bindings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "parameter": {
+                  "type": "string"
+                },
+                "symbol": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "parameter",
+                "symbol"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "kind",
+          "contacts",
+          "coil",
+          "block",
+          "instance",
+          "bindings",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_run",
+              "unknown",
+              "pass",
+              "fail"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "request_fingerprint",
+    "summary",
+    "questions",
+    "states",
+    "io",
+    "scl_files",
+    "lad_networks",
+    "checks"
+  ],
+  "additionalProperties": false
+}

@@ -2,11 +2,11 @@
 
 ## Why
 
-Preserve and verify PLC sequencing logic across tooling and agent sessions. The core challenge is cyclic execution, persistent state, timing and process semantics; ordinary code plausibility is insufficient.
+Turn human process requirements or flow language into reviewable PLC engineering: clarify state/I/O/constraints, use AI to generate Main LAD and FB SCL, then validate and prepare engineering outputs. Cyclic execution, persistent state and timing constrain the generator; verification protects its quality.
 
 ## User Intent
 
-The user has invested substantially in this industrial-automation workspace. Priority as of 2026-09-22: converge PLC logic first, then fix the Siemens/Windows and Linux tooling environment. Python should support verification and engineering work without obscuring PLC scan semantics.
+The user has invested substantially in this industrial-automation workspace. On 2026-10-01 the user corrected the product direction: human requirements/flow language → AI-generated LAD/SCL is the main purpose. The earlier semantic-convergence work is the supporting Agent quality layer. The frontend connects local agy first; a public website can use a cloud generation service later. Python supports engineering without obscuring PLC scan semantics.
 
 ## Non-goals
 
@@ -14,7 +14,7 @@ No replacement of TIA/PLCSIM with container evidence. No remote/device writes or
 
 ## Success
 
-One explicit scan contract, one canonical implementation, generated/checkable projections, executable boundary scenarios and honestly scoped proof. Another agent can recover this from a few entry files.
+A user can describe a process, review state and I/O specifications, generate and export SCL/LAD drafts, then verify that particular engineering output. Generated code never inherits another example’s proof. Another agent can recover the product intent and scan contract from a few entry files.
 
 ## Constraints
 
@@ -30,7 +30,8 @@ The v0.3 abstract scan contract and interface 0.2.0 are implemented: internal st
 
 ## Current Priority
 
-The abstract core is implemented. A static browser frontend in `web/` replays compiled-ST scenarios and displays source-bound verification records; it does not run a second state machine or connect to a PLC. Cloudflare deployment and actual account usage remain unverified. Preserve the contract and source-bound evidence; further machine integration needs the actual Main/child FBs, safety interface, TIA/CPU versions and retention configuration. Do not reopen the superseded policy questionnaire or treat generated TIA files as a successful import.
+The main entry in `web/` is a requirement-to-engineering workspace. Local `agy` returns structured specifications, SCL files and LAD review networks through a loopback Python bridge; static hosting retains request/result handoff without pretending local generation is available. `validation.html` retains compiled-ST replay for the repository example. Generated engineering is a candidate until its own checks run. Cloud service/deployment remain future work. Preserve the implemented abstract contract; real machine integration needs the actual Main/child FBs, safety interface, TIA/CPU versions and retention configuration.
+
 ## Knowledge Map
 
 - `AGENTS.md`: startup protocol.
@@ -41,5 +42,7 @@ The abstract core is implemented. A static browser frontend in `web/` replays co
 - `plans/plc-semantics-v1/`: current task state.
 - `validation/tests/README.md`: offline verification commands and limits.
 
-- `web/README.md`: static frontend, trace regeneration, local preview and hosting preparation.
+- `web/README.md`: generation workspace, local agy bridge, result format and trace regeneration.
 - `plans/plc-frontend/`: frontend acceptance and recoverable legacy-work handoff.
+
+- `plans/plc-generation-ui/`: product correction and local generation acceptance.
