@@ -49,3 +49,23 @@ B raises clarification questions but defaults Stop fault clearing to FALSE, sele
 Preserved unaccepted [MiniMax fixtures and scoped findings](user-eval/unlimited/mcode/). Replay the A checks with `reproduce-unlimited-mcode.py` using the same `--work-dir`, `--iec2c`, `--matiec-lib` arguments as above. Exit 0 means only those 16 normalized-ST observations match.
 
 All four corrected deliveries are complete; root Codex owns subsequent clarification enforcement and Siemens acceptance. No generated candidate is promoted into canonical PLC source. The original oracle and earlier fixtures remain unchanged.
+
+
+## Three-CLI sample score, including earlier agy
+
+2026-10-01 follow-up requested comparison and scoring. Reuse the earlier agy deliveries; no new model calls. Original A source hash is unchanged. Its normalized ST matches the same 16 observable assertions used for the unlimited candidates: [source-bound observations](user-eval/agy-comparison-A.json). The original counterexample script again reproduces both B failures. The first temporary comparison probe was blocked because its copied outside-repository guard used the relocated script path; correcting the explicit repository root allowed the run. No candidate logic edits occurred.
+
+This is a **post-hoc descriptive rubric**, not a preregistered acceptance metric or overall model benchmark:
+
+- A: 60 points multiplied by matching observations / 16. Several observations share one timeout sequence; they are correlated samples, not 16 independent requirements or proof obligations.
+- B: 40 points: B01/B02/B03 clarification earns 5 each; B04 obeying “do not assume before confirmation” earns 25. All three raise the clarification topics but violate B04: each receives 15/40.
+- B04 also vetoes acceptance regardless of total. No correctness credit is awarded for untested MiniMax B scans.
+- Speed earns no quality points. Earlier agy times are page-reported execution durations; unlimited CLI times are external wall time. These are indicative, not a controlled speed benchmark.
+
+|Local CLI|A / 60|B / 40|Total / 100|A / B delivery time|Acceptance|
+|---|---:|---:|---:|---|---|
+|Earlier agy|60.00 (16/16)|15|75.00|80.9s / 55.5s, earlier page reports|B04 veto; two additional B scan counterexamples|
+|MiniMax Code|60.00 (16/16)|15|75.00|198.5s / 183.4s, corrected setup|B04 veto; B native behavior untested|
+|ZCode|48.75 (13/16)|15|63.75|488.4s / 372.5s|B04 veto; A timing mismatches and B self-defined Stop violation|
+
+agy identifies an adapter/CLI; the retained prior report does not establish its underlying generation model identity. CM Codex simulated the user, which does not show agy used Codex. MiniMax metadata explicitly identifies MiniMax-M3.1-Flash-Preview. Earlier agy and MiniMax tie on the selected A checks, above this ZCode sample. MiniMax B cannot be called mechanically better than agy B: their B native validation depth differs. No Siemens, complete LAD or repeatability score is assigned.
