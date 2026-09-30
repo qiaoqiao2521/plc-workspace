@@ -1,0 +1,346 @@
+{
+  "scope": "normalized generated SCL -> matiec C -> native persistent FB calls; not TIA/PLCSIM",
+  "normalization": [
+    "remove quoted FB declaration, Siemens attributes/version and BEGIN",
+    "fold declared literal INT constants for matiec CASE label support",
+    "remove local # prefix and // comments; no Boolean/control-flow edits"
+  ],
+  "source_sha256": {
+    "A": "1ba2fd331d00e58748dce9086334ca96368a5fc308cc4bcd3e6235d4d883c49f",
+    "B": "3c3f3c01a6a647374d9966bd61ffb7998c159252e10d31a68e0d70b45623fcd0"
+  },
+  "A": [
+    {
+      "case": "A startup",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 0,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statState": 2,
+        "statWaitCount": 0,
+        "Motor": 1
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 1, Enable withdrawn",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 1,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statWaitCount": 1,
+        "Motor": 1,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 2, Enable withdrawn",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 2,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statWaitCount": 2,
+        "Motor": 1,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 3, Enable withdrawn",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 3,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statWaitCount": 3,
+        "Motor": 1,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 4, Enable withdrawn",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 4,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statWaitCount": 4,
+        "Motor": 1,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 5, Enable withdrawn",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 5,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statWaitCount": 5,
+        "Motor": 1,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 6, Enable withdrawn",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 6,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statWaitCount": 6,
+        "Motor": 1,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 7, Enable withdrawn",
+      "observed": {
+        "statState": 2,
+        "statWaitCount": 7,
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "statWaitCount": 7,
+        "Motor": 1,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A wait 8 timeout",
+      "observed": {
+        "statState": 1,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "expected": {
+        "statState": 1,
+        "Motor": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "matches": true
+    },
+    {
+      "case": "A Stop plus Reset retains fault",
+      "observed": {
+        "statState": 1,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "expected": {
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "matches": true
+    },
+    {
+      "case": "A held Reset after Stop release",
+      "observed": {
+        "statState": 1,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "expected": {
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "matches": true
+    },
+    {
+      "case": "A fresh Reset plus Start clears without restart",
+      "observed": {
+        "statState": 1,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A arrival at deadline",
+      "observed": {
+        "statState": 3,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 1,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Done": 1,
+        "Error": 0,
+        "Motor": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A next scan pulse cleared",
+      "observed": {
+        "statState": 1,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Done": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A idle Reset plus Start",
+      "observed": {
+        "statState": 1,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "A held Start after Stop",
+      "observed": {
+        "statState": 1,
+        "statWaitCount": 0,
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 0
+      },
+      "matches": true
+    }
+  ],
+  "B_stop_counterexample": {
+    "input": {
+      "i_xEnable": 1,
+      "i_xStart": 1,
+      "i_xStop": 1,
+      "i_xReset": 1
+    },
+    "observed": {
+      "stat_nState": 10,
+      "q_xClampValve": 1,
+      "q_xPushValve": 0,
+      "q_xBusy": 1,
+      "q_xDone": 0
+    },
+    "obligation": "Stop must revoke actuation; no Start acceptance while Stop remains true"
+  },
+  "B_return_without_home_trace": [
+    {
+      "stat_nState": 10,
+      "q_xClampValve": 1,
+      "q_xPushValve": 0,
+      "q_xBusy": 1,
+      "q_xDone": 0
+    },
+    {
+      "stat_nState": 20,
+      "q_xClampValve": 1,
+      "q_xPushValve": 1,
+      "q_xBusy": 1,
+      "q_xDone": 0
+    },
+    {
+      "stat_nState": 30,
+      "q_xClampValve": 0,
+      "q_xPushValve": 0,
+      "q_xBusy": 1,
+      "q_xDone": 0
+    },
+    {
+      "stat_nState": 40,
+      "q_xClampValve": 0,
+      "q_xPushValve": 0,
+      "q_xBusy": 0,
+      "q_xDone": 1
+    }
+  ],
+  "B_return_obligation": "Both Home inputs remain false at the final call; leaving Done sensors does not establish Home",
+  "candidate_verdict": {
+    "A": "selected checks matched; not full acceptance",
+    "B": "fail: captured scan violation"
+  },
+  "instrumentation_accepted": true
+}

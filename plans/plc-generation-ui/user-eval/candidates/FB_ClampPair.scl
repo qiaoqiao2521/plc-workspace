@@ -1,0 +1,157 @@
+FUNCTION_BLOCK "FB_ClampPair"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    i_xEnable : BOOL;      // 块使能：需周期传入，维持内部扫描语义与边沿快照
+    i_xStart : BOOL;       // 启动顺控循环（上升沿有效）
+    i_xStop : BOOL;        // 工艺停止信号（需求冲突澄清项）
+    i_xReset : BOOL;       // 故障复位信号（上升沿有效）
+    i_xClampDone : BOOL;   // 夹紧缸到位信号（传感器类型未定，预留接口）
+    i_xClampHome : BOOL;   // 夹紧缸原位信号（传感器类型未定，预留接口）
+    i_xPushDone : BOOL;    // 推进缸到位信号（传感器类型未定，预留接口）
+    i_xPushHome : BOOL;    // 推进缸原位信号（传感器类型未定，预留接口）
+END_VAR
+VAR_OUTPUT
+    q_xBusy : BOOL;        // 顺控执行中指示
+    q_xDone : BOOL;        // 单次顺控完成脉冲
+    q_xError : BOOL;       // 故障指示
+    q_wStatus : WORD;      // 状态字 / 状态码
+    q_xClampValve : BOOL;  // 夹紧阀控制输出（TRUE: 夹紧，FALSE: 松开）
+    q_xPushValve : BOOL;   // 推进阀控制输出（TRUE: 推进，FALSE: 退回）
+END_VAR
+VAR
+    stat_nState : INT := 0;          // 持久内部当前步编号
+    stat_nNextState : INT := 0;      // 内部下一拍计算步
+    stat_xPrevStart : BOOL := FALSE; // 启动前值快照
+    stat_xPrevStop : BOOL := FALSE;  // 停止前值快照
+    stat_xPrevReset : BOOL := FALSE; // 复位前值快照
+    stat_xPrevEnable : BOOL := FALSE;// 使能前值快照
+    stat_xInternalError : BOOL := FALSE;
+END_VAR
+VAR_TEMP
+    tmp_xStartEdge : BOOL;
+    tmp_xResetEdge : BOOL;
+    tmp_xStopEdge : BOOL;
+END_VAR
+
+CONST
+    STATE_IDLE : INT := 0;
+    STATE_CLAMPING : INT := 10;
+    STATE_PUSHING : INT := 20;
+    STATE_RELEASING_RETRACTING : INT := 30;
+    STATE_DONE : INT := 40;
+    STATE_STOPPED : INT := 90;
+    STATE_ERROR : INT := 99;
+END_CONST
+
+BEGIN
+    // 1. 前值快照与本拍边沿提取（无论使能状态如何，必须消费输入边沿）
+    tmp_xStartEdge := i_xStart AND NOT stat_xPrevStart;
+    tmp_xResetEdge := i_xReset AND NOT stat_xPrevReset;
+    tmp_xStopEdge  := i_xStop AND NOT stat_xPrevStop;
+
+    // 持续刷新边沿记忆位
+    stat_xPrevStart := i_xStart;
+    stat_xPrevReset := i_xReset;
+    stat_xPrevStop  := i_xStop;
+    stat_xPrevEnable := i_xEnable;
+
+    // 2. 禁用处理：使能为 FALSE 时保持空闲并复位输出，但此前已正常更新边沿
+    IF NOT i_xEnable THEN
+        stat_nState := STATE_IDLE;
+        stat_nNextState := STATE_IDLE;
+        stat_xInternalError := FALSE;
+        q_xBusy := FALSE;
+        q_xDone := FALSE;
+        q_xError := FALSE;
+        q_wStatus := 16#0000;
+        q_xClampValve := FALSE;
+        q_xPushValve := FALSE;
+        RETURN;
+    END_IF;
+
+    // 3. 本拍默认状态延续
+    stat_nNextState := stat_nState;
+
+    // 4. 全局复位与停止条件（针对需求中的 Stop 冲突项预留标准停止处理框架）
+    IF tmp_xResetEdge THEN
+        stat_xInternalError := FALSE;
+        stat_nNextState := STATE_IDLE;
+    ELSIF i_xStop THEN
+        stat_nNextState := STATE_STOPPED;
+    END_IF;
+
+    // 5. 顺控单拍迁移逻辑（每次调用至多迁移一个正常步骤）
+    IF stat_nState = stat_nNextState THEN
+        CASE stat_nState OF
+            STATE_IDLE:
+                IF tmp_xStartEdge THEN
+                    stat_nNextState := STATE_CLAMPING;
+                END_IF;
+
+            STATE_CLAMPING:
+                // 先夹紧：等待到位反馈或步进条件
+                IF i_xClampDone THEN
+                    stat_nNextState := STATE_PUSHING;
+                END_IF;
+
+            STATE_PUSHING:
+                // 再推进：保持夹紧并推进，等待推进到位
+                IF i_xPushDone THEN
+                    stat_nNextState := STATE_RELEASING_RETRACTING;
+                END_IF;
+
+            STATE_RELEASING_RETRACTING:
+                // 同时松开退回：等待双缸均复归原位
+                IF (NOT i_xClampDone OR i_xClampHome) AND (NOT i_xPushDone OR i_xPushHome) THEN
+                    stat_nNextState := STATE_DONE;
+                END_IF;
+
+            STATE_DONE:
+                // 完成状态：单拍后自动返回空闲
+                stat_nNextState := STATE_IDLE;
+
+            STATE_STOPPED:
+                // 停止保持状态，等待复位信号返回空闲
+                IF tmp_xResetEdge THEN
+                    stat_nNextState := STATE_IDLE;
+                END_IF;
+
+            STATE_ERROR:
+                // 故障状态，等待复位确认
+                IF tmp_xResetEdge THEN
+                    stat_xInternalError := FALSE;
+                    stat_nNextState := STATE_IDLE;
+                END_IF;
+
+            ELSE
+                stat_nNextState := STATE_IDLE;
+        END_CASE;
+    END_IF;
+
+    // 6. 提交下一状态
+    stat_nState := stat_nNextState;
+
+    // 7. 输出刷新与执行驱动
+    q_xDone := (stat_nState = STATE_DONE);
+    q_xBusy := (stat_nState = STATE_CLAMPING) OR (stat_nState = STATE_PUSHING) OR (stat_nState = STATE_RELEASING_RETRACTING);
+    q_xError := stat_xInternalError OR (stat_nState = STATE_ERROR);
+
+    // 气缸动作输出赋值
+    CASE stat_nState OF
+        STATE_CLAMPING:
+            q_xClampValve := TRUE;
+            q_xPushValve := FALSE;
+        STATE_PUSHING:
+            q_xClampValve := TRUE;
+            q_xPushValve := TRUE;
+        STATE_RELEASING_RETRACTING:
+            q_xClampValve := FALSE;
+            q_xPushValve := FALSE;
+        ELSE
+            q_xClampValve := FALSE;
+            q_xPushValve := FALSE;
+    END_CASE;
+
+    q_wStatus := INT_TO_WORD(stat_nState);
+END_FUNCTION_BLOCK

@@ -1,6 +1,6 @@
 # Progress
 
-Current: frontend and local agy generation acceptance complete. Git history identifies the delivered change.
+Current: the initial frontend/local agy round trip is delivered. The [CM Codex user evaluation](user-eval-report.md) confirms draft review/export usability but identifies open generation-quality and project-recovery problems; generated engineering is not accepted.
 
 Done:
 - Product intention restored in PROJECT/README; prior validation setup preserved in docs/validation-setup.md.
@@ -23,8 +23,8 @@ Model invocation accounting (no hard CapMesh experiment budget was requested):
 Remaining:
 - New generated engineering needs independent compilation/scan/formal checks and Siemens acceptance; example proof cannot be reused for it.
 - LAD is currently a review-network representation, not a TIA project. Cloud generation/deployment and account/domain checks are future work.
-- In-app browser Blob download event timed out. Export preview and copy action are available; OS-level file save and clipboard persistence are not confirmed.
+- Earlier in-app browser Blob download event timed out. The later CM Codex evaluation downloaded actual engineering/SCL/LAD files in isolated Chromium and checked hashes. In-app browser OS-level save and clipboard persistence remain unconfirmed.
 - Local job results are process memory and browser view state; reloading before export does not restore an in-flight job. Server retains single-job exclusion until completion/cancellation/budget termination.
 - Older imported assets remain preserved with root-Codex owner and per-group shortest acceptance routes in plans/plc-frontend/legacy-handoff.md.
 
-Next: user reviews the local generation workspace, selects a real process and supplies missing hardware/engineering facts before Siemens integration. Runtime logs, prompts, generated demo candidate and CLI session IDs remain outside Git.
+Next: root Codex handles clarification before actuation generation, full-engineering recovery, and verification bound to each generated candidate. Runtime logs, raw prompts and CLI session IDs remain outside Git. The evaluation's synthetic requirements and two explicitly unaccepted candidates are retained as reproducible review samples; they do not modify canonical PLC source.

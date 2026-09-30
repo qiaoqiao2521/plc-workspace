@@ -1,0 +1,140 @@
+FUNCTION_BLOCK "FB_ConveyorPack"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Enable : Bool;   // 允许启动使能
+      Start : Bool;    // 启动按钮
+      Stop : Bool;     // 正常停止
+      Reset : Bool;    // 复位按钮
+      AtEnd : Bool;    // 末端到位检测
+   END_VAR
+
+   VAR_OUTPUT 
+      Motor : Bool;          // 电机命令
+      Busy : Bool;           // 忙指示
+      Done : Bool;           // 单拍完成脉冲
+      Error : Bool;          // 故障指示
+      TimeoutFault : Bool;   // 超时故障指示
+   END_VAR
+
+   VAR 
+      statState : Int := 1;             // 状态：1-待机，2-输送，3-完成
+      statWaitCount : Int := 0;         // 输送等待FB调用次数计数器
+      statLastStart : Bool := FALSE;    // Start 前值快照
+      statLastReset : Bool := FALSE;    // Reset 前值快照
+      statError : Bool := FALSE;        // 故障持久锁存
+      statTimeoutFault : Bool := FALSE; // 超时故障持久锁存
+   END_VAR
+
+   VAR_TEMP 
+      edgeStart : Bool;
+      edgeReset : Bool;
+      nextState : Int;
+      nextWaitCount : Int;
+      nextError : Bool;
+      nextTimeoutFault : Bool;
+   END_VAR
+
+BEGIN
+    // ------------------------------------------------------------
+    // 1. 持久内部状态 -> 前值快照与本拍边沿消费
+    // 输入边沿在禁用/停止调用仍消费，防止在 Stop 期间按住 Start 导致恢复后误启动
+    // ------------------------------------------------------------
+    edgeStart := #Start AND NOT #statLastStart;
+    #statLastStart := #Start;
+
+    edgeReset := #Reset AND NOT #statLastReset;
+    #statLastReset := #Reset;
+
+    // 快照暂存当前持久状态
+    nextState := #statState;
+    nextWaitCount := #statWaitCount;
+    nextError := #statError;
+    nextTimeoutFault := #statTimeoutFault;
+
+    // ------------------------------------------------------------
+    // 2. 故障复位处理（已有故障保留，解除 Stop 后 Reset 才清故障，Reset 与 Start 同拍不重启）
+    // ------------------------------------------------------------
+    IF #statError THEN
+        IF (NOT #Stop) AND edgeReset THEN
+            nextError := FALSE;
+            nextTimeoutFault := FALSE;
+        END_IF;
+    END_IF;
+
+    // ------------------------------------------------------------
+    // 3. 正常 Stop 与 Reset 撤销动作处理
+    // 正常 Stop 撤销当前动作；Reset 正常时取消动作
+    // ------------------------------------------------------------
+    IF #Stop THEN
+        // 撤销动作，若在输送或完成状态则退回待机
+        IF nextState = 2 OR nextState = 3 THEN
+            nextState := 1;
+            nextWaitCount := 0;
+        END_IF;
+    ELSIF edgeReset THEN
+        // 正常操作下 Reset 取消动作
+        IF nextState = 2 OR nextState = 3 THEN
+            nextState := 1;
+            nextWaitCount := 0;
+        END_IF;
+    ELSE
+        // ------------------------------------------------------------
+        // 4. 正常状态机迁移逻辑（每拍调用最多迁移一个正常步骤）
+        // ------------------------------------------------------------
+        CASE #statState OF
+            1: // 待机
+                // Start 新上升沿、无故障且无 Stop、Enable 为 TRUE 时启动
+                // Reset 与 Start 同拍不重启；故障后不自动重启
+                IF (NOT #statError) AND (NOT nextError) AND (NOT #Stop) AND #Enable AND edgeStart AND (NOT edgeReset) THEN
+                    nextState := 2;
+                    nextWaitCount := 0; // 启动那次调用不计等待
+                END_IF;
+
+            2: // 输送
+                // 输送过程中撤销 Enable 不取消已接受命令
+                // 到位与超时同拍按到位成功
+                IF #AtEnd THEN
+                    nextState := 3;
+                    nextWaitCount := 0;
+                ELSE
+                    // 启动调用不计，之后最多等待 8 次 FB 调用
+                    nextWaitCount := #statWaitCount + 1;
+                    IF nextWaitCount >= 8 THEN
+                        // 到第 8 次仍不到位就锁存超时故障
+                        nextTimeoutFault := TRUE;
+                        nextError := TRUE;
+                        nextState := 1;
+                        nextWaitCount := 0;
+                    END_IF;
+                END_IF;
+
+            3: // 完成
+                // 输出一拍 Done 后返回待机
+                nextState := 1;
+                nextWaitCount := 0;
+
+            ELSE
+                nextState := 1;
+                nextWaitCount := 0;
+        END_CASE;
+    END_IF;
+
+    // ------------------------------------------------------------
+    // 5. 提交状态
+    // ------------------------------------------------------------
+    #statState := nextState;
+    #statWaitCount := nextWaitCount;
+    #statError := nextError;
+    #statTimeoutFault := nextTimeoutFault;
+
+    // ------------------------------------------------------------
+    // 6. 输出映射
+    // ------------------------------------------------------------
+    #Motor := (#statState = 2);
+    #Busy := (#statState = 2);
+    #Done := (#statState = 3);
+    #Error := #statError;
+    #TimeoutFault := #statTimeoutFault;
+
+END_FUNCTION_BLOCK

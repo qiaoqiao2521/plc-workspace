@@ -1,0 +1,5 @@
+expectation.md text eol=lf
+candidates/*.scl text eol=lf
+offline-result.json text eol=lf
+# Preserve four trailing spaces in this recorded model response and its hash.
+candidates/FB_ConveyorPack.scl whitespace=-blank-at-eol
