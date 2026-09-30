@@ -171,10 +171,11 @@ $('copy-export').addEventListener('click',async()=> { try { await navigator.clip
 $('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification_status:'not_run_for_import',lad_format:'review_networks_not_tia_project'}); });
 async function init() {
   try { const saved = JSON.parse(localStorage.getItem('plc-workspace-brief-v1')); if (saved?.brief && Array.isArray(saved.states)) { writeBrief(saved.brief); states = saved.states; message('已恢复此浏览器保存的需求草稿。请整理任务后重新生成。'); } } catch { /* Invalid/blocked local storage leaves a clean editable form. */ }
-  try { const capability = await api('/api/capabilities'); ready = capability.ready === true && ['agy','zcode'].includes(capability.provider); provider = capability.provider; generationBudget = capability.timeout_seconds ?? 180; } catch { ready = false; }
+  try { const capability = await api('/api/capabilities'); ready = capability.ready === true && ['agy','zcode','mcode-cm'].includes(capability.provider); provider = capability.provider; generationBudget = capability.timeout_seconds ?? 180; } catch { ready = false; }
   text('connection',ready ? `本机 ${provider} CLI 可用` : '本机生成未连接'); $('connection').classList.toggle('ready',ready);
   if (!ready) { text('generate-title','本机生成未连接'); text('generate-help','使用 npm --prefix web run dev 启动本机桥接；也可导出任务、导入 Agent 结果。'); }
   if (ready) { text('generate-title', `交给本机 ${provider} 生成`); text('generate-help', generationBudget === 0 ? '本次生成不设时间限制，可以取消；结果仍需独立检查。' : '生成结果是待审阅草稿，编译与逐扫描检查需单独执行。'); }
+  if (ready && provider === 'mcode-cm') { text('generate-title','按严格流程生成工程'); text('generate-help','先澄清并审阅规格，再生成、双路检查和监督裁决；未决需求会阻断。不设生成时限，可以取消。'); }
   updateActions();
 }
 init();

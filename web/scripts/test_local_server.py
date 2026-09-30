@@ -1,4 +1,5 @@
 import importlib.util
+from contextlib import nullcontext
 import hashlib
 import json
 from pathlib import Path
@@ -6,6 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
@@ -36,13 +38,20 @@ class BridgeTests(unittest.TestCase):
             script=Path(td)/'fake-agy'
             script.write_text('#!/usr/bin/env python3\nimport time\ntime.sleep('+str(delay)+')\nprint('+repr(stdout)+')\nraise SystemExit('+str(code)+')\n')
             script.chmod(0o755)
-            server=bridge.GenerationBridge(str(script),timeout=timeout,provider=provider,node=str(script))
-            job=server.begin(request(),'prompt')
-            if cancel:server.cancel(job)
-            deadline=time.monotonic()+5
-            while server.active and time.monotonic()<deadline:time.sleep(.01)
-            self.assertIsNone(server.active)
-            return server.snapshot(job)
+            workflow={'root':td,'company':'fixture','api_url':'http://127.0.0.1:3100'}
+            server=bridge.GenerationBridge(str(script),timeout=timeout,provider=provider,node=str(script),workflow=workflow)
+            original_popen=bridge.subprocess.Popen
+            def run_fake(command, **kwargs):
+                self.assertIn('mcode-workflow.py', ' '.join(command))
+                return original_popen([str(script)], **kwargs)
+            context=patch.object(bridge.subprocess,'Popen',side_effect=run_fake) if provider=='mcode-cm' else nullcontext()
+            with context:
+                job=server.begin(request(),'prompt')
+                if cancel:server.cancel(job)
+                deadline=time.monotonic()+5
+                while server.active and time.monotonic()<deadline:time.sleep(.01)
+                self.assertIsNone(server.active)
+                return server.snapshot(job)
 
     def test_accepts_structured_success_and_rejects_stale_result(self):
         envelope={'status':'SUCCESS','structured_output':result(request())}
@@ -74,6 +83,18 @@ class BridgeTests(unittest.TestCase):
     def test_explicit_unlimited_budget_accepts_late_result(self):
         good=json.dumps({'response':json.dumps(result(request()))})
         self.assertEqual(self.run_stub(good,delay=2.5,provider='zcode',timeout=0)['status'],'complete')
+
+    def test_mcode_workflow_accepts_only_reviewed_draft(self):
+        good={'verdict':'reviewed_draft','result':result(request())}
+        self.assertEqual(self.run_stub(json.dumps(good),provider='mcode-cm',timeout=0)['status'],'complete')
+        for verdict in ['blocked','rejected','unknown','audit_complete']:
+            outcome=self.run_stub(json.dumps({'verdict':verdict,'result':result(request()),
+                'analysis':{'questions':['Confirm valve']}}),provider='mcode-cm',timeout=0)
+            self.assertEqual(outcome['status'],'failed')
+            self.assertIn('Confirm valve',outcome['error'])
+        failure=self.run_stub('{}',code=1,provider='mcode-cm',timeout=0)
+        self.assertEqual(failure['status'],'failed')
+        self.assertIn('工程未放行',failure['error'])
 
     def test_http_rejects_foreign_origin_and_exposes_missing_provider(self):
         server=bridge.ThreadingHTTPServer(('127.0.0.1',0),bridge.Handler)

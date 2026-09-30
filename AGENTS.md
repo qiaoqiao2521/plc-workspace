@@ -19,3 +19,7 @@
 - `CURRENT_STATE.md` is a dated recovery snapshot, not current proof. Use source-bound reports.
 
 Update the contract and decision record when behavior changes. Keep large third-party tools out of project-memory documents.
+
+## New engineering generation
+
+Use [PLC Agent execution protocol](docs/PLC_AGENT_WORKFLOW.md): analyze → supervisor review → freeze → generate → parallel scan/interface reviews → same supervisor → programmatic draft gate. The selected strict workflow runs only mcode through CM/Paperclip. Unresolved process decisions must prevent generation, not merely accompany generated actions as questions. Review approval does not grant tool, Siemens or machine acceptance.

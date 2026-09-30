@@ -4,7 +4,7 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "dev": "python3 scripts/local-server.py",
+    "dev": "python3 scripts/local-server.py --provider mcode-cm --timeout 0",
     "build": "node scripts/build.mjs",
     "test": "node --test scripts/test-*.mjs && python3 -m unittest discover -s scripts -p \"test_*.py\""
   }

@@ -1,0 +1,227 @@
+{
+  "scope": "real local Paperclip process adapter + mcode only; draft gates and read-only audit, not Siemens acceptance",
+  "paperclip_version": "2026.916.1",
+  "mcode_version": "0.5.9",
+  "model": "MiniMax-M3.1-Flash-Preview",
+  "model_invocations": 12,
+  "run_ledger": [
+    {
+      "attempt": "plc-cm-strict-A",
+      "stage": "analysis",
+      "role": "engineer",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 108.15
+    },
+    {
+      "attempt": "plc-cm-strict-A",
+      "stage": "spec-review",
+      "role": "supervisor",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 60.73
+    },
+    {
+      "attempt": "plc-cm-strict-B",
+      "stage": "analysis",
+      "role": "engineer",
+      "native_status": "failed",
+      "native_exit_code": 1,
+      "wall_seconds": 50.35
+    },
+    {
+      "attempt": "plc-cm-strict-B2",
+      "stage": "analysis",
+      "role": "engineer",
+      "native_status": "failed",
+      "native_exit_code": 1,
+      "wall_seconds": 30.14
+    },
+    {
+      "attempt": "plc-cm-strict-B3",
+      "stage": "analysis",
+      "role": "engineer",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 26.71
+    },
+    {
+      "attempt": "plc-cm-strict-B3",
+      "stage": "spec-review",
+      "role": "supervisor",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 26.67
+    },
+    {
+      "attempt": "plc-cm-strict-audit",
+      "stage": "interface-review",
+      "role": "interface",
+      "native_status": "failed",
+      "native_exit_code": 1,
+      "wall_seconds": 166.56
+    },
+    {
+      "attempt": "plc-cm-strict-audit",
+      "stage": "semantic-review",
+      "role": "semantics",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 167.78
+    },
+    {
+      "attempt": "plc-cm-strict-audit2",
+      "stage": "interface-review",
+      "role": "interface",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 12.08
+    },
+    {
+      "attempt": "plc-cm-strict-audit2",
+      "stage": "semantic-review",
+      "role": "semantics",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 14.49
+    },
+    {
+      "attempt": "plc-cm-strict-audit2",
+      "stage": "final-review",
+      "role": "supervisor",
+      "native_status": "succeeded",
+      "native_exit_code": 0,
+      "wall_seconds": 33.46
+    },
+    {
+      "attempt": "frontend-B",
+      "stage": "analysis",
+      "role": "engineer",
+      "native_status": "failed",
+      "native_exit_code": 1,
+      "wall_seconds": 38.59
+    }
+  ],
+  "A_preflight": {
+    "verdict": "blocked",
+    "analysis_questions": [
+      "接受启动的当拍若 AtEnd 已为 1，本规格按进入输送、完成判定从下一拍开始处理（Done 在下一拍输出）；是否确认为预期工艺行为，还是应同拍直接完成？",
+      "完成拍及之后 Busy 是否保持 0？本规格按 Motor=0、Busy=0 处理（运行已结束）。",
+      "Error 是否需预留为多个故障源的汇总位？当前工艺仅定义超时故障一个来源，规格按 Error 镜像 bTimeoutFault 处理。",
+      "FB 静态变量（bFault、bTimeoutFault、wWait、边沿记忆位）是否要求断电保持或暖启动保持？本规格按非保持处理，暖启动后回到待机且无故障。",
+      "正常 Stop 撤销输送后是否需要额外的原因可见输出（当前 io_text 未定义 StopAck / Cancelled 之类信号，规格不新增输出）？",
+      "TimeoutFault 是否需要独立的报警记录或复位后保持显示（当前无对应输出，规格为 Reset 同拍清零）？"
+    ],
+    "supervisor": {
+      "verdict": "reject",
+      "findings": [
+        "启动准入缺少状态判定：§4 规定的受理条件只有 Enable=1、bFault=0、Stop=0，未含 sState=待机，与需求原文「无故障且无 Stop 时从待机启动」及 flow 表「待机→输送」不一致。由于 完成 态是单拍状态，该拍给出 Start 上升沿时 §5 会执行 完成→输送，而 §7 声明同一拍 sState 回到待机，两条规则在同拍冲突且 §9 优先级链未把「完成态回待机」列为可裁决项。",
+        "超时锁存后 sState 未定义，导致故障期间行为自相矛盾：§6 只置 Motor:=0、Busy:=0、Done:=0，未写 sState，机器停在 sState=输送 且 bFault=1。下一拍若 AtEnd=1，按 §9「完成判定优先于超时判定」及 §7 会输出 Done:=1、sState:=完成，这与 §13「bFault=1 期间 …Done:=0」以及 obligations「停止、复位、超时、故障四条路径上 Done 均为 0」直接冲突；§9 优先级链中也没有故障项，故障态没有裁决位置，不同实现会得到不同外部行为。",
+        "wWait 声明范围与累加规则不一致：§2 声明 wWait 为 0..8，但 §6 在超时锁存后既未停止累加也未回零，且超时未改变 sState、§9 也没有 bFault 门控，wWait 会继续增至 9、10…，缺少溢出保持或回零规则。",
+        "故障后运行保持形态与给定状态表未对齐：状态表只有 待机/输送/完成，规格以正交 bFault 表达且在 unresolved 中自认待确认；而超时后停在 输送、Stop 后回到 待机、Reset 后回到 待机，故障与状态的组合关系只写了部分，未形成可裁决的完整规则。",
+        "启动当拍 AtEnd 已为 1 的语义属未确认派生：§5/§7 给出「进入输送、次拍完成」的保守规则，但该规则让已到位的箱子在启动拍输出 Motor:=1、Busy:=1，这是需求文本未规定的物理行为选择；analysis.questions 中提出的提问与 unresolved 中「待确认边界」的标注不能代替用户确认，也不能免除该未决项。",
+        "未验证边界虽已声明但未转为规格条款的前置条件：TIA 编译、硬件组态、PLCSIM 与实机证据全部缺失（analysis.unresolved），规格第 17 条仅以说明性文字标注「待验证」，未把「取得证据前不得视为已确认」写成对实现与测试的硬性约束条款，因此上述任一实现偏差在现阶段都无法被规格自身判定为违约。"
+      ],
+      "evidence": [
+        "需求原文「Start 新上升沿、无故障且无 Stop 时从待机启动」与 specification §4「Start 上升沿且 Enable=1 且 bFault=0 且 Stop=0 时接受启动」对比，缺少 待机 状态前置条件。",
+        "specification §5「启动（待机→输送）」与 §7「下一次 FB 调用 sState 回到待机且 Done:=0」在 完成 态收到 Start 上升沿的同一拍给出互斥结论，且 §9 优先级（Reset > Stop > 完成 > 超时 > 启动受理）未覆盖 完成态回待机 这一迁移。",
+        "specification §6 原文只规定 bTimeoutFault:=1、bFault:=1、Motor:=0、Busy:=0、Done:=0，无 sState 赋值；§14「Motor 与 Busy 仅在 sState=输送 且 bFault=0 时为 1」与 §7 完成分支组合后，故障态的 Done 语义与 §13 冲突。",
+        "specification §2 声明 wWait（0..8），§6 为「若 AtEnd=0 则 wWait:=wWait+1」且未以 bFault 或状态迁移终止该分支。",
+        "obligation「测试：第 8 次等待调用与 AtEnd=1 同拍，输出为完成（Done=1、TimeoutFault=0）」与「测试：启动后 AtEnd 保持 0 共 8 次 FB 调用，第 8 次调用锁存 TimeoutFault=1」同 spec §6、§8 的等待口径一致，计数基准为 FB 调用次数且未使用定时器，此部分与需求相符。",
+        "需求「到位与超时同拍按到位成功」与 spec §8、§9（完成判定优先于超时判定）一致；「Stop 与第 8 次等待同拍按 Stop 撤销动作」也写入 §9，与 obligations 覆盖一致。",
+        "需求「故障后不自动重启，Start/Reset 边沿每拍消费，不能把 Stop 期间按住 Start 当成恢复后新启动」由 §2、§4、§11、§13 覆盖，Stop=1 期间 Reset 边沿被消费丢弃亦已写明。",
+        "io_text 与 specification §1、§17 一致只使用 Enable/Start/Stop/Reset/AtEnd/Motor/Busy/Done/Error/TimeoutFault 逻辑符号，未出现 %I、%Q、%M、%MW 等绝对地址字面量，硬件地址未被编造。",
+        "analysis.questions 第 1 条与 unresolved 第 3、4 条自认启动当拍 AtEnd 语义、故障保持形态、TIA 编译与实机验证证据均未确认，属规格内已记录的未决项而非已确认规则。"
+      ]
+    },
+    "generation_started": false
+  },
+  "B_preflight": {
+    "verdict": "blocked",
+    "analysis_questions": [
+      "到位检测的物理信号构成是什么？每缸至少几个到位开关（仅夹紧到位，还是推进到位/原点也各有开关）？请给出开关的初始物理状态（未夹紧时是 1 还是 0）及其故障/断线表现。",
+      "每个动作（夹紧、推进、松开、退回）分别用什么阀型？必须是单电电磁阀（单线圈，换向）还是双电电磁阀/双线圈（需明确两线圈的失电默认状态）？单线圈阀需给出通电对应动作方向（通电夹紧或通电松开）。",
+      "各动作的超时基准是什么？分别是「发出阀命令后到对应到位信号的时间上限」还是「阀命令切换沿之间的时间上限」？请给出每段超时时长（秒）或确认需要用户选择。",
+      "超时到期时如何处理：输出立即撤销、进入故障等待 Reset，还是撤销并保持该段动作的阀输出直至复位？需要明确优先级（超时故障与 Stop 同拍时谁优先、故障状态是否可被输出覆盖）。",
+      "Stop 的语义是什么？是立即撤销所有输出（阀失电/断电）还是仅停止状态机推进而保持当前阀输出？Stop 期间的阀输出是否按阀的失电默认状态（需你确认）？",
+      "「Stop 同拍清除所有故障」与「Stop 时保留故障等待 Reset」的冲突如何裁决？请二选一并确认优先级表：（A）Stop 覆盖一切，同一拍清故障并回原点待机（要求 Stop 期间无故障累积）；（B）仅在无待处理故障时 Stop 才清除，否则保留；或（C）另设一个不与 Stop 同拍的 Clear 复位输入。",
+      "故障被清除后（Reset 确认后）设备应处于什么位置：等待 Home/原点开关确认、立即进入待机、还是必须执行主动回原点（先松开再退回）？请确认是否需要原点传感器。",
+      "Stop/Reset 输入是物理常闭安全按钮（断线=1 的 NC 语义）还是常开瞬时按钮？上电初始化时若 Stop 已有效，是否视为停机并禁止进入任何动作？",
+      "CPU 与 TIA Portal 版本、以及 LAD 与 SCL 的分工比例是什么（是否要求 Main OB1 纯 LAD、SCL 仅用于 FB 内部）？是否需要按 TIA 版本限定语言特性（如 SCL 数组/结构体、DB 优化访问）？",
+      "各阀与到位开关的物理地址是否已确认？若未确认，是否允许本次先使用已确认的逻辑符号名（随后由你在 TIA 中映射地址）？",
+      "是否需要急停/安全继电器回路作为独立的硬件级停机（不经 FB），FB 仅处理功能级 Stop？",
+      "动作之间的过渡是否需要确认时间间隔（例如夹紧到位后延时再推进），若有请给出延时值。"
+    ],
+    "supervisor_verdict": "approve",
+    "generation_started": false
+  },
+  "audit": {
+    "candidate_sha256": "42e10671a30353c7438cebd951a6bcefc0e2f60c95c63d63404ff73a69d1e973",
+    "reviews": {
+      "semantics": {
+        "verdict": "unknown",
+        "findings": [
+          "超时刻数口径需逐拍复核：启动拍(第0拍)不计，其后第1..8次未到位调用在第8次锁存故障；即从 Start 拍到 Motor 停止共 9 拍。若需求本意是“总等待 8 拍”，则边界少一拍，属口径未确认项。",
+          "Stop 与 AtEnd 同拍：本稿 Stop 优先→取消动作、不输出 Done、Motor 停。需求未规定该组合优先级，已在 questions 挂起；不代为裁决。",
+          "完成态(状态2)内的 Start 上升沿被消费但不启动，最早下一拍待机才可启动；受“每次调用最多一个正常迁移”约束，需求未豁免该拍续接行为。",
+          "yError 与 yTimeoutFault 当前同源；新增故障源时 yError 需改独立汇总锁存。需求未定义多故障源，保留为未确认边界。",
+          "上电/暖启动初值与 retentivity 未设置、也无 OB Startup 初始化；STOP→RUN 恢复后状态为未定义行为。所有 checks 状态均为 not_run/unknown，无编译与实机证据。"
+        ],
+        "evidence": [
+          "静态逐拍推演：拍0 Start↑(Enable=1,Stop=0,无故障)→iState=1、iWaitCalls=0、yMotor=1；拍1..7 未到位→iWaitCalls 1..7<8；拍8 未到位→iWaitCalls=8>=8→bTimeoutFlg=1、yMotor=0、yError=1。9 拍后 Motor 停止。",
+          "同拍优先级逐拍推演：输送态(xAtEnd=1 且 iWaitCalls=7)→CASE 顺序 Reset↑>Stop>AtEnd>计数，AtEnd 分支先于计数分支→iState=2→本拍 yDone=1、yMotor=0；下一拍状态2→无条件回待机。到位与超时同拍按到位成功，成立。",
+          "边沿消费逐拍推演：xStart 在 xEnable=0 或 bTimeoutFlg=1 时按下，因第5段无条件执行 bStartPrev:=xStart，下拍 xStart 仍为 1 则 fStartRise=0；故障/禁用解除后不会自动启动，满足“不能把 Stop 期间按住 Start 当成新启动”。",
+          "复位路径逐拍推演：故障锁存 + xStop=1 + xReset↑ → fResetRise=1 但 NOT fStopActive=0，状态0/1 分支均不执行清故障，且 bResetPrev 已提交→需再次按下 Reset 才生效；与需求“解除 Stop 后 Reset 才清故障”一致。",
+          "无工具证据：本次未调用任何工具、未打开 TIA 工程、未编译；result.checks 中 TIA 编译、LAD 建立、8 次边界、边沿消费、Done 单拍各项 status 均为 not_run，硬件地址与保持性项为 unknown。"
+        ]
+      },
+      "interface": {
+        "verdict": "fail",
+        "findings": [
+          "计数语义偏差:需求为“启动那次不计,之后最多等待8次,到第8次仍不到位才锁存超时”,即8次等待全部未到位才故障。SCL 在 iWaitCalls 递增后 >=8 即锁存,累计仅 7 次未到位调用即触发,少一拍。",
+          "yBusy 与 yMotor 同源(#iState = 1)使完成态首拍出现语义落差:状态 2 拍输出 yDone=TRUE 而 yBusy=FALSE,忙区间不覆盖完成拍,需确认是否要求 Done 期间仍忙。",
+          "yError 直接等于 bTimeoutFlg,无独立汇总锁存,扩展其他故障源时需改动接口语义;是否预留由用户决定,不应代为选定。",
+          "iState/iWaitCalls/bTimeoutFlg/bStartPrev/bResetPrev 的保持性与上电初值未设置,STOP→RUN、暖启动、下载后首次调用行为无法评估;LAD N7 留空未提供初始化路径。",
+          "未绘制 N7/N8 网络虽标注 TBD,但整体交付仅 SCL 草稿 + LAD 文本,无 TIA 编译、OB1 网络图、仿真或实机证据,checks 全部 not_run/unknown,不得视为已验证。"
+        ],
+        "evidence": [
+          "FB_ConveyorPack.scl 输送态: #iWaitCalls := #iWaitCalls + 1; IF #iWaitCalls >= WAIT_LIMIT_CALLS THEN 锁存 bTimeoutFlg —— 递增后达到 8 意味着第 7 次等待调用即触发,与“第8次仍不到位”相差一拍。",
+          "FB_ConveyorPack.scl 启动分支: #iState := 1; #iWaitCalls := 0 —— 启动调用不计等待成立,后续自 1 起累加,佐证上条偏差。",
+          "FB_ConveyorPack.scl 输出段: #yDone := (#iState = 2); #yBusy := (#iState = 1); —— Done 拍与 Busy 区间互斥,busy 未覆盖完成拍。",
+          "FB_ConveyorPack.scl: #yError := #bTimeoutFlg; 无独立 Error 汇总锁存;VAR 段未声明 retentivity,OB Startup 初始化缺失。",
+          "checks 项“TIA V18 SCL 编译/语法检查”“Main LAD 网络建立与网络图导出”“Done 严格单拍与同拍优先级”状态均为 not_run,本次无工具证据。"
+        ]
+      }
+    },
+    "final_review": {
+      "verdict": "reject",
+      "findings": [
+        "审阅接口层结论为 fail、语义层结论为 unknown；按门禁任一审阅 fail/unknown 必须退回，本轮不予通过。仅退回审阅草稿，工业验收未执行。",
+        "接口层首条“少一拍”与源码不符：递增后 iWaitCalls>=8 才锁存，Start 拍置 0 后第 1..8 次等待调用分别得 1..8，锁存恰在第 8 次等待调用，与需求“到第8次仍不到位”一致；该 off-by-one 为审阅者误读，不应作为缺陷依据。",
+        "语义层同一口径以“若需求本意是总等待8拍”作条件挂起，属未确认项而非已证实偏差；同一事实在两层结论互相冲突，须由需求方确认口径，执行方不得代选。",
+        "接口层提出的 Busy 覆盖完成拍、yError 独立汇总锁存、以及 F 安全/去抖/OB100 初始化，多为审阅者自行追加的工程化要求或需求未定义项；需求原文只规定 Busy、Error、TimeoutFault 三个输出，不得当作原需求退回。",
+        "真正未闭合的 TBD：保持性与上电初值、8 次计数口径、Stop 与 AtEnd 同拍优先级、完成拍 Start 是否续接、AtEnd 去抖、硬件地址绑定、Enable 的其它用途，均未确认，不得填默认值或 TBD 注释充抵。"
+      ],
+      "evidence": [
+        "FB_ConveyorPack.scl 输送态 ELSE 分支：#iWaitCalls := #iWaitCalls + 1; IF #iWaitCalls >= WAIT_LIMIT_CALLS THEN 才置 bTimeoutFlg，值 8 仅在第 8 次等待调用出现。",
+        "FB_ConveyorPack.scl 待机启动分支：#iState := 1; #iWaitCalls := 0; 启动拍不计等待成立，Start 拍至电机停共 9 次 FB 调用。",
+        "FB_ConveyorPack.scl 输出段：yBusy := (#iState = 1)、yDone := (#iState = 2)、yError := #bTimeoutFlg; 需求未规定 Done 拍的 Busy 电平与多故障汇总方式。",
+        "VAR 段未声明 retentivity，LAD N7（OB100 初始化）与 N8（EStop）标注 TBD 未绘制；N1..N6 中 I_*/Q_* 与硬件地址保持未绑定。",
+        "result.checks 各项为 not_run 或 unknown，tool_evidence 为 not_run：无 TIA V18 编译、OB1 网络图、仿真或实机证据，不得声称已验证。"
+      ]
+    },
+    "industrial_acceptance": "not_run",
+    "scl_source_sha256": "aa7865b0f8382d0cb64565caac203b214f74825b0ae85c81effecb3eb93044ee"
+  },
+  "frontend": {
+    "generation_started": false,
+    "outcome": "unknown from invalid structured model response; requirement retained, no engineering export"
+  },
+  "native_cancel_synthetic": {
+    "scope": "native cancellation with synthetic mcode stub",
+    "controller_exit": 1,
+    "run_status": "cancelled",
+    "generation_started": false
+  },
+  "industrial_acceptance": "not_run"
+}

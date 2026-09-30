@@ -30,7 +30,7 @@ The v0.3 abstract scan contract and interface 0.2.0 are implemented: internal st
 
 ## Current Priority
 
-The main entry in `web/` is a requirement-to-engineering workspace. Local `agy` returns structured specifications, SCL files and LAD review networks through a loopback Python bridge; static hosting retains request/result handoff without pretending local generation is available. `validation.html` retains compiled-ST replay for the repository example. Generated engineering is a candidate until its own checks run. Cloud service/deployment remain future work. Preserve the implemented abstract contract; real machine integration needs the actual Main/child FBs, safety interface, TIA/CPU versions and retention configuration.
+The main entry in `web/` is a requirement-to-engineering workspace. The user selected a strict mcode-only workflow through CM/Paperclip: specification review precedes generation, two reviewers run concurrently and one supervisor reviews the outcome. See [execution protocol](docs/PLC_AGENT_WORKFLOW.md). The earlier agy/ZCode adapters remain diagnostic options. Static hosting retains request/result handoff without pretending local generation is available. `validation.html` retains compiled-ST replay for the repository example. Generated engineering is a candidate until its own source-bound tools and Siemens checks run; parallel text reviews are not industrial acceptance. Cloud service/deployment remain future work. Preserve the implemented abstract contract; real machine integration needs the actual Main/child FBs, safety interface, TIA/CPU versions and retention configuration.
 
 ## Knowledge Map
 

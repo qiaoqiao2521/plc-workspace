@@ -8,10 +8,11 @@ Node 18+ and Python 3.10+; no npm dependencies. The selected local CLI must alre
 
 ```sh
 npm --prefix web run build
-npm --prefix web run dev
+npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
+  --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime
 ```
 
-Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and calls the selected local CLI only after clicking **AI 生成工程**. `--agy /path/to/agy`, `--port`, and `--timeout 0|30..300` can be passed directly to `web/scripts/local-server.py`. Default budget is 180 seconds, one active model task. agy uses its configured provider; local CLI execution does not imply local/offline inference.
+Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and starts the strict mcode/CM workflow only after clicking **AI 生成工程**. `npm run dev` selects that workflow without a generation deadline; specify the existing local Paperclip company and a runtime directory outside Git. One engineering workflow is active at a time; its two review roles may run concurrently. Explicit `--provider agy` or `--provider zcode` retains the earlier diagnostic adapters, with the standalone CLI's 180-second default budget. Local CLI execution does not imply local/offline inference.
 
 For a static preview without generation:
 
@@ -75,3 +76,7 @@ LAD numbering is supplied once by the viewer/exporter; redundant model title pre
 ### Explicit unlimited generation
 
 Use `--timeout 0` when choosing to wait for delivery without a generation deadline. This passes no timeout to the child-process wait (and omits agy's own print-timeout argument). The default remains 180 seconds. Cancellation, single-active-job exclusion, result schema and request binding still apply. The CLI/provider may independently fail; no deadline does not guarantee a result. Polling HTTP requests are separate from the model process lifetime.
+
+### Strict mcode workflow
+
+For the selected industrial draft workflow, use `--provider mcode-cm --timeout 0 --mcode /path/to/mcode --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime`. The existing local Paperclip runtime must be available. Specification approval precedes generation, two text reviews run concurrently, and one supervisor role reviews the outcome. Unresolved/rejected/unknown outputs are not imported as engineering. See [execution protocol](../docs/PLC_AGENT_WORKFLOW.md) for commands, responsibilities and current verification limits. An approved text review remains an unverified engineering draft.

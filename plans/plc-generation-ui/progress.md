@@ -46,3 +46,8 @@ Next: root Codex handles clarification before actuation generation, full-enginee
 - Six real invocations recorded, including two MiniMax setup failures; no time-based termination. Both corrected A/B pairs completed. MiniMax A matched 16 selected normalized-ST observations; ZCode A mismatched three. Both B deliveries failed clarification-before-actuation requirement B04.
 - Original generated fixtures, source-bound observations and reproducible native probes are retained in [unlimited delivery report](unlimited-delivery.md). Normalization and first MiniMax compiler failure are disclosed; no TIA, LAD import or physical-machine acceptance is claimed.
 - Canonical source/oracle unchanged. Prior legacy assets remain preserved with root-Codex owner and acceptance routes in [legacy handoff](../plc-frontend/legacy-handoff.md). Runtime sessions, requests and logs stay outside Git.
+
+
+## 2026-10-01 strict mcode workflow
+
+User selected ordered, mcode-only generation through CM/Paperclip with parallel reviewers and one supervisor. Implemented programmatic draft gates and selected that frontend path. Real preflight blocks and read-only parallel supervision are accepted; no real clarified-request generation-to-approved-draft or industrial acceptance is claimed. See [workflow progress](../plc-mcode-workflow/progress.md) and [execution protocol](../../docs/PLC_AGENT_WORKFLOW.md).
