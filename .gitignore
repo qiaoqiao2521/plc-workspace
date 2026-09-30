@@ -41,3 +41,6 @@ projects/*/04_reports/
 *.rar
 *.tar
 *.tar.gz
+
+# Static frontend build output
+web/dist/

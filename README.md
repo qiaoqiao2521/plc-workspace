@@ -153,3 +153,15 @@ pwsh .\scripts\export-runtime-assets.ps1 -Project FB_MainSequence
 ```
 
 See `docs/ops/publishing.md` for the full release workflow.
+
+## 扫描观察台前端
+
+新增纯静态前端，逐拍回放实际编译 ST 的6个场景，查看相位、计时器、输入输出及验证记录。浏览器不连接PLC，也不维护第二套状态机。
+
+```sh
+npm --prefix web test
+npm --prefix web run build
+python3 -m http.server 8766 --bind 127.0.0.1 --directory web/dist
+```
+
+访问 http://127.0.0.1:8766 。详见 [前端说明](web/README.md)。

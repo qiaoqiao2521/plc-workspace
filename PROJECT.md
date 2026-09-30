@@ -30,7 +30,7 @@ The v0.3 abstract scan contract and interface 0.2.0 are implemented: internal st
 
 ## Current Priority
 
-The requested abstract-core implementation is complete. Preserve the contract and source-bound evidence; further machine integration needs the actual Main/child FBs, safety interface, TIA/CPU versions and retention configuration. Do not reopen the superseded policy questionnaire or treat generated TIA files as a successful import.
+The abstract core is implemented. A static browser frontend in `web/` replays compiled-ST scenarios and displays source-bound verification records; it does not run a second state machine or connect to a PLC. Cloudflare deployment and actual account usage remain unverified. Preserve the contract and source-bound evidence; further machine integration needs the actual Main/child FBs, safety interface, TIA/CPU versions and retention configuration. Do not reopen the superseded policy questionnaire or treat generated TIA files as a successful import.
 ## Knowledge Map
 
 - `AGENTS.md`: startup protocol.
@@ -40,3 +40,6 @@ The requested abstract-core implementation is complete. Preserve the contract an
 - `projects/FB_MainSequence/01_specs/scan-contract.md`: authoritative implemented abstract-core semantics and migration rules.
 - `plans/plc-semantics-v1/`: current task state.
 - `validation/tests/README.md`: offline verification commands and limits.
+
+- `web/README.md`: static frontend, trace regeneration, local preview and hosting preparation.
+- `plans/plc-frontend/`: frontend acceptance and recoverable legacy-work handoff.

@@ -1,0 +1,1 @@
+{"name":"plc-workspace-web","private":true,"version":"0.1.0","type":"module","scripts":{"dev":"python3 -m http.server 8766 --bind 127.0.0.1 --directory .","build":"node scripts/build.mjs","test":"node --test scripts/test-data.mjs"}}
