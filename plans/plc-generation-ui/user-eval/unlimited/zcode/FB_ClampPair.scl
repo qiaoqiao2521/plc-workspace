@@ -1,0 +1,111 @@
+FUNCTION_BLOCK "FB_ClampPair"
+TITLE = '双缸夹紧顺序控制(审阅草稿:传感器/阀型/超时/复位语义均待定)'
+// 步骤: 0=待机 1=夹紧 2=推进 3=同时松开退回
+// 扫描语义: 边沿消费 -> 本拍条件 -> 下一状态暂存 -> 提交 -> 输出; 每次调用最多迁移一个正常步骤。
+// 未决冲突: '任意时刻Stop保留故障等待Reset' 与 'Stop同拍清除所有故障' 互斥,
+//   本稿临时按 '故障锁存, 仅Reset上升沿清除' 实现, 最终语义待裁决(见 questions)。
+VAR_INPUT
+  xEnable        : BOOL;         // TRUE=允许步进; FALSE=Stop(冻结步进; 阀输出按当前步骤保持[待确认]; 边沿仍被消费)
+  xStart         : BOOL;         // 启动, 上升沿有效
+  xReset         : BOOL;         // 故障复位, 上升沿有效(不判xEnable, Stop中仍可复位)[复位后去向待确认]
+  xClampHome     : BOOL;         // 夹紧缸-原位开关 [占位: 有无/常开常闭待定]
+  xClampClamped  : BOOL;         // 夹紧缸-夹紧到位开关 [占位: 同上]
+  xAdvHome       : BOOL;         // 推进缸-原位开关 [占位: 同上]
+  xAdvAdvanced   : BOOL;         // 推进缸-推进到位开关 [占位: 同上]
+  tMotionTimeout : TIME := T#5s; // 运动步骤超时(TIME, 毫秒精度); T#0s=禁用监控 [值待定, 默认仅为占位]
+END_VAR
+
+VAR_OUTPUT
+  xQClampClose : BOOL;  // 夹紧方向电磁铁 [阀型待定]
+  xQClampOpen  : BOOL;  // 松开方向电磁铁 [仅双电控阀使用, 单电控删除]
+  xQAdvFwd     : BOOL;  // 推进方向电磁铁 [阀型待定]
+  xQAdvBack    : BOOL;  // 退回方向电磁铁 [仅双电控阀使用, 单电控删除]
+  eState       : INT;   // 当前步骤号 0..3
+  xFault       : BOOL;  // 故障锁存(等待Reset)[语义待裁决]
+  wFaultID     : WORD;  // 16#0001=夹紧超时 16#0002=推进超时 16#0003=松开退回超时
+  xCycleDone   : BOOL;  // 完整循环完成锁存, 下次启动清除
+END_VAR
+
+VAR
+  eNextState : INT;     // 下一状态暂存(提交前)
+  wFaultNew  : WORD;    // 本拍故障暂存
+  xDoneLatch : BOOL;    // 循环完成内部锁存
+  xTimerIn   : BOOL;    // 超时监控计时条件
+  rtrigStart : R_TRIG;  // 启动边沿(每次调用刷新, Stop拍边沿仍被消费)
+  rtrigReset : R_TRIG;  // 复位边沿(同上)
+  tonTimeout : TON;     // 超时监控(绝对时间, 非扫描计数)
+END_VAR
+
+BEGIN
+// ===== (1) 前值快照/边沿消费: 无条件执行, xEnable 不影响 =====
+#rtrigStart(CLK := #xStart);
+#rtrigReset(CLK := #xReset);
+
+// ===== (2) 本拍初始化: 默认保持当前状态与故障 =====
+#eNextState := #eState;
+#wFaultNew  := #wFaultID;
+
+// ===== (3) 超时监控: 仅运动步骤+使能+无故障时计时(绝对时间 tMotionTimeout) =====
+#xTimerIn := #xEnable AND (#eState >= 1) AND (#wFaultNew = 16#0000);
+#tonTimeout(IN := #xTimerIn, PT := #tMotionTimeout);
+IF (#tMotionTimeout <> T#0s) AND #tonTimeout.Q THEN
+  CASE #eState OF
+    1: #wFaultNew := 16#0001;
+    2: #wFaultNew := 16#0002;
+    3: #wFaultNew := 16#0003;
+  END_CASE;
+  #eNextState := #eState;  // 冻结当前步骤等待Reset, 不迁移
+END_IF;
+
+// ===== (4) 正常步进: 无故障时本拍最多迁移一个步骤 =====
+IF #wFaultNew = 16#0000 THEN
+  CASE #eState OF
+    0: // 待机: 启动沿+使能+双缸原位(联锁条件占位, 依赖待定传感器)
+      IF #rtrigStart.Q AND #xEnable AND #xClampHome AND #xAdvHome THEN
+        #eNextState := 1;        // 先夹紧
+        #xDoneLatch := FALSE;
+      END_IF;
+    1: // 夹紧中: 等夹紧到位
+      IF #xClampClamped THEN
+        #eNextState := 2;        // 再推进
+      END_IF;
+    2: // 推进中: 等推进到位
+      IF #xAdvAdvanced THEN
+        #eNextState := 3;        // 最后同时松开退回
+      END_IF;
+    3: // 松开退回中: 等双缸原位
+      IF #xClampHome AND #xAdvHome THEN
+        #eNextState := 0;
+        #xDoneLatch := TRUE;
+      END_IF;
+  END_CASE;
+END_IF;
+
+// ===== (5) 复位: 有故障时优先于步进, 清除故障并回待机(临时语义, 待裁决) =====
+IF #rtrigReset.Q AND (#wFaultNew <> 16#0000) THEN
+  #wFaultNew  := 16#0000;
+  #eNextState := 0;
+END_IF;
+
+// ===== (6) 提交 =====
+#eState   := #eNextState;
+#wFaultID := #wFaultNew;
+#xFault   := (#wFaultID <> 16#0000);
+
+// ===== (7) 输出: 由提交后的步骤唯一决定; Stop 不单独改写输出[待确认] =====
+CASE #eState OF
+  0: // 待机: 全部失电(安全态随阀型待定)
+    #xQClampClose := FALSE;  #xQClampOpen := FALSE;
+    #xQAdvFwd     := FALSE;  #xQAdvBack   := FALSE;
+  1: // 夹紧
+    #xQClampClose := TRUE;   #xQClampOpen := FALSE;
+    #xQAdvFwd     := FALSE;  #xQAdvBack   := FALSE;
+  2: // 推进(保持夹紧)
+    #xQClampClose := TRUE;   #xQClampOpen := FALSE;
+    #xQAdvFwd     := TRUE;   #xQAdvBack   := FALSE;
+  3: // 同时松开+退回
+    #xQClampClose := FALSE;  #xQClampOpen := TRUE;
+    #xQAdvFwd     := FALSE;  #xQAdvBack   := TRUE;
+END_CASE;
+#xCycleDone := #xDoneLatch;
+END_FUNCTION_BLOCK

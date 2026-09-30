@@ -1,0 +1,140 @@
+{// =====================================================================
+// FB_ConveyorPack  --  装箱输送
+// 平台: S7-1200 / TIA Portal V18      结构: Main LAD 周期调用 + 本 FB 顺序控制
+// 计量单位: 等待上限以"FB 调用次数"计(1 次调用 = 1 次 OB1 周期扫描)。
+//           本块内不使用定时器, 也不把扫描次数换算成毫秒; 实际时间由
+//           CPU 循环时间决定, 需求未给出循环时间, 故不做任何时间假设。
+// 调用契约: OB1(Main) 每拍无条件调用本 FB。xEnable 只是输入参数,
+//           不得用它跳过调用; xEnable=FALSE 时本 FB 仍完整执行,
+//           Start/Reset 边沿仍在本拍被计算并消费。
+// 扫描语义: 持久内部状态 -> 前值快照 -> 本拍条件 -> 下一状态 -> 提交 -> 输出
+//           每次调用最多迁移一个正常步骤。
+// 保持性:   iState / iWaitCalls / bTimeoutFlg / bStartPrev / bResetPrev 的
+//           retentivity 与上电初始化按需求未定, 本稿未设置, 待确认后补充。
+// 安全:     本块不含也未声称任何 F 安全功能; 外部 EStop 属抑制反馈范畴。
+// =====================================================================}
+FUNCTION_BLOCK "FB_ConveyorPack"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+   VAR_INPUT
+      xEnable : Bool;   // 启动允许(电平): 仅在待机态作为启动许可; 输送中撤销不取消已接受动作
+      xStart  : Bool;   // 启动按钮(边沿判定, 当拍消费)
+      xStop   : Bool;   // 正常停止(电平条件, 非边沿)
+      xReset  : Bool;   // 复位按钮(边沿判定, 当拍消费)
+      xAtEnd  : Bool;   // 末端到位传感器(电平判定)
+   END_VAR
+
+   VAR_OUTPUT
+      yMotor        : Bool;   // 电机命令
+      yBusy         : Bool;   // 忙
+      yDone         : Bool;   // 完成(严格单拍)
+      yError        : Bool;   // 故障汇总
+      yTimeoutFault : Bool;   // 超时故障
+   END_VAR
+
+   VAR
+      // --- 持久内部状态(跨扫描保持) ---
+      iState      : Int;    // 0=待机 1=输送 2=完成
+      iWaitCalls  : UInt;   // 输送中已等待的 FB 调用次数, 单位: 次
+      bTimeoutFlg : Bool;   // 超时故障锁存
+      bStartPrev  : Bool;   // 前值快照: xStart
+      bResetPrev  : Bool;   // 前值快照: xReset
+   END_VAR
+
+   VAR_TEMP
+      fStartRise  : Bool;   // 本拍 Start 上升沿(当拍消费, 不跨拍保存)
+      fResetRise  : Bool;   // 本拍 Reset 上升沿(当拍消费, 不跨拍保存)
+      fStopActive : Bool;   // 正常停止电平
+      fEnableOK   : Bool;   // 启动许可电平
+   END_VAR
+
+   VAR CONSTANT
+      // 最多等待 8 次 FB 调用; 启动那次调用不计入等待
+      WAIT_LIMIT_CALLS : UInt := 8;
+   END_VAR
+
+BEGIN
+
+   // ---------------------------------------------------------------------
+   // 1) 持久内部状态: 本阶段只读, 不做写入
+   // ---------------------------------------------------------------------
+
+   // ---------------------------------------------------------------------
+   // 2) 前值快照 + 本拍边沿(无条件计算并消费)
+   //    边沿不跨拍保存, 因此 xEnable=FALSE、Stop=1 或故障锁存期间按下的
+   //    Start/Reset 在当拍即被消费, 条件解除后不会成为新动作。
+   // ---------------------------------------------------------------------
+   #fStartRise  := #xStart  AND NOT #bStartPrev;
+   #fResetRise  := #xReset AND NOT #bResetPrev;
+
+   // ---------------------------------------------------------------------
+   // 3) 本拍条件
+   // ---------------------------------------------------------------------
+   #fStopActive := #xStop;     // 正常停止为电平条件
+   #fEnableOK   := #xEnable;   // 启动许可为电平条件, 只用于启动判定
+
+   // ---------------------------------------------------------------------
+   // 4) 下一状态(每次调用最多迁移一个正常步骤)
+   // ---------------------------------------------------------------------
+   CASE #iState OF
+
+      0:  // ---- 待机 ----
+         IF #fResetRise AND NOT #fStopActive THEN
+            // 正常复位: 取消动作(待机态本就无动作)并清除故障锁存
+            #bTimeoutFlg := FALSE;
+            #iWaitCalls  := 0;
+         END_IF;
+
+         // 复位优先: Reset 上升沿当拍不重启; Start 上升沿当拍被消费
+         // 故障锁存时不允许自动重启, 必须先经 Stop 释放 + Reset
+         IF #fStartRise AND NOT #fResetRise
+            AND #fEnableOK AND NOT #bTimeoutFlg AND NOT #fStopActive THEN
+            #iState     := 1;
+            #iWaitCalls := 0;          // 启动那次调用不计等待
+         END_IF;
+
+      1:  // ---- 输送 ----
+         IF #fResetRise AND NOT #fStopActive THEN
+            #iState      := 0;         // 复位取消动作, 不输出 Done
+            #iWaitCalls  := 0;
+            #bTimeoutFlg := FALSE;
+         ELSIF #fStopActive THEN
+            #iState      := 0;         // 正常停止撤销当前动作
+            #iWaitCalls  := 0;         // 故障锁存保持不变, 不在此清除
+         ELSIF #xAtEnd THEN
+            // 到位判定排在计数之前: 到位与超时同拍按到位成功处理
+            #iState     := 2;
+            #iWaitCalls := 0;
+         ELSE
+            #iWaitCalls := #iWaitCalls + 1;
+            IF #iWaitCalls >= WAIT_LIMIT_CALLS THEN
+               // 第 8 次等待调用仍未到位: 锁存超时故障, 不自动重启
+               #bTimeoutFlg := TRUE;
+               #iState      := 0;
+               #iWaitCalls  := 0;
+            END_IF;
+         END_IF;
+
+      2:  // ---- 完成(单拍) ----
+         #iState     := 0;             // 下一拍无条件回待机
+         #iWaitCalls := 0;
+
+   END_CASE;
+
+   // ---------------------------------------------------------------------
+   // 5) 提交: 无条件写回前值快照(禁用/停止/故障调用同样提交)
+   // ---------------------------------------------------------------------
+   #bStartPrev := #xStart;
+   #bResetPrev := #xReset;
+
+   // ---------------------------------------------------------------------
+   // 6) 输出
+   // ---------------------------------------------------------------------
+   #yMotor        := (#iState = 1);
+   #yBusy         := (#iState = 1);
+   #yDone         := (#iState = 2);
+   #yTimeoutFault := #bTimeoutFlg;
+   #yError        := #bTimeoutFlg;   // 当前仅超时一种故障源, 汇总位等于超时位
+
+END_FUNCTION_BLOCK

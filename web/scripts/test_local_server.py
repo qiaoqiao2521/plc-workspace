@@ -31,12 +31,12 @@ class BridgeTests(unittest.TestCase):
         for value in [None,{}, {'schema_version':1}]:
             with self.assertRaises(ValueError):bridge.validate_schema(value,bridge.SCHEMA)
 
-    def run_stub(self, stdout, code=0, delay=0, cancel=False, provider="agy"):
+    def run_stub(self, stdout, code=0, delay=0, cancel=False, provider="agy", timeout=2):
         with tempfile.TemporaryDirectory() as td:
             script=Path(td)/'fake-agy'
             script.write_text('#!/usr/bin/env python3\nimport time\ntime.sleep('+str(delay)+')\nprint('+repr(stdout)+')\nraise SystemExit('+str(code)+')\n')
             script.chmod(0o755)
-            server=bridge.GenerationBridge(str(script),timeout=2,provider=provider,node=str(script))
+            server=bridge.GenerationBridge(str(script),timeout=timeout,provider=provider,node=str(script))
             job=server.begin(request(),'prompt')
             if cancel:server.cancel(job)
             deadline=time.monotonic()+5
@@ -70,6 +70,10 @@ class BridgeTests(unittest.TestCase):
         outcome=self.run_stub(good,delay=4,provider='zcode')
         self.assertEqual(outcome['status'],'failed')
         self.assertIn('预算',outcome['error'])
+
+    def test_explicit_unlimited_budget_accepts_late_result(self):
+        good=json.dumps({'response':json.dumps(result(request()))})
+        self.assertEqual(self.run_stub(good,delay=2.5,provider='zcode',timeout=0)['status'],'complete')
 
     def test_http_rejects_foreign_origin_and_exposes_missing_provider(self):
         server=bridge.ThreadingHTTPServer(('127.0.0.1',0),bridge.Handler)

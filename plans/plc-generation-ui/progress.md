@@ -38,3 +38,11 @@ Next: root Codex handles clarification before actuation generation, full-enginee
 - Optional ZCode local CLI adapter implemented; 13 JS / 8 Python tests and build/projection checks passed. Strict JSON response validation, tool denial, process budgets and unchanged agy default retained.
 - Model invocation accounting and observed acceptance boundary are in [ZCode retest](zcode-retest.md). Earlier PLC candidates/oracle hashes unchanged; no automatic generated-source promotion.
 - Root Codex remains owner for independent new-candidate checks and ZCode service/runtime diagnosis. This turn does not introduce CM-native ZCode support or claim PLC correctness from process/connection success.
+
+
+## 2026-10-01 unlimited local CLI comparison
+
+- Explicit timeout 0 implemented; default bounded budget and cancellation retained. UI reports unlimited generation correctly. Regression: 13 JS / 9 Python and static build pass.
+- Six real invocations recorded, including two MiniMax setup failures; no time-based termination. Both corrected A/B pairs completed. MiniMax A matched 16 selected normalized-ST observations; ZCode A mismatched three. Both B deliveries failed clarification-before-actuation requirement B04.
+- Original generated fixtures, source-bound observations and reproducible native probes are retained in [unlimited delivery report](unlimited-delivery.md). Normalization and first MiniMax compiler failure are disclosed; no TIA, LAD import or physical-machine acceptance is claimed.
+- Canonical source/oracle unchanged. Prior legacy assets remain preserved with root-Codex owner and acceptance routes in [legacy handoff](../plc-frontend/legacy-handoff.md). Runtime sessions, requests and logs stay outside Git.

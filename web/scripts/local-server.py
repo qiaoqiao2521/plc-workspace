@@ -110,6 +110,9 @@ class GenerationBridge:
                 else:
                     command = [self.agy, '--mode', 'plan', '--sandbox', '--output-format', 'json',
                                '--json-schema', str(schema_path), '--print-timeout', f'{self.timeout}s', '--print', instruction]
+                if not self.timeout and self.provider == 'agy':
+                    index = command.index('--print-timeout')
+                    del command[index:index + 2]
                 child_env = os.environ.copy()
                 if self.provider == 'zcode':
                     child_env.setdefault('NODE_OPTIONS', '--v8-pool-size=1')
@@ -122,7 +125,8 @@ class GenerationBridge:
                 if cancelled:
                     stop_process(proc)
                 try:
-                    stdout, stderr = proc.communicate(timeout=self.timeout if self.provider == 'zcode' else self.timeout + 10)
+                    budget = None if self.timeout == 0 else self.timeout if self.provider == 'zcode' else self.timeout + 10
+                    stdout, stderr = proc.communicate(timeout=budget)
                 except subprocess.TimeoutExpired:
                     stop_process(proc)
                     try:
@@ -259,12 +263,12 @@ def main():
     parser.add_argument('--provider', choices=['agy', 'zcode'], default='agy')
     parser.add_argument('--zcode-cli', help='稳定路径下的 resources/glm/zcode.cjs')
     parser.add_argument('--node', default=shutil.which('node'))
-    parser.add_argument('--timeout', type=int, default=180)
+    parser.add_argument('--timeout', type=int, default=180, help='0 表示不设生成时间限制；默认 180 秒')
     args = parser.parse_args()
     if not (ROOT / 'dist/index.html').is_file():
         parser.error('先运行 npm --prefix web run build。')
-    if not 30 <= args.timeout <= 300:
-        parser.error('--timeout 必须在 30–300 秒内。')
+    if args.timeout != 0 and not 30 <= args.timeout <= 300:
+        parser.error('--timeout 必须为 0（不限时）或 30–300 秒。')
     agy = shutil.which(args.agy) if args.agy else None
     if args.provider == 'zcode':
         if not args.zcode_cli or not Path(args.zcode_cli).is_file() or not args.node:

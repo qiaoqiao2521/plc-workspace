@@ -11,7 +11,7 @@ npm --prefix web run build
 npm --prefix web run dev
 ```
 
-Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and calls the selected local CLI only after clicking **AI 生成工程**. `--agy /path/to/agy`, `--port`, and `--timeout 30..300` can be passed directly to `web/scripts/local-server.py`. Default budget is 180 seconds, one active model task. agy uses its configured provider; local CLI execution does not imply local/offline inference.
+Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and calls the selected local CLI only after clicking **AI 生成工程**. `--agy /path/to/agy`, `--port`, and `--timeout 0|30..300` can be passed directly to `web/scripts/local-server.py`. Default budget is 180 seconds, one active model task. agy uses its configured provider; local CLI execution does not imply local/offline inference.
 
 For a static preview without generation:
 
@@ -71,3 +71,7 @@ python3 web/scripts/local-server.py --provider zcode --zcode-cli /stable/path/re
 **打开工程草稿** restores the request and result from an exported engineering JSON, including the original request identity. It recalculates the fingerprint and validates both assets before changing the displayed engineering. **导入 Agent 结果** remains restricted to the currently prepared request. Neither import path inherits verification from a file. Editing a restored requirement still invalidates its exports. Save-draft continues to preserve requirements only; export the engineering before reload to preserve generated results.
 
 LAD numbering is supplied once by the viewer/exporter; redundant model title prefixes are stripped for presentation only, without rewriting original candidates.
+
+### Explicit unlimited generation
+
+Use `--timeout 0` when choosing to wait for delivery without a generation deadline. This passes no timeout to the child-process wait (and omits agy's own print-timeout argument). The default remains 180 seconds. Cancellation, single-active-job exclusion, result schema and request binding still apply. The CLI/provider may independently fail; no deadline does not guarantee a result. Polling HTTP requests are separate from the model process lifetime.

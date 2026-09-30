@@ -1,0 +1,274 @@
+{
+  "source_sha256": "aa7865b0f8382d0cb64565caac203b214f74825b0ae85c81effecb3eb93044ee",
+  "scope": "normalized generated SCL compiled by matiec/GCC and persistent FB calls; no Boolean/control-flow modifications; not TIA/PLCSIM",
+  "checks": [
+    {
+      "case": "startup scan",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 1, Enable withdrawn",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 2, Enable withdrawn",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 3, Enable withdrawn",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 4, Enable withdrawn",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 5, Enable withdrawn",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 6, Enable withdrawn",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 7, Enable withdrawn",
+      "observed": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "wait 8 timeout",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "expected": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "matches": true
+    },
+    {
+      "case": "fault Stop plus Reset",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "expected": {
+        "Motor": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "matches": true
+    },
+    {
+      "case": "held Reset after Stop release",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "expected": {
+        "Error": 1,
+        "TimeoutFault": 1
+      },
+      "matches": true
+    },
+    {
+      "case": "fresh Reset plus Start clears without restart",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 0,
+        "Busy": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "AtEnd at deadline",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 1,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 1,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "next scan Done cleared",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Done": 0,
+        "Motor": 0,
+        "Busy": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "Idle Reset plus Start",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 0,
+        "Busy": 0
+      },
+      "matches": true
+    },
+    {
+      "case": "held Start after Stop release",
+      "observed": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0
+      },
+      "expected": {
+        "Motor": 0,
+        "Busy": 0
+      },
+      "matches": true
+    }
+  ],
+  "verdict": "selected checks matched",
+  "normalization_note": "The first matiec attempt failed at the brace-wrapped file header. The successful probe omits all text before FUNCTION_BLOCK, removes Siemens attributes/version/BEGIN/local # prefixes and comments; no Boolean/control-flow edits. Original SCL is not TIA compiled."
+}

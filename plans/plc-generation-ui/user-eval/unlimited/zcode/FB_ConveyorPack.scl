@@ -1,0 +1,103 @@
+// FB_ConveyorPack —— 装箱输送顺控 FB（审阅草稿，未经 TIA 编译）
+// 扫描语义：持久状态 -> 前值快照 -> 本拍条件 -> 下一状态 -> 提交 -> 输出
+// 契约：Main 每个扫描周期无条件调用一次；Enable/Stop 是参数，不作为调用条件。
+FUNCTION_BLOCK "FB_ConveyorPack"
+VAR_INPUT
+    Enable : Bool;       // 仅允许启动；输送中撤销 Enable 不取消已接受命令
+    Start : Bool;        // 启动按钮；仅新上升沿有效
+    Stop : Bool;         // 正常停止；电平有效，撤销当前动作，不清故障
+    Reset : Bool;        // 复位按钮；上升沿有效，取消动作/清故障（Stop 未解除前不清故障）
+    AtEnd : Bool;        // 末端到位传感器
+END_VAR
+VAR_OUTPUT
+    Motor : Bool;        // 电机命令
+    Busy : Bool;         // 输送进行中
+    Done : Bool;         // 到位完成后输出一个调用周期
+    Error : Bool;        // 故障锁存（当前仅超时故障）
+    TimeoutFault : Bool; // 超时故障锁存
+END_VAR
+VAR
+    state : Int := 0;      // 0=待机 1=输送 2=完成（仅一个调用周期）
+    waitCount : Int := 0;  // 启动后已等待的 FB 调用数（启动那次不计）
+    waitLimit : Int := 8;  // 需求固定：启动后最多等待 8 次 FB 调用
+    startPrev : Bool;      // Start 前值快照（每拍无条件更新）
+    resetPrev : Bool;      // Reset 前值快照（每拍无条件更新）
+    faultLatched : Bool;   // 故障锁存；仅 Reset 且 Stop 已解除时清除
+END_VAR
+VAR_TEMP
+    startRise : Bool;
+    resetRise : Bool;
+    stateNext : Int;
+    waitNext : Int;
+    motorNext : Bool;
+    doneNext : Bool;
+    faultNext : Bool;
+END_VAR
+BEGIN
+    // 前值快照：边沿判定与 Enable/Stop 无关，禁用、停止调用期间同样消费
+    #startRise := #Start AND NOT #startPrev;
+    #resetRise := #Reset AND NOT #resetPrev;
+
+    // 本拍条件与下一状态：先在临时变量求值，最后统一提交
+    stateNext := #state;
+    waitNext := #waitCount;
+    motorNext := FALSE;
+    doneNext := FALSE;
+    faultNext := #faultLatched;
+
+    IF #state = 0 THEN
+        // 待机
+        IF #resetRise AND (NOT #Stop) THEN
+            faultNext := FALSE;    // Stop 已解除后 Reset 才清故障
+        END_IF;
+        // 启动：新上升沿 + Enable + 无 Stop + 无故障，且与 Reset 不同拍（同拍不重启）
+        IF #Enable AND (NOT #Stop) AND (NOT faultNext) AND #startRise AND (NOT #resetRise) THEN
+            stateNext := 1;        // 接受命令，本拍即输出电机
+            waitNext := 0;         // 启动那次调用不计等待
+        END_IF;
+
+    ELSIF #state = 1 THEN
+        // 输送
+        IF #resetRise AND (NOT #Stop) THEN
+            stateNext := 0;        // Reset 取消当前动作并清故障
+            waitNext := 0;
+            faultNext := FALSE;
+        ELSIF #Stop THEN
+            stateNext := 0;        // 正常停止撤销动作；已有故障保留
+            waitNext := 0;
+        ELSIF #AtEnd THEN
+            stateNext := 2;        // 到位优先：与超时同拍按到位成功；本拍停电机
+            waitNext := 0;
+        ELSE
+            waitNext := #waitCount + 1;
+            IF waitNext >= #waitLimit THEN
+                faultNext := TRUE; // 第 8 次等待调用仍不到位：锁存超时故障
+                stateNext := 0;
+                waitNext := 0;
+                motorNext := FALSE;
+            ELSE
+                motorNext := TRUE;
+            END_IF;
+        END_IF;
+
+    ELSE
+        // 完成：仅本调用 Done=1，下一调用回待机
+        doneNext := TRUE;
+        stateNext := 0;
+        waitNext := 0;
+    END_IF;
+
+    // 提交
+    #state := stateNext;
+    #waitCount := waitNext;
+    #faultLatched := faultNext;
+    #startPrev := #Start;
+    #resetPrev := #Reset;
+
+    // 输出
+    #Motor := motorNext;
+    #Busy := (#state = 1);
+    #Done := doneNext;
+    #TimeoutFault := #faultLatched;
+    #Error := #faultLatched;
+END_FUNCTION_BLOCK

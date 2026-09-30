@@ -1,0 +1,276 @@
+// =====================================================================
+// 文件    : FB_ClampPair.scl   (S7-1200/1500 外部 SCL 源文本草稿)
+// 工艺    : 双缸夹紧 —— 先夹紧 -> 推进 -> 同时松开并退回
+// 状态    : 审阅草稿。未编译、未生成块、未下载、未做现场或仿真验收。
+// 未确认项: 物理 I/O 地址、CPU 型号、TIA 版本、阀型、超时值、复位后位置
+//           一律使用符号/占位值, 不得直接用于接线或投产。
+// 扫描语义: 1) 持久内部状态 -> 2) 前值快照 -> 3) 本拍条件 -> 4) 下一状态
+//           -> 5) 提交 -> 6) 输出。每次调用最多迁移一个正常步骤。
+//           Stop/Reset/Start 边沿在禁用与停止调用中同样被消费与记录。
+// 安全声明: 本 FB 仅实现工艺控制与故障锁存, 不实现任何 F 安全功能。
+//           EStop/急停只能作为抑制反馈, 急停回路必须由安全硬件实现。
+// =====================================================================
+
+TYPE "E_ClampState"
+VERSION : 1.0
+   (
+      INIT            := 0,     // 0  待机/就绪
+      CLAMPING        := 10,    // 10 夹紧(伸出)
+      CLAMP_CONFIRM   := 20,    // 20 夹紧确认保持
+      ADVANCING       := 30,    // 30 推进(伸出)
+      ADVANCED        := 40,    // 40 推进到位保持
+      RELEASE_RETRACT := 50,    // 50 同时松开并退回
+      FAULT           := 90     // 90 故障锁存
+   );
+END_TYPE
+
+FUNCTION_BLOCK "FB_ClampPair"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 1.0
+
+   VAR_INPUT
+      xEnable      : Bool;   // 使能; FALSE 时不推进顺控, 但仍消费边沿并评估故障
+      xStop        : Bool;   // 停止请求(抑制, 非安全功能)
+      xReset       : Bool;   // 故障确认/复位(上升沿消费)
+      xCycleStart  : Bool;   // 循环启动请求(上升沿消费)
+      xClampExtLim : Bool;   // TBD 夹紧缸伸出到位(符号占位)
+      xClampRetLim : Bool;   // TBD 夹紧缸退回到位(符号占位)
+      xAdvExtLim   : Bool;   // TBD 推进缸伸出到位(符号占位)
+      xAdvRetLim   : Bool;   // TBD 推进缸退回到位(符号占位)
+   END_VAR
+
+   VAR_INPUT
+      tClampTimeout     : Time := T#5S;      // TBD 夹紧超时
+      tAdvanceTimeout   : Time := T#10S;     // TBD 推进超时
+      tRetractTimeout   : Time := T#10S;     // TBD 退回超时
+      tClampConfirm     : Time := T#300MS;   // TBD 夹紧确认保持
+      bClearFaultOnStop : Bool := FALSE;     // 冲突占位: Stop 是否同拍清除故障
+   END_VAR
+
+   VAR_OUTPUT
+      bClampExtend  : Bool;   // TBD 逻辑命令占位: 夹紧缸伸出
+      bClampRetract : Bool;   // TBD 逻辑命令占位: 夹紧缸退回
+      bAdvExtend    : Bool;   // TBD 逻辑命令占位: 推进缸伸出
+      bAdvRetract   : Bool;   // TBD 逻辑命令占位: 推进缸退回
+      bReady        : Bool;   // 待机且无故障
+      bBusy         : Bool;   // 循环运行中
+      bFault        : Bool;   // 故障汇总
+      dwFaultCode   : DWord;  // 1 夹紧超时 / 2 推进超时 / 4 退回超时
+      bStateChanged : Bool;   // 本拍发生状态迁移(诊断)
+   END_VAR
+
+   VAR
+      // ---- 持久内部状态(背景 DB, 默认非保持) ----
+      eState      : "E_ClampState";
+      bCycleRun   : Bool;
+      bFltClamp   : Bool;
+      bFltAdvance : Bool;
+      bFltRetract : Bool;
+      bInterrupted: Bool;
+      bStopOld    : Bool;
+      bResetOld   : Bool;
+      bStartOld   : Bool;
+      // ---- 定时器(PT 为 TIME, 非扫描计数) ----
+      tonClamp    : TON;
+      tonAdvance  : TON;
+      tonRetract  : TON;
+      tonConfirm  : TON;
+   END_VAR
+
+   VAR
+      // ---- 前值快照 / 本拍条件 / 下一状态 / 本拍命令 ----
+      eStatePrev   : "E_ClampState";
+      eStateNext   : "E_ClampState";
+      bStopPrev    : Bool;
+      bResetPrev   : Bool;
+      bStartPrev   : Bool;
+      bStopEdge    : Bool;
+      bResetEdge   : Bool;
+      bStartEdge   : Bool;
+      bRunPermit   : Bool;
+      bResetPermit : Bool;
+      bFaultAny    : Bool;
+      bToClamp     : Bool;
+      bToAdvance   : Bool;
+      bToRetract   : Bool;
+      bCmdClampExt : Bool;
+      bCmdClampRet : Bool;
+      bCmdAdvExt   : Bool;
+      bCmdAdvRet   : Bool;
+   END_VAR
+
+BEGIN
+   // --------------------------------------------------------------------
+   // 1) 持久内部状态
+   //    读取上次调用已提交的背景 DB 状态: eState / bCycleRun / bFlt* /
+   //    bInterrupted / b*Old / 定时器当前值。
+   // --------------------------------------------------------------------
+
+   // --------------------------------------------------------------------
+   // 2) 前值快照(用于本拍边沿比较与状态变化判定)
+   // --------------------------------------------------------------------
+   #eStatePrev := #eState;
+   #bStopPrev  := #bStopOld;
+   #bResetPrev := #bResetOld;
+   #bStartPrev := #bStartOld;
+
+   // --------------------------------------------------------------------
+   // 3) 本拍条件
+   //    边沿在本拍无条件计算: 禁用扫描与停止调用同样消费 Stop/Reset/Start。
+   // --------------------------------------------------------------------
+   #bStopEdge    := #xStop       AND NOT #bStopPrev;
+   #bResetEdge   := #xReset      AND NOT #bResetPrev;
+   #bStartEdge   := #xCycleStart AND NOT #bStartPrev;
+   #bRunPermit   := #xEnable AND NOT #xStop;   // 本拍是否允许推进顺控
+   #bResetPermit := NOT #xStop;                // TBD 复位是否允许在 Stop 期间生效
+
+   // 停止中断诊断: 循环运行中收到 Stop 边沿则记录, 新循环启动时清零
+   IF #bStopEdge AND #bCycleRun THEN
+      #bInterrupted := TRUE;
+   END_IF;
+   IF #bStartEdge THEN
+      #bInterrupted := FALSE;
+   END_IF;
+
+   // 本拍逻辑命令清零, 由顺控重新置位; 禁用/停止时自然全为 FALSE
+   #bCmdClampExt := FALSE;
+   #bCmdClampRet := FALSE;
+   #bCmdAdvExt   := FALSE;
+   #bCmdAdvRet   := FALSE;
+
+   // 定时器在条件段调用, 使本拍 Q 已反映本拍流逝时间(单位 TIME)
+   #tonClamp(IN := #bRunPermit AND (#eState = #CLAMPING),
+             PT := #tClampTimeout);
+   #tonAdvance(IN := #bRunPermit AND (#eState = #ADVANCING),
+               PT := #tAdvanceTimeout);
+   #tonRetract(IN := #bRunPermit AND (#eState = #RELEASE_RETRACT),
+               PT := #tRetractTimeout);
+   #tonConfirm(IN := #bRunPermit AND (#eState = #CLAMP_CONFIRM),
+               PT := #tClampConfirm);
+
+   // --------------------------------------------------------------------
+   // 4) 下一状态
+   //    4.1 故障清除策略(先清除, 再评估本拍新故障)
+   // --------------------------------------------------------------------
+   IF #bResetEdge AND #bResetPermit THEN
+      // 复位只清故障锁存与超时计时, 不产生运动, 不改变/不推断实际位置
+      #bFltClamp   := FALSE;
+      #bFltAdvance := FALSE;
+      #bFltRetract := FALSE;
+   END_IF;
+
+   IF #xStop AND #bClearFaultOnStop THEN
+      // [需求冲突占位] 需求同时要求 "任意时刻 Stop 保留故障等待 Reset" 与
+      // "Stop 同拍清除所有故障", 两者互斥, 草稿未裁决。
+      // 确认采用 Stop 清故障 -> 保留本段并置 bClearFaultOnStop := TRUE;
+      // 确认采用保留故障     -> 删除本段并把 bClearFaultOnStop 整行移除。
+      #bFltClamp   := FALSE;
+      #bFltAdvance := FALSE;
+      #bFltRetract := FALSE;
+   END_IF;
+
+   //    4.2 本拍故障评估与锁存(停止/禁用期间不评估超时, 见 questions)
+   #bToClamp   := FALSE;
+   #bToAdvance := FALSE;
+   #bToRetract := FALSE;
+   CASE #eState OF
+      #CLAMPING:        #bToClamp   := #tonClamp.Q;
+      #ADVANCING:       #bToAdvance := #tonAdvance.Q;
+      #RELEASE_RETRACT: #bToRetract := #tonRetract.Q;
+   END_CASE;
+
+   #bFltClamp   := #bFltClamp   OR #bToClamp;
+   #bFltAdvance := #bFltAdvance OR #bToAdvance;
+   #bFltRetract := #bFltRetract OR #bToRetract;
+   #bFaultAny   := #bFltClamp OR #bFltAdvance OR #bFltRetract;
+
+   //    4.3 顺控步骤 —— 每次调用最多迁移一个正常步骤
+   #eStateNext := #eState;
+   IF #bFaultAny THEN
+      #bCycleRun  := FALSE;
+      #eStateNext := #FAULT;
+   ELSIF NOT #bRunPermit THEN
+      #eStateNext := #eState;          // 禁用/停止: 保持当前状态, 不推进
+   ELSE
+      CASE #eState OF
+         #INIT:
+            IF #bStartEdge THEN
+               #bCycleRun  := TRUE;
+               #eStateNext := #CLAMPING;
+            END_IF;
+         #CLAMPING:
+            #bCmdClampExt := TRUE;
+            IF #xClampExtLim THEN
+               #eStateNext := #CLAMP_CONFIRM;
+            END_IF;
+         #CLAMP_CONFIRM:
+            #bCmdClampExt := TRUE;
+            IF #tonConfirm.Q THEN
+               #eStateNext := #ADVANCING;
+            END_IF;
+         #ADVANCING:
+            #bCmdClampExt := TRUE;    // 推进期间保持夹紧
+            #bCmdAdvExt   := TRUE;
+            IF #xAdvExtLim THEN
+               #eStateNext := #ADVANCED;
+            END_IF;
+         #ADVANCED:
+            #bCmdClampExt := TRUE;
+            #bCmdAdvExt   := TRUE;
+            // TBD 是否需要外部工艺确认/保压延时后再松开退回
+            // 草稿实现: 到位后保持一拍, 下一拍进入松开退回
+            #eStateNext := #RELEASE_RETRACT;
+         #RELEASE_RETRACT:
+            #bCmdClampRet := TRUE;    // 同一拍同时: 松开夹紧 + 退回
+            #bCmdAdvRet   := TRUE;
+            IF #xClampRetLim AND #xAdvRetLim THEN
+               #bCycleRun  := FALSE;
+               #eStateNext := #INIT;
+            END_IF;
+         #FAULT:
+            IF NOT #bFaultAny THEN
+               #bCycleRun  := FALSE;
+               #eStateNext := #INIT;  // TBD 复位后是否需要回原点搜索
+            END_IF;
+      END_CASE;
+   END_IF;
+
+   // --------------------------------------------------------------------
+   // 5) 提交
+   // --------------------------------------------------------------------
+   #eState    := #eStateNext;
+   #bStopOld  := #xStop;
+   #bResetOld := #xReset;
+   #bStartOld := #xCycleStart;
+
+   // --------------------------------------------------------------------
+   // 6) 输出(阀型未定的唯一映射点)
+   // --------------------------------------------------------------------
+   #bClampExtend  := #bRunPermit AND (#eState <> #FAULT) AND #bCmdClampExt;
+   #bClampRetract := #bRunPermit AND (#eState <> #FAULT) AND #bCmdClampRet;
+   #bAdvExtend    := #bRunPermit AND (#eState <> #FAULT) AND #bCmdAdvExt;
+   #bAdvRetract   := #bRunPermit AND (#eState <> #FAULT) AND #bCmdAdvRet;
+
+   // [TBD 阀型映射 —— 确认后只改本段]
+   //   单电控(失电退回)阀: 只接 bClampExtend / bAdvExtend;
+   //                     bClampRetract / bAdvRetract 不接线(松开退回=失电), 删去之。
+   //   双电控/双线圈阀  : 按方向线圈直接驱动上述四点。
+   // [非安全输出] 以上为工艺控制输出, 不构成任何安全功能; 急停/安全回路
+   //                 必须由安全硬件(F-CPU/安全模块/硬接线)实现。
+
+   #bFault        := #bFaultAny;
+   #bReady        := (#eState = #INIT) AND NOT #bFaultAny;
+   #bBusy         := #bCycleRun AND NOT #bFaultAny;
+   #bStateChanged := (#eState <> #eStatePrev);
+
+   #dwFaultCode := 0;
+   IF #bFltClamp   THEN
+      #dwFaultCode := #dwFaultCode OR 16#0000_0001;   // 夹紧超时
+   END_IF;
+   IF #bFltAdvance THEN
+      #dwFaultCode := #dwFaultCode OR 16#0000_0002;   // 推进超时
+   END_IF;
+   IF #bFltRetract THEN
+      #dwFaultCode := #dwFaultCode OR 16#0000_0004;   // 退回超时
+   END_IF;
+END_FUNCTION_BLOCK

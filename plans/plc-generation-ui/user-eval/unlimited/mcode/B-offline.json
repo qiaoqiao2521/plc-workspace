@@ -1,0 +1,11 @@
+{
+  "source_sha256": "868f4cf318e470d1650fb8b2b238cf7ee683ac6a4b6a80225e514aba6f35bbea",
+  "scope": "static review against frozen B04; no compile/scan/Siemens acceptance",
+  "verdict": "fail B04",
+  "question_count": 14,
+  "evidence": [
+    "bClearFaultOnStop defaults FALSE despite unresolved conflicting Stop requirements",
+    "tClampTimeout=T#5S, tAdvanceTimeout=T#10S, tRetractTimeout=T#10S, tClampConfirm=T#300MS despite unspecified times",
+    "Generated four mechanical command outputs and deterministic state transitions before confirmation"
+  ]
+}

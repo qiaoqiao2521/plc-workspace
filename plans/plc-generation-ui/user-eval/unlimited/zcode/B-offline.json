@@ -1,0 +1,67 @@
+{
+  "source_sha256": "492339ee29094ccd439e14e8da94eb774d431516109d6ab780d085cfec25dce7",
+  "scope": "normalized ST -> matiec/GCC persistent FB; constant time, no timer acceptance; not TIA/PLCSIM",
+  "stop_as_chosen_by_model": {
+    "input": "xEnable=FALSE, xClampClamped=TRUE after accepted start",
+    "model_claim": "xEnable FALSE freezes step advancement",
+    "before": {
+      "eState": 1,
+      "xQClampClose": 1,
+      "xQClampOpen": 0,
+      "xQAdvFwd": 0,
+      "xQAdvBack": 0,
+      "xFault": 0,
+      "xCycleDone": 0
+    },
+    "after": {
+      "eState": 2,
+      "xQClampClose": 1,
+      "xQClampOpen": 0,
+      "xQAdvFwd": 1,
+      "xQAdvBack": 0,
+      "xFault": 0,
+      "xCycleDone": 0
+    },
+    "matches_model_claim": false
+  },
+  "return_without_home_trace": [
+    {
+      "eState": 1,
+      "xQClampClose": 1,
+      "xQClampOpen": 0,
+      "xQAdvFwd": 0,
+      "xQAdvBack": 0,
+      "xFault": 0,
+      "xCycleDone": 0
+    },
+    {
+      "eState": 2,
+      "xQClampClose": 1,
+      "xQClampOpen": 0,
+      "xQAdvFwd": 1,
+      "xQAdvBack": 0,
+      "xFault": 0,
+      "xCycleDone": 0
+    },
+    {
+      "eState": 3,
+      "xQClampClose": 0,
+      "xQClampOpen": 1,
+      "xQAdvFwd": 0,
+      "xQAdvBack": 1,
+      "xFault": 0,
+      "xCycleDone": 0
+    },
+    {
+      "eState": 3,
+      "xQClampClose": 0,
+      "xQClampOpen": 1,
+      "xQAdvFwd": 0,
+      "xQAdvBack": 1,
+      "xFault": 0,
+      "xCycleDone": 0
+    }
+  ],
+  "no_Done_without_home_matches": true,
+  "verdict": "fail: B04 invented mechanical/stop assumptions; also advances during its own chosen stop"
+}
