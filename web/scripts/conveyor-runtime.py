@@ -14,8 +14,11 @@ INPUTS = ('Enable', 'Start', 'Stop', 'Reset', 'AtEnd')
 OUTPUTS = ('statState', 'statWaitCount', 'Motor', 'Busy', 'Done', 'Error', 'TimeoutFault')
 
 class ConveyorRuntime:
-    def __init__(self, folder, compiler, library):
-        original = SOURCE.read_bytes()
+    def __init__(self, folder, compiler, library, *, source_bytes=None):
+        original = SOURCE.read_bytes() if source_bytes is None else source_bytes
+        if not isinstance(original, bytes):
+            raise TypeError("Captured source must be immutable bytes")
+        self.source_bytes = original
         self.source_hash = hashlib.sha256(original).hexdigest()
         source = original.decode()
         source = re.sub(r'FUNCTION_BLOCK "([A-Za-z_][A-Za-z0-9_]*)"', r'FUNCTION_BLOCK \1', source)

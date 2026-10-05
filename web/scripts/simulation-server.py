@@ -2,16 +2,39 @@
 import argparse
 import importlib.util
 import json
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+import mimetypes
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 import tempfile
 import time
-from urllib.parse import urlsplit
+from types import MappingProxyType
+from urllib.parse import urlsplit, unquote
 import uuid
 
 spec = importlib.util.spec_from_file_location('conveyor_runtime', Path(__file__).with_name('conveyor-runtime.py'))
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+
+class FrozenAssets:
+    """Capture once; HTTP never reads the mutable build directory afterward."""
+    def __init__(self, directory, source_bytes):
+        directory = Path(directory)
+        files = {}
+        for path in directory.rglob('*'):
+            if path.is_symlink():
+                raise ValueError('Static snapshot must not contain symlinks')
+            if path.is_file():
+                files[path.relative_to(directory).as_posix()] = path.read_bytes()
+        for name in ('simulation.html', 'simulation.css', 'simulation.js', 'simulation-source.scl'):
+            if name not in files:
+                raise ValueError(f'Missing snapshot asset: {name}; rebuild web/dist')
+        if files['simulation-source.scl'] != source_bytes:
+            raise ValueError('Displayed source differs from execution source; rebuild web/dist')
+        self.files = MappingProxyType(files)
+        manifest = {name: module.hashlib.sha256(data).hexdigest()
+                    for name, data in sorted(files.items())}
+        self.sha256 = module.hashlib.sha256(json.dumps(manifest, sort_keys=True).encode()).hexdigest()
+
 
 class Simulation:
     def __init__(self, runtime):
@@ -59,26 +82,31 @@ class Simulation:
         if s:
             self.runtime.destroy(s['handle'])
 
-class Handler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(module.ROOT / 'web/dist'), **kwargs)
-
+class Handler(BaseHTTPRequestHandler):
     def reply(self, code, body):
         data = json.dumps(body, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-PLC-Snapshot', self.server.assets.sha256)
         self.send_header('Content-Length', str(len(data)))
         self.end_headers()
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path == '/':
-            self.path = '/simulation.html'
-        # Do not expose source directories or directory listings.
-        if urlsplit(self.path).path.endswith('/'):
+        path = unquote(urlsplit(self.path).path)
+        name = 'simulation.html' if path == '/' else path.removeprefix('/')
+        data = self.server.assets.files.get(name)
+        if data is None:
             return self.reply(404, {'error': 'Not found'})
-        return super().do_GET()
+        self.send_response(200)
+        content_type = mimetypes.guess_type(name)[0] or 'application/octet-stream'
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-PLC-Snapshot', self.server.assets.sha256)
+        self.end_headers()
+        self.wfile.write(data)
 
     def do_POST(self):
         expected = f'127.0.0.1:{self.server.server_port}'
@@ -90,7 +118,8 @@ class Handler(SimpleHTTPRequestHandler):
                 raise ValueError('Expected small JSON request')
             body = json.loads(self.rfile.read(length))
             if self.path == '/api/simulation/new' and body == {}:
-                return self.reply(200, self.server.simulation.new())
+                return self.reply(200, {**self.server.simulation.new(),
+                                        'asset_snapshot_sha256': self.server.assets.sha256})
             if self.path == '/api/simulation/step':
                 return self.reply(200, self.server.simulation.step(body))
             if self.path == '/api/simulation/close' and isinstance(body, dict) and set(body) == {'session'} and isinstance(body['session'], str):
@@ -100,6 +129,15 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, TypeError, KeyError) as e:
             return self.reply(400, {'error': str(e)})
 
+def create_server(runtime, assets, port=8767):
+    if assets.files['simulation-source.scl'] != runtime.source_bytes:
+        raise ValueError('Snapshot and runtime source differ')
+    httpd = HTTPServer(('127.0.0.1', port), Handler)
+    httpd.assets = assets
+    httpd.simulation = Simulation(runtime)
+    return httpd
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=8767)
@@ -107,13 +145,12 @@ if __name__ == '__main__':
     parser.add_argument('--matiec-lib', type=Path, required=True)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='plc-visible-sim-') as folder:
-        runtime = module.ConveyorRuntime(folder, args.iec2c.resolve(), args.matiec_lib.resolve())
-        exported = module.ROOT / 'web/dist/simulation-source.scl'
-        if not exported.exists() or module.hashlib.sha256(exported.read_bytes()).hexdigest() != runtime.source_hash:
-            raise RuntimeError('Displayed source differs from execution source; rebuild web/dist')
-        server = HTTPServer(('127.0.0.1', args.port), Handler)
-        server.simulation = Simulation(runtime)
-        print(f'Native PLC simulation: http://127.0.0.1:{args.port}/simulation.html', flush=True)
+        original = module.SOURCE.read_bytes()
+        assets = FrozenAssets(module.ROOT / 'web/dist', original)
+        runtime = module.ConveyorRuntime(folder, args.iec2c.resolve(), args.matiec_lib.resolve(),
+                                         source_bytes=original)
+        server = create_server(runtime, assets, args.port)
+        print(f'Native PLC simulation: http://127.0.0.1:{server.server_port}/simulation.html', flush=True)
         try:
             server.serve_forever()
         finally:

@@ -7,6 +7,8 @@ import threading
 import urllib.request
 import urllib.error
 import json
+import shutil
+from unittest.mock import patch
 import unittest
 
 spec = importlib.util.spec_from_file_location('simulation_server', Path(__file__).with_name('simulation-server.py'))
@@ -19,8 +21,20 @@ class NativeSimulationTests(unittest.TestCase):
         compiler, library = os.getenv('SIM_IEC2C'), os.getenv('SIM_MATIEC_LIB')
         if not compiler or not library:
             raise unittest.SkipTest('Native simulation needs SIM_IEC2C and SIM_MATIEC_LIB')
+        cls.compiler, cls.library = compiler, library
         cls.folder = tempfile.TemporaryDirectory(prefix='plc-sim-test-')
         cls.runtime = server.module.ConveyorRuntime(cls.folder.name, compiler, library)
+        cls.assets = server.FrozenAssets(cls.write_assets(Path(cls.folder.name) / 'assets'), cls.runtime.source_bytes)
+
+    @classmethod
+    def write_assets(cls, directory):
+        directory.mkdir(parents=True)
+        for name in ('simulation.html', 'simulation.css', 'simulation.js'):
+            (directory / name).write_bytes((server.module.ROOT / 'web' / name).read_bytes())
+        (directory / 'simulation-source.scl').write_bytes(cls.runtime.source_bytes)
+        (directory / 'data').mkdir()
+        (directory / 'data/example.json').write_bytes(b'{"version":1}')
+        return directory
 
     @classmethod
     def tearDownClass(cls):
@@ -90,7 +104,7 @@ class NativeSimulationTests(unittest.TestCase):
         self.assertEqual(self.step(Enable=True, Start=True)['outputs']['statWaitCount'], 0)
 
     def test_http_origin_invalid_signals_and_native_step(self):
-        httpd = server.HTTPServer(('127.0.0.1', 0), server.Handler)
+        httpd = server.create_server(self.runtime, self.assets, port=0)
         httpd.simulation = self.sim
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
@@ -116,3 +130,63 @@ class NativeSimulationTests(unittest.TestCase):
             httpd.shutdown()
             thread.join()
             httpd.server_close()
+
+    def test_post_start_source_and_asset_changes_keep_existing_and_new_sessions_frozen(self):
+        with tempfile.TemporaryDirectory(prefix='plc-sim-rebuild-') as folder:
+            directory = self.write_assets(Path(folder) / 'dist')
+            assets = server.FrozenAssets(directory, self.runtime.source_bytes)
+            httpd = server.create_server(self.runtime, assets, port=0)
+            httpd.simulation = self.sim
+            thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+            thread.start()
+            base = f'http://127.0.0.1:{httpd.server_port}'
+            def post(action, body):
+                req = urllib.request.Request(base + '/api/simulation/' + action, data=json.dumps(body).encode(), headers={'Content-Type': 'application/json', 'Origin': base})
+                with urllib.request.urlopen(req, timeout=3) as response:
+                    self.assertEqual(response.headers['X-PLC-Snapshot'], assets.sha256)
+                    return json.load(response)
+            def step(key, start):
+                return post('step', {'session': key, 'inputs': {'Enable': True, 'Start': start, 'Stop': False, 'Reset': False}, 'jam': True, 'sensor_failed': False})
+            try:
+                self.assertEqual(step(self.key, True)['outputs']['Motor'], 1)
+                changed = self.runtime.source_bytes.replace(b'#Motor := (#statState = 2);', b'#Motor := FALSE;')
+                self.assertNotEqual(changed, self.runtime.source_bytes)
+                # Rebuild changes every served asset, including SCL and nested data.
+                for name in assets.files:
+                    (directory / name).write_bytes(changed if name == 'simulation-source.scl' else b'new build')
+                with self.assertRaisesRegex(ValueError, 'Displayed source differs'):
+                    server.FrozenAssets(directory, self.runtime.source_bytes)
+                shutil.rmtree(directory)
+                for name, expected in assets.files.items():
+                    with urllib.request.urlopen(base + '/' + name, timeout=3) as response:
+                        self.assertEqual(response.read(), expected)
+                        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+                        self.assertEqual(response.headers['X-PLC-Snapshot'], assets.sha256)
+                self.assertEqual(step(self.key, False)['outputs']['Motor'], 1)
+                fresh = post('new', {})
+                self.assertEqual(fresh['source_sha256'], self.runtime.source_hash)
+                self.assertEqual(fresh['asset_snapshot_sha256'], assets.sha256)
+                self.assertEqual(step(fresh['session'], True)['outputs']['Motor'], 1)
+            finally:
+                httpd.shutdown()
+                thread.join()
+                httpd.server_close()
+
+    def test_compilation_uses_captured_source_even_if_file_changes_before_compile(self):
+        with tempfile.TemporaryDirectory(prefix='plc-sim-captured-source-') as folder:
+            root = Path(folder)
+            changed = self.runtime.source_bytes.replace(b'#Motor := (#statState = 2);', b'#Motor := FALSE;')
+            disk = root / 'changed.scl'
+            disk.write_bytes(changed)
+            with patch.object(server.module, 'SOURCE', disk):
+                frozen = server.module.ConveyorRuntime(root / 'frozen', self.compiler, self.library,
+                                                       source_bytes=self.runtime.source_bytes)
+                updated = server.module.ConveyorRuntime(root / 'updated', self.compiler, self.library)
+            for runtime, expected in ((frozen, 1), (updated, 0)):
+                handle = runtime.create()
+                try:
+                    self.assertEqual(runtime.scan(handle, {'Enable': True, 'Start': True})['Motor'], expected)
+                finally:
+                    runtime.destroy(handle)
+            self.assertEqual(frozen.source_hash, self.runtime.source_hash)
+            self.assertNotEqual(updated.source_hash, self.runtime.source_hash)

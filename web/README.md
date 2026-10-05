@@ -95,9 +95,9 @@ Open **http://127.0.0.1:8767/simulation.html**. Requires GCC and the existing ma
 
 Start performs one FB call with Start true; subsequent step/play calls release it. Enable withdrawal does not cancel this sample's accepted command. Stop applies on the next requested scan. Reset is one input pulse; two pulses without an intervening release scan remain a held signal. “重建 PLC 与工件” initializes a new native instance and plant, not a Reset input.
 
-The view executes the **recorded agy conveyor candidate**, not arbitrary output from the current generation job. The original SCL download must hash-match the execution source at server startup. Siemens syntax is adapted for matiec without changing transitions. Position/speed are synthetic: one energized call advances 20%; continuous playback waits 500ms between requests. The eight-call timeout does not mean eight seconds. Done is a single scan pulse preserved in the trace. This does not establish LAD execution, TIA/PLCSIM, mechanics or industrial acceptance.
+The view executes the **recorded agy conveyor candidate**, not arbitrary output from the current generation job. Startup captures the original SCL bytes and all static assets into an immutable in-memory snapshot, checks that the download matches, and compiles those captured bytes. Served static assets and JSON API responses carry `X-PLC-Snapshot`; new sessions also report `asset_snapshot_sha256`. Editing/rebuilding or removing `web/dist` after startup cannot change the running source or pages. To load a new version, rebuild, restart the simulation service and refresh the browser page. Siemens syntax is adapted for matiec without changing transitions. Position/speed are synthetic: one energized call advances 20%; continuous playback waits 500ms between requests. The eight-call timeout does not mean eight seconds. Done is a single scan pulse preserved in the trace. This does not establish LAD execution, TIA/PLCSIM, mechanics or industrial acceptance.
 
-Run the seven native simulation tests as part of the existing frontend suite:
+Run the nine native simulation tests as part of the existing frontend suite:
 
 ```sh
 SIM_IEC2C=/absolute/path/to/iec2c SIM_MATIEC_LIB=/absolute/path/to/matiec/lib npm --prefix web test
