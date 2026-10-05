@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLC Workspace · 输送仿真</title><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./simulation.css"><script type="module" src="./simulation.js"></script></head>
+<body>
+<header><a href="http://127.0.0.1:8766/">PLC Workspace</a><span>输送工程 · 本机仿真</span><a href="./validation.html">示例验证回放</a></header>
+<main>
+<div class="intro"><h1>让生成的逻辑跑起来。</h1><p>点击启动，看电机推动工件；也可以卡住工件，观察第 8 次等待调用怎样锁存故障。</p></div>
+<p class="boundary">当前执行已记录的 agy 输送草稿，不是当前生成窗口的工程。SCL 经语法适配后由 matiec／GCC 执行；未通过 TIA／PLCSIM 或实机验收。</p>
+<div class="bench">
+<section class="plant" aria-label="输送线仿真">
+<div class="plant-heading"><h2>输送带</h2><span id="phase">尚未连接</span></div>
+<svg viewBox="0 0 720 270" role="img" aria-label="工件沿输送带移动，右侧为末端传感器">
+<defs><pattern id="rollers" width="32" height="40" patternUnits="userSpaceOnUse"><rect width="32" height="40" fill="#b6c4cf"/><path d="M16 0v40" stroke="#637e90" stroke-width="3"/></pattern></defs>
+<path d="M100 191v48M620 191v48" stroke="#637e90" stroke-width="12"/>
+<rect x="58" y="148" width="604" height="44" rx="22" fill="url(#rollers)" stroke="#35576e" stroke-width="6"/>
+<g id="box" transform="translate(78 87)"><rect width="68" height="59" fill="#dba746" stroke="#8d641d" stroke-width="2"/><path d="M34 0v22M0 20h68" stroke="#f8dba0" stroke-width="5"/></g>
+<g id="sensor"><path d="M617 73v73" stroke="#637e90" stroke-width="8"/><rect x="595" y="67" width="28" height="25" rx="3" fill="#35576e"/><path d="M595 80H560v66" fill="none" stroke="#b4c4cf" stroke-dasharray="4 4" stroke-width="3"/></g>
+<text x="58" y="261">上料位置</text><text x="542" y="261">末端 AtEnd</text>
+<g id="motor"><circle cx="103" cy="181" r="16" fill="#e7eef2" stroke="#35576e" stroke-width="3"/><text x="97" y="186">M</text></g>
+</svg>
+<div class="scan-line"><span>FB 调用 <b id="scan">0</b></span><span>等待计数 <b id="wait">0</b> / 8</span><span>位置 <b id="position">0%</b></span></div>
+<div class="actions"><button id="start" class="primary" disabled>启动（Start 单拍）</button><button id="step" disabled>单步扫描</button><button id="play" disabled>连续运行</button><button id="reset" disabled>复位（Reset 单拍）</button></div>
+<p id="service-link" hidden><a href="http://127.0.0.1:8767/simulation.html">打开已启动的本机仿真服务（8767）</a></p>
+<p id="message" role="status" aria-live="polite">正在连接本机仿真服务…</p>
+</section>
+<aside>
+<h2>输入与故障注入</h2>
+<label><input type="checkbox" id="enable" checked> Enable · 允许启动</label>
+<label><input type="checkbox" id="stop"> Stop · 撤销动作</label>
+<label><input type="checkbox" id="jam"> 卡住工件</label>
+<label><input type="checkbox" id="sensor-failed"> 到位信号失效</label>
+<p>修改信号在下一次扫描生效。Enable 撤销不取消已接受的输送；Stop 保留已有故障，解除后需新的 Reset 边沿清除。</p>
+<h2>本拍输出</h2><div id="outputs" class="signals"></div>
+<button id="new">重建 PLC 与工件</button><p>重建会清除整个实例。它与 PLC 的 Reset 输入不同。</p>
+</aside>
+</div>
+<section class="trace"><div class="plant-heading"><h2>逐拍记录</h2><span>先采样输入 → 调用 FB → 电机输出推动工件</span></div><div class="table-scroll"><table><thead><tr><th>扫描</th><th>输入为真</th><th>状态</th><th>等待</th><th>Motor</th><th>Busy</th><th>Done</th><th>Error</th><th>Timeout</th></tr></thead><tbody id="trace"></tbody></table></div></section>
+<details><summary>查看执行源码与仿真边界</summary><p>动画每次电机输出为真推进 20%，连续播放每 500ms 请求一次扫描。这是教学用对象模型，不包含惯性、滑移、机械安全或现场总线。到位信号在下一拍采样；启动时已经到位的工艺要求尚未确定，本页面不提供这个初始场景。Done 仅持续一拍，请看逐拍记录。</p><p id="source-hash"></p><p>适配：去掉 Siemens 属性、VERSION、BEGIN 与局部变量 # 前缀，不修改布尔条件或状态迁移。</p><a href="./simulation-source.scl" download>下载原始 SCL</a><pre id="source"></pre></details>
+</main></body></html>

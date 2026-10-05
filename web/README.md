@@ -17,7 +17,7 @@ Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and star
 For a static preview without generation:
 
 ```sh
-python3 -m http.server 8767 --bind 127.0.0.1 --directory web/dist
+python3 -m http.server 8768 --bind 127.0.0.1 --directory web/dist
 ```
 
 The UI detects missing `/api/capabilities`, explains how to start the local bridge and keeps Agent task/result handoff available. A static public website cannot execute agy on the server or visitor computer. No model credentials or local server code are included in the static asset output.
@@ -80,3 +80,27 @@ Use `--timeout 0` when choosing to wait for delivery without a generation deadli
 ### Strict mcode workflow
 
 For the selected industrial draft workflow, use `--provider mcode-cm --timeout 0 --mcode /path/to/mcode --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime`. The existing local Paperclip runtime must be available. Specification approval precedes generation, two text reviews run concurrently, and one supervisor role reviews the outcome. Unresolved/rejected/unknown outputs are not imported as engineering. See [execution protocol](../docs/PLC_AGENT_WORKFLOW.md) for commands, responsibilities and current verification limits. An approved text review remains an unverified engineering draft.
+
+## Visible conveyor simulation
+
+Build the site, then run the fixed recorded conveyor FB through the existing native compiler:
+
+```sh
+npm --prefix web run build
+python3 web/scripts/simulation-server.py \
+  --iec2c /absolute/path/to/iec2c --matiec-lib /absolute/path/to/matiec/lib
+```
+
+Open **http://127.0.0.1:8767/simulation.html**. Requires GCC and the existing matiec library/compiler. This service is separate from the 8766 AI generation bridge; no model calls are made. Use a different port for the earlier static-only preview. Static hosting cannot run the simulation API; it shows an unavailable-service message.
+
+Start performs one FB call with Start true; subsequent step/play calls release it. Enable withdrawal does not cancel this sample's accepted command. Stop applies on the next requested scan. Reset is one input pulse; two pulses without an intervening release scan remain a held signal. “重建 PLC 与工件” initializes a new native instance and plant, not a Reset input.
+
+The view executes the **recorded agy conveyor candidate**, not arbitrary output from the current generation job. The original SCL download must hash-match the execution source at server startup. Siemens syntax is adapted for matiec without changing transitions. Position/speed are synthetic: one energized call advances 20%; continuous playback waits 500ms between requests. The eight-call timeout does not mean eight seconds. Done is a single scan pulse preserved in the trace. This does not establish LAD execution, TIA/PLCSIM, mechanics or industrial acceptance.
+
+Run the seven native simulation tests as part of the existing frontend suite:
+
+```sh
+SIM_IEC2C=/absolute/path/to/iec2c SIM_MATIEC_LIB=/absolute/path/to/matiec/lib npm --prefix web test
+```
+
+Without these variables native simulation tests are explicitly skipped, not passed. Build products and compiler logs/libraries remain outside tracked source. Research and acceptance details: [simulation plan](../plans/plc-simulation/task_plan.md).

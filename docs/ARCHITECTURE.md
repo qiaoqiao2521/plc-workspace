@@ -10,6 +10,10 @@ The product turns human process requirements into AI-generated Main LAD / FB SCL
 
 `web/validation.html` exposes only the repository example’s existing proof and replay. The static build generates an example payload directly from canonical ST and trace metadata. LAD networks are an engineering review representation, not Siemens project serialization. Static deployment without `/api` keeps task/result file handoff; it does not connect to a visitor’s localhost. A cloud implementation can use the same request/result format later.
 
+## Visible simulation
+
+`web/simulation.html` shows one historical conveyor draft with inputs, native outputs and a scan trace. `simulation-server.py` is a separate loopback-only service (8767); `conveyor-runtime.py` adapts Siemens syntax and compiles that fixed SCL with matiec/GCC. Each session has its own persistent native FB. A call samples toy-plant sensors, executes the FB once and advances the plant from Motor. The browser draws returned values and never implements PLC transitions. No arbitrary generated code is accepted; the generator’s approval gates stay unchanged. Displayed source hash must match execution source. Animation pacing and synthetic position do not confer Siemens, mechanics or safety acceptance. See [web run instructions](../web/README.md#visible-conveyor-simulation).
+
 ## Canonical flow
 
 `01_specs/scan-contract.md → 02_src/st/*.st → sync-semantics.py → checker/export projections`

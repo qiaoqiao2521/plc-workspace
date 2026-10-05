@@ -17,6 +17,7 @@ for(const [key,relative] of [['projection_manifest_sha256','projects/FB_MainSequ
  if(formal[key]!==hash)throw new Error(`Stale example verification: ${key}`);
 }
 await rm(path.join(root,'dist'),{recursive:true,force:true});await mkdir(path.join(root,'dist/data'),{recursive:true});
-for(const f of ['index.html','validation.html','style.css','generation.css','app.js','generation.js','generation-model.js','favicon.svg','data/traces.json','data/generation-result.schema.json'])await copyFile(path.join(root,f),path.join(root,'dist',f));
+for(const f of ['index.html','validation.html','style.css','generation.css','app.js','generation.js','generation-model.js','simulation.html','simulation.css','simulation.js','favicon.svg','data/traces.json','data/generation-result.schema.json'])await copyFile(path.join(root,f),path.join(root,'dist',f));
+await copyFile(path.join(root,'../plans/plc-generation-ui/user-eval/candidates/FB_ConveyorPack.scl'),path.join(root,'dist/simulation-source.scl'));
 await import('./build-example.mjs');
-console.log('Built generation workspace + validation viewer in web/dist (11 static assets).');
+console.log('Built generation workspace + validation viewer in web/dist (15 static assets).');
