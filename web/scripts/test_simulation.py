@@ -190,3 +190,22 @@ class NativeSimulationTests(unittest.TestCase):
                     runtime.destroy(handle)
             self.assertEqual(frozen.source_hash, self.runtime.source_hash)
             self.assertNotEqual(updated.source_hash, self.runtime.source_hash)
+
+
+class MultiSourceSnapshotTests(unittest.TestCase):
+    def test_all_scene_sources_are_checked_and_frozen(self):
+        with tempfile.TemporaryDirectory(prefix='plc-multi-snapshot-') as folder:
+            root = Path(folder)
+            for name in ('simulation.html', 'simulation.css', 'simulation.js'):
+                (root / name).write_bytes(b'ui')
+            sources = {'simulation-source.scl': b'conveyor', 'clamp-source.scl': b'clamp'}
+            for name, content in sources.items():
+                (root / name).write_bytes(content)
+            assets = server.FrozenAssets(root, sources)
+            (root / 'clamp-source.scl').write_bytes(b'changed')
+            self.assertEqual(assets.files['clamp-source.scl'], b'clamp')
+            with self.assertRaisesRegex(ValueError, 'Displayed source differs'):
+                server.FrozenAssets(root, sources)
+            (root / 'clamp-source.scl').unlink()
+            with self.assertRaisesRegex(ValueError, 'Displayed source differs'):
+                server.FrozenAssets(root, sources)

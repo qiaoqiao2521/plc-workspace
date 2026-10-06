@@ -13,9 +13,14 @@ SOURCE = ROOT / 'plans/plc-generation-ui/user-eval/candidates/FB_ConveyorPack.sc
 INPUTS = ('Enable', 'Start', 'Stop', 'Reset', 'AtEnd')
 OUTPUTS = ('statState', 'statWaitCount', 'Motor', 'Busy', 'Done', 'Error', 'TimeoutFault')
 
-class ConveyorRuntime:
-    def __init__(self, folder, compiler, library, *, source_bytes=None):
-        original = SOURCE.read_bytes() if source_bytes is None else source_bytes
+class NativeRuntime:
+    """Compile a trusted, fixed FB interface; no user-supplied paths or identifiers."""
+    def __init__(self, folder, compiler, library, *, source_bytes, block_name, inputs, outputs):
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", block_name) or any(
+                not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) for name in (*inputs, *outputs)):
+            raise ValueError("Invalid fixed native interface")
+        self.inputs, self.outputs = tuple(inputs), tuple(outputs)
+        original = source_bytes
         if not isinstance(original, bytes):
             raise TypeError("Captured source must be immutable bytes")
         self.source_bytes = original
@@ -27,30 +32,30 @@ class ConveyorRuntime:
         source = re.sub(r'(?m)^BEGIN\s*$', '', source)
         source = re.sub(r'#(?=[A-Za-z_])', '', source)
         source = re.sub(r'//[^\n]*', '', source)
-        source += '\nPROGRAM SimProgram\nVAR\nb : FB_ConveyorPack;\nEND_VAR\nb();\nEND_PROGRAM\nCONFIGURATION SimConfig\nRESOURCE R ON PLC\nTASK Main(INTERVAL := T#50ms, PRIORITY := 0);\nPROGRAM P WITH Main : SimProgram;\nEND_RESOURCE\nEND_CONFIGURATION\n'
+        source += f'\nPROGRAM SimProgram\nVAR\nb : {block_name};\nEND_VAR\nb();\nEND_PROGRAM\nCONFIGURATION SimConfig\nRESOURCE R ON PLC\nTASK Main(INTERVAL := T#50ms, PRIORITY := 0);\nPROGRAM P WITH Main : SimProgram;\nEND_RESOURCE\nEND_CONFIGURATION\n'
         folder = Path(folder).resolve()
         if folder.is_relative_to(ROOT):
             raise ValueError('Build directory must be outside repository')
         folder.mkdir(parents=True, exist_ok=True)
         (folder / 'input.st').write_text(source)
         self.normalized_hash = hashlib.sha256(source.encode()).hexdigest()
-        assigns = '\n'.join(f'b->{n.upper()}.value = (flags >> {i}) & 1;' for i, n in enumerate(INPUTS))
-        reads = '\n'.join(f'out[{i}] = b->{n.upper()}.value;' for i, n in enumerate(OUTPUTS))
+        assigns = '\n'.join(f'b->{n.upper()}.value = (flags >> {i}) & 1;' for i, n in enumerate(self.inputs))
+        reads = '\n'.join(f'out[{i}] = b->{n.upper()}.value;' for i, n in enumerate(self.outputs))
         (folder / 'driver.c').write_text(f'''#include <stdint.h>
 #include <stdlib.h>
 #include "POUS.h"
 TIME __CURRENT_TIME;
 #include "POUS.c"
 void *create_instance(void) {{
- FB_CONVEYORPACK *b = calloc(1, sizeof(*b));
- if(b) FB_CONVEYORPACK_init__(b, 0);
+ {block_name.upper()} *b = calloc(1, sizeof(*b));
+ if(b) {block_name.upper()}_init__(b, 0);
  return b;
 }}
 void destroy_instance(void *p) {{ free(p); }}
 void scan(void *p, unsigned flags, int32_t *out) {{
- FB_CONVEYORPACK *b = p;
+ {block_name.upper()} *b = p;
  {assigns}
- FB_CONVEYORPACK_body__(b);
+ {block_name.upper()}_body__(b);
  {reads}
 }}
 ''')
@@ -79,7 +84,14 @@ void scan(void *p, unsigned flags, int32_t *out) {{
         self.lib.destroy_instance(handle)
 
     def scan(self, handle, inputs):
-        flags = sum(inputs.get(n, False) << i for i, n in enumerate(INPUTS))
-        result = (ctypes.c_int32 * len(OUTPUTS))()
+        flags = sum(inputs.get(n, False) << i for i, n in enumerate(self.inputs))
+        result = (ctypes.c_int32 * len(self.outputs))()
         self.lib.scan(handle, flags, result)
-        return dict(zip(OUTPUTS, result))
+        return dict(zip(self.outputs, result))
+
+
+class ConveyorRuntime(NativeRuntime):
+    def __init__(self, folder, compiler, library, *, source_bytes=None):
+        super().__init__(folder, compiler, library,
+            source_bytes=SOURCE.read_bytes() if source_bytes is None else source_bytes,
+            block_name='FB_ConveyorPack', inputs=INPUTS, outputs=OUTPUTS)

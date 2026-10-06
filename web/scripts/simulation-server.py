@@ -18,6 +18,9 @@ spec.loader.exec_module(module)
 class FrozenAssets:
     """Capture once; HTTP never reads the mutable build directory afterward."""
     def __init__(self, directory, source_bytes):
+        # Multiple scenes bind every exported source to its captured compiler bytes.
+        sources = ({'simulation-source.scl': source_bytes} if isinstance(source_bytes, bytes)
+                   else dict(source_bytes))
         directory = Path(directory)
         files = {}
         for path in directory.rglob('*'):
@@ -28,8 +31,9 @@ class FrozenAssets:
         for name in ('simulation.html', 'simulation.css', 'simulation.js', 'simulation-source.scl'):
             if name not in files:
                 raise ValueError(f'Missing snapshot asset: {name}; rebuild web/dist')
-        if files['simulation-source.scl'] != source_bytes:
-            raise ValueError('Displayed source differs from execution source; rebuild web/dist')
+        for name, captured in sources.items():
+            if not isinstance(captured, bytes) or files.get(name) != captured:
+                raise ValueError('Displayed source differs from execution source; rebuild web/dist')
         self.files = MappingProxyType(files)
         manifest = {name: module.hashlib.sha256(data).hexdigest()
                     for name, data in sorted(files.items())}
