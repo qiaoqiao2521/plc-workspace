@@ -16,3 +16,9 @@ The first startup-only hash check did not bind later downloads: an isolated runn
 Correction: capture original bytes once, capture and validate the whole asset bundle before compilation, pass captured source directly to matiec, and serve immutable memory bytes rather than the build directory. All responses identify the bundle and forbid browser caching. This is a runtime snapshot, not an atomic deployment/build system: do not build concurrently with service startup. Startup rejects a missing or mismatched SCL export. Rebuild/restart plus browser refresh is the version update boundary.
 
 New lifecycle regression changes SCL export and every page asset after startup, removes the build directory, then checks actual HTTP content, hash, and Motor=1 in both existing and new sessions. Another native test changes the source file before compilation: captured old bytes produce Motor=1; freshly loaded changed bytes produce Motor=0. Both retain source identities. No canonical FB or candidate control flow changed.
+
+## 3D presentation — 2026-10-06
+
+User rejected the flat drawing and requested 3D. Adopt Three.js 0.186.1 with OrbitControls, pinned in package-lock and copied with MIT license into the local static build. No CDN/model download or new backend engine. WebGL draws a procedurally modeled roller conveyor, parcel, photoeye and tower light. Per-frame motion interpolates returned plant position; only step/play calls advance the native FB. New scene/vendor assets are included by the existing whole-bundle memory snapshot. No physical simulation claim.
+
+Design: pale equipment floor, steel frame, blue motor, amber parcel; one large orbitable equipment viewport with nearby signal controls and scan history. Failed WebGL must retain control and trace functionality.

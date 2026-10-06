@@ -44,3 +44,6 @@ projects/*/04_reports/
 
 # Static frontend build output
 web/dist/
+
+# Frontend dependencies
+web/node_modules/

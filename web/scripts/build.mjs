@@ -17,7 +17,9 @@ for(const [key,relative] of [['projection_manifest_sha256','projects/FB_MainSequ
  if(formal[key]!==hash)throw new Error(`Stale example verification: ${key}`);
 }
 await rm(path.join(root,'dist'),{recursive:true,force:true});await mkdir(path.join(root,'dist/data'),{recursive:true});
-for(const f of ['index.html','validation.html','style.css','generation.css','app.js','generation.js','generation-model.js','simulation.html','simulation.css','simulation.js','favicon.svg','data/traces.json','data/generation-result.schema.json'])await copyFile(path.join(root,f),path.join(root,'dist',f));
+for(const f of ['index.html','validation.html','style.css','generation.css','app.js','generation.js','generation-model.js','simulation.html','simulation.css','simulation.js','simulation-3d.js','favicon.svg','data/traces.json','data/generation-result.schema.json'])await copyFile(path.join(root,f),path.join(root,'dist',f));
 await copyFile(path.join(root,'../plans/plc-generation-ui/user-eval/candidates/FB_ConveyorPack.scl'),path.join(root,'dist/simulation-source.scl'));
+await mkdir(path.join(root,'dist/vendor/three'),{recursive:true});
+for(const [from,to] of [['build/three.module.js','three.module.js'],['build/three.core.js','three.core.js'],['examples/jsm/controls/OrbitControls.js','OrbitControls.js'],['LICENSE','LICENSE']])await copyFile(path.join(root,'node_modules/three',from),path.join(root,'dist/vendor/three',to));
 await import('./build-example.mjs');
-console.log('Built generation workspace + validation viewer in web/dist (15 static assets).');
+console.log('Built generation workspace + validation viewer in web/dist (20 static assets).');

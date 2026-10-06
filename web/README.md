@@ -4,7 +4,7 @@ Requirements → state/I/O review → local AI generation → SCL/LAD draft expo
 
 ## Run
 
-Node 18+ and Python 3.10+; no npm dependencies. The selected local CLI must already be configured.
+Node 18+ and Python 3.10+; install the pinned Three.js dependency with `npm --prefix web ci`. The selected local CLI must already be configured.
 
 ```sh
 npm --prefix web run build
@@ -95,7 +95,9 @@ Open **http://127.0.0.1:8767/simulation.html**. Requires GCC and the existing ma
 
 Start performs one FB call with Start true; subsequent step/play calls release it. Enable withdrawal does not cancel this sample's accepted command. Stop applies on the next requested scan. Reset is one input pulse; two pulses without an intervening release scan remain a held signal. “重建 PLC 与工件” initializes a new native instance and plant, not a Reset input.
 
-The view executes the **recorded agy conveyor candidate**, not arbitrary output from the current generation job. Startup captures the original SCL bytes and all static assets into an immutable in-memory snapshot, checks that the download matches, and compiles those captured bytes. Served static assets and JSON API responses carry `X-PLC-Snapshot`; new sessions also report `asset_snapshot_sha256`. Editing/rebuilding or removing `web/dist` after startup cannot change the running source or pages. To load a new version, rebuild, restart the simulation service and refresh the browser page. Siemens syntax is adapted for matiec without changing transitions. Position/speed are synthetic: one energized call advances 20%; continuous playback waits 500ms between requests. The eight-call timeout does not mean eight seconds. Done is a single scan pulse preserved in the trace. This does not establish LAD execution, TIA/PLCSIM, mechanics or industrial acceptance.
+The view executes the **recorded agy conveyor candidate**, not arbitrary output from the current generation job. The 3D viewport uses locally built Three.js with orbit/zoom, default/top views, steel rollers, motor, parcel, photoeye and status lights. Its render loop never calls PLC APIs or advances the plant; position interpolation and roller motion are presentation only. If WebGL fails, the native controls and scan trace remain available.
+
+Startup captures the original SCL bytes and all static assets into an immutable in-memory snapshot, checks that the download matches, and compiles those captured bytes. Served static assets and JSON API responses carry `X-PLC-Snapshot`; new sessions also report `asset_snapshot_sha256`. Editing/rebuilding or removing `web/dist` after startup cannot change the running source or pages. To load a new version, rebuild, restart the simulation service and refresh the browser page. Siemens syntax is adapted for matiec without changing transitions. Position/speed are synthetic: one energized call advances 20%; continuous playback waits 500ms between requests. The eight-call timeout does not mean eight seconds. Done is a single scan pulse preserved in the trace. This does not establish LAD execution, TIA/PLCSIM, mechanics or industrial acceptance.
 
 Run the nine native simulation tests as part of the existing frontend suite:
 

@@ -1,23 +1,15 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLC Workspace · 输送仿真</title><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./simulation.css"><script type="module" src="./simulation.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLC Workspace · 输送仿真</title><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./simulation.css"><script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script><script type="module" src="./simulation.js"></script></head>
 <body>
 <header><a href="http://127.0.0.1:8766/">PLC Workspace</a><span>输送工程 · 本机仿真</span><a href="./validation.html">示例验证回放</a></header>
 <main>
-<div class="intro"><h1>让生成的逻辑跑起来。</h1><p>点击启动，看电机推动工件；也可以卡住工件，观察第 8 次等待调用怎样锁存故障。</p></div>
+<div class="intro"><h1>输送单元仿真。</h1><p>从启动到到位，观察真实 FB 怎样驱动工件。旋转设备视角，或注入故障检查边界。</p></div>
 <p class="boundary">当前执行已记录的 agy 输送草稿，不是当前生成窗口的工程。SCL 经语法适配后由 matiec／GCC 执行；未通过 TIA／PLCSIM 或实机验收。</p>
 <div class="bench">
 <section class="plant" aria-label="输送线仿真">
 <div class="plant-heading"><h2>输送带</h2><span id="phase">尚未连接</span></div>
-<svg viewBox="0 0 720 270" role="img" aria-label="工件沿输送带移动，右侧为末端传感器">
-<defs><pattern id="rollers" width="32" height="40" patternUnits="userSpaceOnUse"><rect width="32" height="40" fill="#b6c4cf"/><path d="M16 0v40" stroke="#637e90" stroke-width="3"/></pattern></defs>
-<path d="M100 191v48M620 191v48" stroke="#637e90" stroke-width="12"/>
-<rect x="58" y="148" width="604" height="44" rx="22" fill="url(#rollers)" stroke="#35576e" stroke-width="6"/>
-<g id="box" transform="translate(78 87)"><rect width="68" height="59" fill="#dba746" stroke="#8d641d" stroke-width="2"/><path d="M34 0v22M0 20h68" stroke="#f8dba0" stroke-width="5"/></g>
-<g id="sensor"><path d="M617 73v73" stroke="#637e90" stroke-width="8"/><rect x="595" y="67" width="28" height="25" rx="3" fill="#35576e"/><path d="M595 80H560v66" fill="none" stroke="#b4c4cf" stroke-dasharray="4 4" stroke-width="3"/></g>
-<text x="58" y="261">上料位置</text><text x="542" y="261">末端 AtEnd</text>
-<g id="motor"><circle cx="103" cy="181" r="16" fill="#e7eef2" stroke="#35576e" stroke-width="3"/><text x="97" y="186">M</text></g>
-</svg>
+<div class="scene-shell"><div id="scene" role="img" aria-label="三维输送设备：工件沿钢制输送带移动，末端为到位传感器"></div><div class="scene-top"><span>FB_ConveyorPack</span><span id="scene-status">正在载入 3D…</span></div><div class="scene-tools"><button id="camera-home">默认视角</button><button id="camera-top">俯视</button><span>拖动旋转 · 滚轮缩放</span></div><p id="scene-fallback" hidden>3D 画面不可用；仍可用下面的逐拍记录检查实际 PLC 输出。</p></div>
 <div class="scan-line"><span>FB 调用 <b id="scan">0</b></span><span>等待计数 <b id="wait">0</b> / 8</span><span>位置 <b id="position">0%</b></span></div>
 <div class="actions"><button id="start" class="primary" disabled>启动（Start 单拍）</button><button id="step" disabled>单步扫描</button><button id="play" disabled>连续运行</button><button id="reset" disabled>复位（Reset 单拍）</button></div>
 <p id="service-link" hidden><a href="http://127.0.0.1:8767/simulation.html">打开已启动的本机仿真服务（8767）</a></p>

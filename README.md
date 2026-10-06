@@ -6,9 +6,10 @@
 
 ## 本机运行
 
-需要 Node 18+、Python 3.10+、已配置的 `mcode` 和运行中的本机 CM/Paperclip。使用已有本机公司 ID，不需要安装 npm 依赖。
+需要 Node 18+、Python 3.10+、已配置的 `mcode` 和运行中的本机 CM/Paperclip。使用已有本机公司 ID，先安装锁定的 Three.js 依赖。
 
 ```sh
+npm --prefix web ci
 npm --prefix web run build
 npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
   --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime
