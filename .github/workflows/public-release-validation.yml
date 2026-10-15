@@ -15,12 +15,20 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   docs-and-compose:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Verify public release files exist
         run: |
@@ -63,6 +71,7 @@ jobs:
           }
 
   validate-release-assets:
+    timeout-minutes: 30
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
@@ -71,25 +80,32 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Resolve release tag
         id: tag
         shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ inputs.tag }}" ]; then
-            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            tag="$EVENT_TAG"
+          elif [ -n "$REQUESTED_TAG" ]; then
+            tag="$REQUESTED_TAG"
           else
-            echo "tag=$(gh release list --repo "${{ github.repository }}" --limit 1 --json tagName --jq '.[0].tagName')" >> "$GITHUB_OUTPUT"
+            tag="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName')"
           fi
+          git check-ref-format "refs/tags/$tag"
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
 
       - name: Download release assets
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           mkdir -p release-assets
-          gh release download "${{ steps.tag.outputs.tag }}" \
-            --repo "${{ github.repository }}" \
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
             --pattern 'runtime-assets.zip' \
             --pattern 'runtime-assets.manifest.json' \
             --pattern 'runtime-assets.sha256' \
