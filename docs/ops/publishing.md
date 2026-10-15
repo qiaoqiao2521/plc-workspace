@@ -66,7 +66,7 @@ Old archives can contain an obsolete copy of the versioned project. Extract
 outside the checkout and copy only external validation payloads:
 
 ```powershell
-git clone https://github.com/muqiao215/plc-workspace.git
+git clone https://github.com/qiaoqiao2521/plc-workspace.git
 cd plc-workspace
 Expand-Archive .\runtime-assets.zip -DestinationPath ..\plc-runtime-assets -Force
 foreach ($folder in @("tools", "config", "docker", "templates")) {
@@ -84,7 +84,7 @@ $tag = "validation-layer-v0.1.0"
 gh release create $tag `
   .\releases\runtime-assets.zip `
   .\releases\runtime-assets.manifest.json `
-  --repo muqiao215/plc-workspace `
+  --repo qiaoqiao2521/plc-workspace `
   --title "Validation layer v0.1.0" `
   --notes "Containerized harness layer release. TIA Portal and PLCSIM remain host-side final verification tools."
 ```
@@ -97,7 +97,7 @@ the existing release intentionally.
 Windows:
 
 ```powershell
-git clone https://github.com/muqiao215/plc-workspace.git fresh-plc-workspace
+git clone https://github.com/qiaoqiao2521/plc-workspace.git fresh-plc-workspace
 cd fresh-plc-workspace
 Expand-Archive ..\runtime-assets.zip -DestinationPath ..\plc-runtime-assets -Force
 foreach ($folder in @("tools", "config", "docker", "templates")) {
@@ -111,7 +111,7 @@ docker compose -f .\container\docker-compose.release.yml up --abort-on-container
 Linux:
 
 ```bash
-git clone https://github.com/muqiao215/plc-workspace.git fresh-plc-workspace
+git clone https://github.com/qiaoqiao2521/plc-workspace.git fresh-plc-workspace
 cd fresh-plc-workspace
 unzip ../runtime-assets.zip -d ../plc-runtime-assets
 cp -a ../plc-runtime-assets/validation/{tools,config,docker,templates} validation/
