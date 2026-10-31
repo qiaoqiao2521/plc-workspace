@@ -1,6 +1,6 @@
 # PLC Workspace frontend
 
-Requirements → state/I/O review → local AI generation → SCL/LAD draft export. Existing compiled-ST replay is in `validation.html`, supporting the generator’s quality.
+Requirements → state/I/O review → local AI generation → current SCL checks/repair → draft export. Existing compiled-ST replay is in `validation.html`, supporting the generator’s quality. See [current SCL loop](../docs/SCL_CLOSED_LOOP.md) for compiler setup, the 12-call conveyor acceptance and evidence boundaries.
 
 ## Run
 
@@ -25,14 +25,14 @@ The UI detects missing `/api/capabilities`, explains how to start the local brid
 ## Generation protocol
 
 - `POST /api/generate`: `{request, prompt}`; returns a job identifier. Requires JSON content type, same origin and `X-PLC-Workspace: 1`.
-- `GET /api/jobs/<id>`: running/complete/failed/cancelled; complete includes structured result.
+- `GET /api/jobs/<id>`: running/complete/failed/cancelled; complete includes structured result. Strict workflow responses include `verification` and `workflow`; failures may include `candidate_result` for review/save without approval.
 - `POST /api/jobs/<id>/cancel`: cancel the current model process.
 - `request` freezes brief and state draft, with a SHA-256 content fingerprint and request ID.
 - [generation-result.schema.json](data/generation-result.schema.json) defines SCL files, states, I/O, LAD networks, questions and Agent-reported checks.
 - Edited requirements invalidate the prepared request and disable old-result exports. Imported results must echo the current request ID/fingerprint. No model report becomes verification evidence.
 - The default agy adapter uses plan + sandbox and a temporary working directory, receiving no checkout path. Do not add `--disable-slash-commands`: the installed agy warns that it disables plan mode. This is a bounded engineering adapter, not a security boundary for running untrusted programs.
 
-Drafts are saved in browser storage only when the user clicks save. Jobs/results are in local process memory (last eight jobs) and lost on server restart. Task/model content, CLI conversation IDs and runtime logs are not committed or automatically stored by this bridge; agy itself may retain its normal local session history.
+Requirement drafts are saved in browser storage only when the user clicks save. The bridge retains the last eight jobs in memory; strict mcode/CM tasks also preserve their request, loaded knowledge, candidate revisions, diagnostics and outcome under the configured external workflow root. Engineering export saves the source and associated evidence for reopening. Runtime evidence is not committed to Git; model CLIs may retain their normal local session history.
 
 ## Engineering output
 
@@ -44,7 +44,7 @@ SCL can be downloaded per file. LAD shows simple series contacts/coils or period
 npm --prefix web test
 ```
 
-Thirteen JavaScript checks include compiled-ST trace assertions and stale/malformed-result cases; Python bridge tests exercise synthetic process failures, cancellation and HTTP origin checks. Live agy/browser acceptance is recorded in [the plan](../plans/plc-generation-ui/progress.md).
+JavaScript checks cover trace assertions, request/source binding and engineering recovery; Python tests cover process failures, cancellation, HTTP origin checks and workflow repair gates. Set `SIM_IEC2C` and `SIM_MATIEC_LIB` to run the real compiler/scan regressions as well. Model responses in automated workflow tests are fixtures; live model acceptance is separate. Earlier agy/browser acceptance is recorded in [the plan](../plans/plc-generation-ui/progress.md).
 
 The build verifies canonical source/formal evidence hashes and generates the repository example payload directly from ST. Existing traces contain six scenarios / 42 actual FB calls. To regenerate them after core changes:
 
@@ -79,7 +79,7 @@ Use `--timeout 0` when choosing to wait for delivery without a generation deadli
 
 ### Strict mcode workflow
 
-For the selected industrial draft workflow, use `--provider mcode-cm --timeout 0 --mcode /path/to/mcode --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime`. The existing local Paperclip runtime must be available. Specification approval precedes generation, two text reviews run concurrently, and one supervisor role reviews the outcome. Unresolved/rejected/unknown outputs are not imported as engineering. See [execution protocol](../docs/PLC_AGENT_WORKFLOW.md) for commands, responsibilities and current verification limits. An approved text review remains an unverified engineering draft.
+For the selected industrial draft workflow, use `--provider mcode-cm --timeout 0 --mcode /path/to/mcode --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime` and configure the compiler variables described above. The existing local Paperclip runtime must be available. Specification approval precedes generation; current-source tool failures enter bounded repair before two concurrent text reviews and supervisor review. Failed/unknown candidates remain reviewable and exportable with their status. See [execution protocol](../docs/PLC_AGENT_WORKFLOW.md). Linux checks and text approval do not confer Siemens or machine acceptance.
 
 ## Visible conveyor simulation
 

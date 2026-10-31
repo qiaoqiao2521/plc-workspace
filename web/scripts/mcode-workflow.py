@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """PLC-specific stage gates; Paperclip owns process execution, mcode owns all AI roles."""
 import argparse
+import copy
 from concurrent.futures import ThreadPoolExecutor
+import difflib
 import hashlib
 import importlib.util
 import json
@@ -48,6 +50,7 @@ REVIEW = schema({'verdict': {'type': 'string', 'enum': ['pass', 'fail', 'unknown
                 'findings': STRINGS, 'evidence': STRINGS})
 SUPERVISION = schema({'verdict': {'type': 'string', 'enum': ['approve', 'reject', 'unknown']},
                      'findings': STRINGS, 'evidence': STRINGS})
+REPAIR = schema({'scl_files': bridge.SCHEMA['properties']['scl_files'], 'summary': STR})
 POLICY = '''你是 PLC 工程流程的有界执行者，只返回一个裸 JSON 对象，禁止 Markdown 代码围栏、
 前言、结语或任何 JSON 之外的文本。必须按完整 Schema 构造最终答案。不调用工具、不读写文件、
 所有字符串正确使用 JSON 转义；审阅 findings/evidence 各最多 5 条，每条不超过 300 字符。
@@ -55,6 +58,8 @@ POLICY = '''你是 PLC 工程流程的有界执行者，只返回一个裸 JSON 
 PLC 是连续调用的持久状态机：前值快照→本拍条件→下一状态→提交→输出；每拍最多一个正常迁移。
 输入边沿每拍消费，明确 Stop/Reset/故障优先级、计时基准、完成与到期同拍、Done 脉冲。
 不要把仓库示例契约套用到其他工艺。Main LAD 周期调用持久 FB，SCL 无硬件地址。
+知识材料中持续 Enable、故障清除等 FB_MainSequence 专属接口不得覆盖当前原程序。
+修改已有 source_files 时，除本次明确要求变更外保留原 FB 已确认行为；不能擅改原程序仅允许启动的 Enable。
 未确认的阀型、反馈、停止或复位动作、超时规则不能替用户选择；TBD/默认值/草稿注释不能免除。
 未确认物理地址允许使用已确认的逻辑符号；TIA/固件/实机证据缺失必须保留待验证边界。
 语言规范不能裁决机器工艺冲突。未知必须明确返回 unknown，不能通过。
@@ -72,14 +77,59 @@ def checked_dispatch(dispatch, stage, role, data, output_schema, instructions):
     return answer
 
 
-def review_candidate(candidate, dispatch):
+def knowledge_context():
+    """Controller-selected, versioned materials actually included in model packets."""
+    root = HERE.parents[1]
+    paths = [
+        'docs/SCL_STANDARD_BASELINE.md',
+        '.agents/skills/siemens-scl-lad-standards/SKILL.md',
+        '.agents/skills/siemens-scl-lad-standards/references/scl-lad-style-rules.md',
+        '.agents/skills/siemens-scl-block-patterns/SKILL.md',
+        '.agents/skills/siemens-scl-block-patterns/references/block-patterns.md',
+        '.agents/skills/tia-portal-scl-lad-workflow/SKILL.md',
+        '.agents/skills/tia-portal-scl-lad-workflow/references/scl-block-templates.md',
+    ]
+    return [{'path': name, 'sha256': hashlib.sha256((root / name).read_bytes()).hexdigest(),
+             'content': (root / name).read_text()} for name in paths]
+
+
+def source_manifest(result):
+    return [{'name': f['name'], 'sha256': hashlib.sha256(f['content'].encode()).hexdigest()}
+            for f in result['scl_files']]
+
+
+def source_diff(previous, current):
+    before = {f['name']: f['content'] for f in previous}
+    after = {f['name']: f['content'] for f in current}
+    return ''.join(''.join(difflib.unified_diff(before.get(name, '').splitlines(True),
+                         after.get(name, '').splitlines(True),
+                         fromfile='before/' + name, tofile='after/' + name))
+                   for name in sorted(before.keys() | after.keys()))
+
+
+def validation_module():
+    spec = importlib.util.spec_from_file_location('candidate_validation', HERE / 'candidate-validation.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate_current(result, directory, profile):
+    return validation_module().validate_candidate(result, directory, profile=profile)
+
+
+def review_candidate(candidate, dispatch, *, tool_evidence='not_run', attempt=0):
+    suffix = '' if not attempt else '-' + str(attempt)
     with ThreadPoolExecutor(max_workers=2) as pool:
-        semantics = pool.submit(checked_dispatch, dispatch, 'semantic-review', 'semantics',
+        semantics = pool.submit(checked_dispatch, dispatch, 'semantic-review' + suffix, 'semantics',
             candidate, REVIEW, '独立静态逐拍检查 Start/Stop/Reset、Enable、持久状态、超时、'
-            '完成、边沿和输出，给具体反例或逐拍依据。pass 仅表示此次文本审阅，非测试通过。')
-        consistency = pool.submit(checked_dispatch, dispatch, 'interface-review', 'interface',
+            '完成、边沿和输出，给具体反例或逐拍依据。pass 仅表示此次文本审阅，非测试通过。'
+            'repair_context包含前轮发现及修复者的解释/反驳；须对照冻结需求、当前源码和真实工具报告复核，'
+            '解释不能作为新增需求或独立工具证据。')
+        consistency = pool.submit(checked_dispatch, dispatch, 'interface-review' + suffix, 'interface',
             candidate, REVIEW, '独立核对需求/规格/I/O/SCL/LAD 是否一致，查遗漏、伪硬件地址、'
-            'LAD 条件调用、缺失实例/绑定、虚假证明。pass 仅表示此次文本审阅。')
+            'LAD 条件调用、缺失实例/绑定、虚假证明。pass 仅表示此次文本审阅。'
+            '依据repair_context复核前轮争议；修复说明不能增加原需求或替代实际工具证据。')
         reviews = {}
         for role, future in [('semantics', semantics), ('interface', consistency)]:
             try:
@@ -88,31 +138,55 @@ def review_candidate(candidate, dispatch):
                 reviews[role] = {'verdict': 'unknown', 'findings': ['Worker delivery failed: ' + str(error)],
                                  'evidence': ['Controller classified execution/binding failure; no review accepted']}
     final_input = {'candidate': candidate, 'reviews': reviews,
-                   'candidate_sha256': digest(candidate), 'tool_evidence': 'not_run'}
-    final = checked_dispatch(dispatch, 'final-review', 'supervisor', final_input, SUPERVISION,
+                   'candidate_sha256': digest(candidate), 'tool_evidence': tool_evidence}
+    final = checked_dispatch(dispatch, 'final-review' + suffix, 'supervisor', final_input, SUPERVISION,
         '作为同一监督角色独立汇总，只能 approve/reject/unknown。任一审阅 fail/unknown 必须退回；'
         '逐条指出审阅发现是否有原需求或源码依据，不得把审阅者擅自添加的要求当作原需求。'
         '不能覆盖程序门禁或伪造工具证据。approve 只批准审阅草稿，工业验收仍未执行。')
     return reviews, final
 
 
-def run_workflow(request, dispatch):
+def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs=2):
     bridge.validate_request(request)
-    analysis = checked_dispatch(dispatch, 'analysis', 'engineer', request, ANALYSIS,
+    if type(max_repairs) is not int or not 0 <= max_repairs <= 5:
+        raise ValueError('max_repairs must be between 0 and 5')
+    runtime = Path(runtime) if runtime is not None else Path(tempfile.mkdtemp(prefix='plc-workflow-'))
+    if runtime.resolve().is_relative_to(HERE.parents[1]):
+        raise ValueError('Workflow evidence must stay outside repository')
+    runtime.mkdir(parents=True, exist_ok=True)
+    knowledge = knowledge_context()
+    save(runtime / 'knowledge.json', knowledge)
+    manifest = [{key: item[key] for key in ('path', 'sha256')} for item in knowledge]
+    analysis = checked_dispatch(dispatch, 'analysis', 'engineer',
+        {'request': request, 'knowledge': knowledge}, ANALYSIS,
         '先只分析需求，不生成 SCL/LAD。阻断未决项放 unresolved 和 questions。'
-        '已足以生成逻辑草稿则 ready，并写完整规格及可独立检查的义务；不得增加工艺选择。')
-    frozen = {'request': request, 'analysis': analysis}
+        '已足以生成逻辑草稿则 ready，并写完整规格及可独立检查的义务；不得增加工艺选择。'
+        'knowledge 是控制器加载的项目规范与技能。source_files 是本次要修改的原程序，保留未要求变更的行为。'
+        '不要把资料中 FB_MainSequence 的专属接口规则强加给当前工艺。')
+    profile = request['brief'].get('validation_profile')
+    contract = copy.deepcopy(validation_module().CONTRACT) if profile == 'conveyor-12-v1' else None
+    frozen = {'request': request, 'analysis': analysis, 'knowledge': knowledge,
+              'validation_profile': profile, 'validation_contract': contract,
+              'validation_contract_sha256': digest(contract) if contract else None}
     approval = checked_dispatch(dispatch, 'spec-review', 'supervisor', frozen, SUPERVISION,
         '独立核对规格是否忠于原需求；存在阻断问题、伪默认或缺失关键条件则 reject。'
         '这次仅批准规格，不批准产品或源码。')
     base = {'request_fingerprint': request['request_fingerprint'], 'spec_sha256': digest(frozen),
-            'analysis': analysis, 'spec_review': approval, 'industrial_acceptance': 'not_run'}
+            'analysis': analysis, 'spec_review': approval, 'industrial_acceptance': 'not_run',
+            'knowledge': manifest, 'max_repairs': max_repairs, 'attempts': []}
+
+    def finish(**fields):
+        outcome = {**base, **fields}
+        save(runtime / 'outcome.json', outcome)
+        return outcome
+
     if (analysis['verdict'] != 'ready' or analysis['unresolved'] or analysis['questions']
             or not analysis['specification'].strip() or not analysis['obligations']
             or approval['verdict'] != 'approve'):
-        return {**base, 'verdict': 'blocked', 'result': None}
+        return finish(verdict='blocked', result=None, candidate=None)
     result = checked_dispatch(dispatch, 'generation', 'engineer', frozen, bridge.SCHEMA,
         '严格按已批准规格生成完整 FB SCL 和 Main LAD 审阅网络，不新增决策。'
+        '修改已有 source_files 时交付修改后的完整新文件，保留本次未要求变更的原行为。'
         '保持 request_id/request_fingerprint/schema_version；工具检查只能 not_run/unknown。'
         '若发现新的阻断项，写入 questions，不能继续伪确定动作。')
     if (result['request_id'] != request['request_id']
@@ -121,14 +195,85 @@ def run_workflow(request, dispatch):
         raise ValueError('Generated result is bound to another request')
     if result['questions'] or not result['scl_files'] or any(
             item['status'] not in ['not_run', 'unknown'] for item in result['checks']):
-        return {**base, 'verdict': 'blocked', 'result': None,
-                'generation_questions': result['questions'], 'reason': 'Unresolved or unsupported claims'}
-    candidate = {'frozen': frozen, 'result': result}
-    reviews, final = review_candidate(candidate, dispatch)
-    passed = all(r['verdict'] == 'pass' for r in reviews.values()) and final['verdict'] == 'approve'
-    return {**base, 'candidate_sha256': digest(candidate), 'reviews': reviews, 'final_review': final,
-            'verdict': 'reviewed_draft' if passed else 'rejected',
-            'result': result if passed else None}
+        return finish(verdict='blocked', result=None, candidate=result,
+                      generation_questions=result['questions'], reason='Unresolved or unsupported claims')
+
+    validator = validator or validate_current
+    previous = request['brief'].get('source_files', [])
+    repair_context = None
+    for attempt in range(max_repairs + 1):
+        folder = runtime / ('attempt-' + str(attempt))
+        save(folder / 'candidate.json', result)
+        files = source_manifest(result)
+        diff = source_diff(previous, result['scl_files'])
+        (folder / 'changes.diff').write_text(diff)
+        # Save the current artifact before running external tools or model sessions.
+        finish(verdict='unknown', result=None, candidate=result,
+               reason='Candidate checks in progress')
+        try:
+            report = validator(copy.deepcopy(result), folder / 'validation',
+                               profile=frozen['validation_profile'])
+        except InterruptedError:
+            raise
+        except Exception as error:
+            report = {'status': 'unknown', 'files': files,
+                      'checks': [{'name': 'Candidate validation', 'status': 'unknown', 'detail': str(error)}],
+                      'diagnostics': str(error), 'scope': 'Validation tool did not deliver a result'}
+        if (report.get('status') not in ['pass', 'fail', 'unknown']
+                or report.get('files') != files
+                or (contract and (report.get('contract') != contract
+                    or report.get('contract_sha256') != frozen['validation_contract_sha256']))):
+            report = {'status': 'unknown', 'files': files,
+                      'checks': [{'name': 'Source binding', 'status': 'unknown',
+                                  'detail': 'Checker report did not bind to the current source and frozen test contract'}],
+                      'diagnostics': 'Invalid source-bound checker delivery', 'scope': 'No checks accepted'}
+        result['checks'] = copy.deepcopy(report['checks']) + [
+            {'name': 'TIA / PLCSIM / machine acceptance', 'status': 'not_run',
+             'detail': 'Linux checks and text reviews do not establish Siemens or machine acceptance.'}]
+        bridge.validate_schema(result, bridge.SCHEMA)
+        save(folder / 'validation.json', report)
+        save(folder / 'candidate.json', result)
+        packet = {'frozen': frozen, 'result': result}
+        if repair_context is not None:
+            packet['repair_context'] = repair_context
+        entry = {'attempt': attempt, 'candidate_sha256': digest(packet), 'files': files,
+                 'validation': report, 'diff': diff}
+        if repair_context is not None:
+            entry['repair_context'] = repair_context
+        base['attempts'].append(entry)
+        fields = {'candidate_sha256': digest(packet), 'candidate': result,
+                  'validation': report, 'result': None}
+        finish(**fields, verdict='unknown', reason='Current source checked; review pending')
+        if report['status'] == 'unknown':
+            return finish(**fields, verdict='blocked', reason='Candidate validation unavailable or unsupported')
+        if report['status'] == 'pass':
+            reviews, final = review_candidate(packet, dispatch, tool_evidence=report, attempt=attempt)
+            entry.update(reviews=reviews, final_review=final)
+            save(folder / 'reviews.json', {'reviews': reviews, 'final_review': final})
+            fields.update(reviews=reviews, final_review=final)
+            passed = all(r['verdict'] == 'pass' for r in reviews.values()) and final['verdict'] == 'approve'
+            if passed:
+                return finish(**{**fields, 'result': result}, verdict='reviewed_draft')
+            if any(r['verdict'] == 'unknown' for r in reviews.values()) or final['verdict'] == 'unknown':
+                return finish(**fields, verdict='rejected', reason='Review delivery unknown; current candidate retained')
+        if attempt == max_repairs:
+            return finish(**fields, verdict='rejected', reason='Repair budget exhausted; current candidate retained')
+        finish(**fields, verdict='unknown', reason='Repair in progress; current candidate retained')
+        repair_input = {'frozen': frozen, 'candidate': result, 'validation': report,
+                        'reviews': entry.get('reviews', {}), 'final_review': entry.get('final_review'),
+                        'files': files}
+        repaired = checked_dispatch(dispatch, 'repair-' + str(attempt + 1), 'engineer', repair_input, REPAIR,
+            '只修复当前 SCL 源文件。根据实际编译诊断、固定测试反例及有原需求依据的审阅发现修正。'
+            '不可修改冻结需求、规格、I/O、LAD、验证配置、测试输入或预期；不可追加功能来消除审阅争议。'
+            '审阅者提出原需求以外的功能不应实现；若与源码或工具证据矛盾，在 summary 指出依据。'
+            '返回完整 scl_files 和修复说明 summary，禁止声称未经运行的验证通过。')
+        if not repaired['scl_files']:
+            return finish(**fields, verdict='rejected', reason='Repair returned no source; current candidate retained')
+        previous = result['scl_files']
+        result = {**copy.deepcopy(result), 'scl_files': repaired['scl_files']}
+        repair_context = {'summary': repaired['summary'], 'previous_reviews': entry.get('reviews', {}),
+                          'previous_validation': report, 'previous_final_review': entry.get('final_review')}
+        save(folder / 'repair.json', repaired)
 
 
 def worker(job_path, mcode):
@@ -256,6 +401,9 @@ def main():
         r.add_argument('--company', required=True)
         r.add_argument('--api-url', default='http://127.0.0.1:3100')
         r.add_argument('--mcode', required=True)
+        if name == 'run':
+            r.add_argument('--max-repairs', type=int, default=2,
+                           help='Maximum source-repair rounds after initial validation (0..5)')
         if name == 'audit':
             r.add_argument('--candidate', type=Path, required=True,
                            help='Existing structured result; audit never generates or exports engineering')
@@ -294,14 +442,17 @@ def main():
                        'candidate_sha256': digest(candidate), 'reviews': reviews,
                        'final_review': final, 'result': None}
         else:
-            outcome = run_workflow(request, dispatcher)
+            outcome = run_workflow(request, dispatcher, runtime=runtime, max_repairs=args.max_repairs)
         save(runtime / 'outcome.json', outcome)
         dispatcher.api('PATCH', '/issues/' + dispatcher.parent['id'], {
             'status': 'done', 'comment': 'Workflow handoff: ' + outcome['verdict'] +
             '; industrial acceptance NOT RUN. Outcome SHA: ' + digest(outcome)})
         print(json.dumps(outcome, ensure_ascii=False))
     except BaseException:
-        save(runtime / 'outcome.json', {'verdict': 'unknown', 'industrial_acceptance': 'not_run',
+        # Retain the latest candidate and completed checks when a later model/transport fails.
+        saved = runtime / 'outcome.json'
+        retained = json.loads(saved.read_text()) if saved.exists() else {}
+        save(saved, {**retained, 'verdict': 'unknown', 'industrial_acceptance': 'not_run',
              'result': None, 'reason': 'Interrupted/failed workflow; inspect stage evidence'})
         dispatcher.api('PATCH', '/issues/' + dispatcher.parent['id'], {
             'status': 'in_review', 'comment': 'Interrupted/failed workflow; no acceptance. Preserve runtime for diagnosis.'})

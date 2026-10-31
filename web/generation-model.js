@@ -17,7 +17,40 @@ export function validateBrief(brief) {
   if (!brief.name.trim()) issues.push('填写工程名称。');
   if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(brief.block_name)) issues.push('FB 名称使用英文字母开头，后接字母、数字或下划线。');
   if (brief.requirement.trim().length < 10) issues.push('描述工艺动作、完成条件和异常处理，至少 10 个字符。');
+  if (brief.source_files !== undefined && (!Array.isArray(brief.source_files) || brief.source_files.length > 10 || brief.source_files.some(f =>
+      !f || typeof f.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_.-]*\.(scl|st)$/.test(f.name) || typeof f.content !== 'string' || f.content.length > 200000) ||
+      new Set(brief.source_files.map(f => f.name.toLowerCase())).size !== brief.source_files.length)) issues.push('原程序文件格式错误或过大。');
+  if (brief.validation_profile !== undefined && !['', 'conveyor-12-v1'].includes(brief.validation_profile)) issues.push('检查方案不受支持。');
   return issues;
+}
+
+export function conveyorAcceptanceBrief(source) {
+  return {name:'输送带 · 12 次等待验收', block_name:'FB_ConveyorPack',
+    requirement:'修改所附 FB_ConveyorPack 原程序：将超时阈值从 8 次等待调用改为 12 次。启动调用不计入等待；之后第 1～11 次等待不能超时，第 12 次仍未到位才锁存超时故障。第 12 次等待到位与超时同拍时按到位成功。Stop 当拍撤销电机动作；解除 Stop 后，一直按住的 Start 不得自动重启，必须释放后再次按下。保留原程序其余接口和行为，包括原有 Enable、Reset、故障恢复及 Done 单拍语义。',
+    flow:'待机 → 输送 → 完成 → 待机',
+    io_text:'沿用原程序：BOOL 输入 Enable、Start、Stop、Reset、AtEnd；BOOL 输出 Motor、Busy、Done、Error、TimeoutFault。',
+    constraints:'只修改当前 FB 的等待阈值及必要的相关说明，不增加工艺要求。Main 周期调用同一持久实例。计数单位为 FB 等待调用次数，不是毫秒。Linux 编译和固定逐扫描检查不代表 TIA、PLCSIM 或实机验收。',
+    target:{cpu:'unknown',tia_version:'unknown',architecture:'Main LAD / FB SCL'},
+    source_files:[{name:'FB_ConveyorPack.scl',content:source}], validation_profile:'conveyor-12-v1'};
+}
+
+export async function sourceHash(content) {
+  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content)))].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// This checks source association, not the authenticity of a saved report.
+export async function bindVerification(report, result) {
+  if (report == null) return undefined;
+  if (!['pass','fail','unknown'].includes(report.status) || !Array.isArray(report.files) || report.files.length !== result.scl_files.length ||
+      !Array.isArray(report.checks) || report.checks.length > 100 || report.checks.some(c => !c || typeof c.name !== 'string' ||
+        typeof c.detail !== 'string' || !['not_run','unknown','pass','fail'].includes(c.status))) throw new Error('检查记录格式错误。');
+  const hashes = new Map();
+  for (const f of report.files) {
+    if (!f || typeof f.name !== 'string' || !/^[a-f0-9]{64}$/.test(f.sha256) || hashes.has(f.name)) throw new Error('检查记录源码指纹错误。');
+    hashes.set(f.name,f.sha256);
+  }
+  for (const f of result.scl_files) if (hashes.get(f.name) !== await sourceHash(f.content)) throw new Error('检查记录与当前源码不匹配，记录已过期。');
+  return structuredClone(report);
 }
 
 export async function fingerprint(brief, states) {
@@ -80,8 +113,10 @@ export async function openEngineering(value) {
       !s || !Number.isInteger(s.id) || !['name','actions','completion','next_state'].every(k => typeof s[k] === 'string' && s[k].length <= MAX_TEXT))) throw new Error('工程状态草稿格式错误。');
   if (await fingerprint(request.brief, request.states) !== request.request_fingerprint) throw new Error('工程需求指纹不匹配，文件可能已被改写。');
   validateResult(value.result, request);
-  // File claims cannot confer the repository example's independently bound proof.
-  return {request: structuredClone(request), result: structuredClone(value.result)};
+  const verification = await bindVerification(value.verification, value.result);
+  // Imported records never confer current-session or Siemens acceptance.
+  return {request: structuredClone(request), result: structuredClone(value.result), verification,
+    workflow: value.workflow && typeof value.workflow === 'object' && !Array.isArray(value.workflow) ? structuredClone(value.workflow) : undefined};
 }
 
 export function ladTitle(title) {

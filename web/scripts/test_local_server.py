@@ -85,7 +85,10 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.run_stub(good,delay=2.5,provider='zcode',timeout=0)['status'],'complete')
 
     def test_mcode_workflow_accepts_only_reviewed_draft(self):
-        good={'verdict':'reviewed_draft','result':result(request())}
+        candidate=result(request())
+        candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
+        validation={'status':'pass','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}]}
+        good={'verdict':'reviewed_draft','result':candidate,'validation':validation}
         self.assertEqual(self.run_stub(json.dumps(good),provider='mcode-cm',timeout=0)['status'],'complete')
         for verdict in ['blocked','rejected','unknown','audit_complete']:
             outcome=self.run_stub(json.dumps({'verdict':verdict,'result':result(request()),
@@ -95,6 +98,46 @@ class BridgeTests(unittest.TestCase):
         failure=self.run_stub('{}',code=1,provider='mcode-cm',timeout=0)
         self.assertEqual(failure['status'],'failed')
         self.assertIn('工程未放行',failure['error'])
+
+    def test_mcode_failure_preserves_source_and_bound_diagnostics(self):
+        candidate=result(request())
+        candidate['scl_files']=[{'name':'Broken.scl','content':'broken source'}]
+        validation={'status':'fail','files':[{'name':'Broken.scl','sha256':hashlib.sha256(b'broken source').hexdigest()}],
+                    'checks':[{'name':'Linux compile','status':'fail','detail':'type mismatch'}]}
+        envelope={'verdict':'rejected','result':None,'candidate':candidate,
+                  'validation':validation,'attempts':[{'attempt':0}]}
+        outcome=self.run_stub(json.dumps(envelope),provider='mcode-cm',timeout=0)
+        self.assertEqual(outcome['status'],'failed')
+        self.assertEqual(outcome['candidate_result'],candidate)
+        self.assertEqual(outcome['verification'],validation)
+        self.assertEqual(outcome['workflow']['attempts'],[{'attempt':0}])
+        self.assertIn('type mismatch',outcome['error'])
+        envelope['validation']['files'][0]['sha256']='stale'
+        outcome=self.run_stub(json.dumps(envelope),provider='mcode-cm',timeout=0)
+        self.assertEqual(outcome['status'],'failed')
+        self.assertNotIn('candidate_result',outcome)
+
+    def test_review_approval_without_current_tool_evidence_is_rejected(self):
+        outcome=self.run_stub(json.dumps({'verdict':'reviewed_draft','result':result(request())}),
+                              provider='mcode-cm',timeout=0)
+        self.assertEqual(outcome['status'],'failed')
+        self.assertIn('没有返回',outcome['error'])
+
+    def test_original_program_and_behavior_contract_are_in_request_binding(self):
+        req=request()
+        req['brief']['source_files']=[{'name':'FB_Test.scl','content':'source'}]
+        with self.assertRaisesRegex(ValueError,'指纹'):
+            bridge.validate_request(req)
+        def rebind():
+            content=json.dumps({'brief':req['brief'],'states':req['states']},ensure_ascii=False,separators=(',',':'))
+            req['request_fingerprint']=hashlib.sha256(content.encode()).hexdigest()
+        req['brief']['validation_profile']='conveyor-12-v1'
+        rebind()
+        bridge.validate_request(req)
+        req['brief']['source_files'][0]['name']='../outside.scl'
+        rebind()
+        with self.assertRaisesRegex(ValueError,'文件名'):
+            bridge.validate_request(req)
 
     def test_http_rejects_foreign_origin_and_exposes_missing_provider(self):
         server=bridge.ThreadingHTTPServer(('127.0.0.1',0),bridge.Handler)

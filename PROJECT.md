@@ -30,6 +30,8 @@ The v0.3 abstract scan contract and interface 0.2.0 are implemented: internal st
 
 ## Current Priority
 
+2026-10-31: Connect the current task's knowledge, source, tool feedback and repair. The strict path now loads project Skill content, accepts fingerprinted original SCL, checks captured generated source with matiec, and retries source-only repairs (two by default). The named conveyor-12-v1 profile adds independently fixed native scan expectations; other tasks get compilation only. Failed/unknown candidates remain reviewable with bound evidence. See [current SCL loop](docs/SCL_CLOSED_LOOP.md). Online mcode/CM and Windows TIA acceptance must be reported separately from fixture-driven regression.
+
 The main entry in `web/` is a requirement-to-engineering workspace. The user selected a strict mcode-only workflow through CM/Paperclip: specification review precedes generation, two reviewers run concurrently and one supervisor reviews the outcome. See [execution protocol](docs/PLC_AGENT_WORKFLOW.md). The earlier agy/ZCode adapters remain diagnostic options. Static hosting retains request/result handoff without pretending local generation is available. `validation.html` retains compiled-ST replay for the repository example. Generated engineering is a candidate until its own source-bound tools and Siemens checks run; parallel text reviews are not industrial acceptance. Cloud service/deployment remain future work. Preserve the implemented abstract contract; real machine integration needs the actual Main/child FBs, safety interface, TIA/CPU versions and retention configuration.
 
 ## Knowledge Map
