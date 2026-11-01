@@ -1,12 +1,19 @@
-import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle} from './generation-model.js';
+import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification} from './generation-model.js';
 const $ = id => document.getElementById(id);
 const fieldIds = {name:'project-name', block_name:'block-name', requirement:'requirement', flow:'flow', io_text:'io-text', constraints:'constraints'};
 let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 180, provider = 'agy';
+let sourceFiles = [], verification, workflow;
 const text = (id, value) => { $(id).textContent = value; };
 const node = (tag, value, className) => { const el = document.createElement(tag); if (value !== undefined) el.textContent = value; if (className) el.className = className; return el; };
 function message(value, error = false) { $('message').hidden = !value; text('message', value || ''); $('message').classList.toggle('error', error); }
-function readBrief() { return {...Object.fromEntries(Object.entries(fieldIds).map(([k,id]) => [k,$(id).value])), target:{cpu:$('cpu').value,tia_version:$('tia-version').value || 'unknown',architecture:'Main LAD / FB SCL'}}; }
-function writeBrief(brief) { for (const [k,id] of Object.entries(fieldIds)) $(id).value = brief[k] || ''; $('cpu').value = brief.target?.cpu || 'unknown'; $('tia-version').value = brief.target?.tia_version === 'unknown' ? '' : brief.target?.tia_version || ''; }
+function readBrief() { return {...Object.fromEntries(Object.entries(fieldIds).map(([k,id]) => [k,$(id).value])), target:{cpu:$('cpu').value,tia_version:$('tia-version').value || 'unknown',architecture:'Main LAD / FB SCL'},
+  ...(sourceFiles.length ? {source_files:structuredClone(sourceFiles)} : {}), ...($('validation-profile').value ? {validation_profile:$('validation-profile').value} : {})}; }
+function writeBrief(brief) { for (const [k,id] of Object.entries(fieldIds)) $(id).value = brief[k] || ''; $('cpu').value = brief.target?.cpu || 'unknown'; $('tia-version').value = brief.target?.tia_version === 'unknown' ? '' : brief.target?.tia_version || ''; sourceFiles = structuredClone(brief.source_files || []); $('validation-profile').value = brief.validation_profile || ''; renderSources(); }
+function renderSources() {
+  $('source-files').replaceChildren(...(sourceFiles.length ? sourceFiles.map((f,i) => { const option = node('option',f.name); option.value = String(i); return option; }) : [node('option','没有原程序')]));
+  showSource(); $('source-details').open = !!sourceFiles.length;
+}
+function showSource() { $('source-content').value = sourceFiles[Number($('source-files').value)]?.content || ''; $('source-content').disabled = busy || !sourceFiles.length; }
 function updateActions() {
   $('generate').disabled = !ready || !request || busy;
   $('export-task').disabled = !request || busy;
@@ -15,6 +22,9 @@ function updateActions() {
   $('export-project').disabled = !result || stale || busy;
   $('download-scl').disabled = stale || busy;
   $('download-lad').disabled = stale || busy;
+  $('modify-current').disabled = stale || busy || !result?.scl_files.length;
+  $('source-files').disabled = busy || !sourceFiles.length;
+  $('source-content').disabled = busy || !sourceFiles.length;
 }
 function dirty() {
   request = undefined;
@@ -48,7 +58,7 @@ function renderStates() {
 function renderQuestions(questions) { $('questions-box').hidden = !questions.length; $('questions').replaceChildren(...questions.map(q => node('li',q))); }
 function renderResult() {
   stale = false; $('artifact-status').classList.remove('stale');
-  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : 'AI 工程草稿 · 待验证');
+  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? '已检查工程草稿 · TIA 未执行' : 'AI 工程草稿 · 待验证');
   text('spec-summary', result.summary); states = structuredClone(result.states); renderStates(); renderQuestions(result.questions);
   $('io-empty').hidden = !!result.io.length; $('io-table').hidden = !result.io.length;
   $('io-rows').replaceChildren();
@@ -70,14 +80,35 @@ function renderResult() {
     }
     article.append(node('p',n.note)); $('lad-networks').append(article);
   }
+  renderChecks();
   const isExample = generationOrigin === 'example';
-  text('verification-title', isExample ? '仓库示例已有离线验证记录' : '新工程尚未验证');
-  text('verification-note', isExample ? '这些记录只绑定 FB_MainSequence 的已有源码。LAD 接线网络仍是审阅草稿，TIA 编译与现场验收尚未完成。' : '以下为 Agent 自报检查；本站尚未对这些新代码执行编译、扫描或形式验证。');
-  const statuses = {not_run:'未执行',unknown:'未知',pass:'自报通过',fail:'自报失败'};
-  $('checks-list').replaceChildren();
-  result.checks.forEach(c => { const row = node('article',undefined,'check-record'); row.append(node('strong',c.name),node('span',isExample && c.status === 'pass' ? '已有记录' : statuses[c.status]),node('p',c.detail)); $('checks-list').append(row); });
   text('request-label', `需求 ${request.request_fingerprint.slice(0,12)} · ${isExample ? '已有示例' : '工程草稿'}`);
   $('step-code').classList.add('current'); updateActions();
+}
+function renderChecks() {
+  const isExample = generationOrigin === 'example', saved = generationOrigin === 'import';
+  const statuses = {not_run:'未执行',unknown:'未知',pass:'通过',fail:'失败'};
+  text('verification-title', verification ? `${saved ? '已保存检查记录' : '本次源码检查'} · ${statuses[verification.status]}` : isExample ? '仓库示例已有离线验证记录' : '新工程尚未验证');
+  text('verification-note', verification ? `${saved ? '文件指纹已核对；记录来源未认证，本次会话未重跑。' : '检查器运行了与下列指纹对应的本次源码。'}${typeof verification.scope === 'string' ? verification.scope : ''} TIA、PLCSIM、形式验证和实机验收仍未执行。` : isExample ? '这些记录只绑定 FB_MainSequence 的已有源码。LAD 接线网络仍是审阅草稿，TIA 编译与现场验收尚未完成。' : '以下为 Agent 自报检查；没有本次源码的实际检查记录。');
+  $('checks-list').replaceChildren();
+  for (const c of verification?.checks || result.checks) {
+    const row = node('article',undefined,'check-record');
+    row.append(node('strong',c.name),node('span',verification ? statuses[c.status] : isExample && c.status === 'pass' ? '已有记录' : ['pass','fail'].includes(c.status) ? `自报${statuses[c.status]}` : statuses[c.status]),node('p',c.detail));
+    $('checks-list').append(row);
+  }
+  if (verification) for (const f of verification.files) $('checks-list').append(node('p',`${f.name} · SHA-256 ${f.sha256}`,'source-binding form-hint'));
+  if (workflow) {
+    const history = node('details'), rounds = Array.isArray(workflow.attempts) ? workflow.attempts : [];
+    history.append(node('summary',`检查与修复记录 · ${rounds.length} 轮 · ${workflow.verdict || 'unknown'}`));
+    for (const round of rounds) {
+      history.append(node('p',`第 ${round.attempt} 轮 · ${statuses[round.validation?.status] || '未知'} · ${round.candidate_sha256 || ''}`));
+      const details = {diagnostics:round.validation?.diagnostics, reviews:round.reviews, final_review:round.final_review};
+      history.append(node('pre',JSON.stringify(details,null,2)));
+      if (round.diff) history.append(node('pre',typeof round.diff === 'string' ? round.diff : JSON.stringify(round.diff,null,2)));
+    }
+    $('checks-list').append(history);
+    if (Array.isArray(workflow.knowledge)) { const knowledge = node('details'); knowledge.append(node('summary',`本次加载的专业资料 · ${workflow.knowledge.length} 项`),node('pre',workflow.knowledge.map(k=>`${k.path}\nSHA-256 ${k.sha256}`).join('\n\n'))); $('checks-list').append(knowledge); }
+  }
 }
 function showCode() { text('scl-code',result?.scl_files[Number($('scl-files').value)]?.content || ''); }
 async function prepare() {
@@ -114,9 +145,13 @@ async function generate() {
     let response;
     do { await new Promise(resolve => setTimeout(resolve,1200)); response = await api(`/api/jobs/${jobId}`); } while (response.status === 'running');
     if (response.status === 'cancelled') { message('生成已取消，需求草稿仍保留。'); return; }
-    if (response.status !== 'complete') throw new Error(response.error || `生成未完成，请检查本机 ${provider} 后重试。`);
-    result = validateResult(response.result,request); generationOrigin = 'agent'; renderResult(); showTab('spec');
-    message(`${provider} 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。请审阅规格、待确认项和代码，再运行工程检查。`);
+    const returned = response.result || response.candidate_result;
+    if (returned) {
+      const acceptedResult = validateResult(returned,request), acceptedVerification = await bindVerification(response.verification,acceptedResult);
+      result = acceptedResult; verification = acceptedVerification; workflow = response.workflow; generationOrigin = 'agent'; renderResult(); showTab(verification ? 'checks' : 'spec');
+    }
+    if (response.status !== 'complete') throw new Error((response.error || `生成未完成，请检查本机 ${provider} 后重试。`) + (returned ? ' 当前候选及检查记录已保留，可以审阅和导出。' : ''));
+    message(`${provider} 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。${verification ? '请审阅本次检查、修复记录和代码；TIA 编译未执行。' : '请审阅规格、待确认项和代码，再运行工程检查。'}`);
   } catch (error) { message(error.message,true); }
   finally { jobId = undefined; setBusy(false); }
 }
@@ -133,10 +168,21 @@ function ladMarkdown() { return '# Main LAD 网络规格（待 TIA 实现与编�
 async function loadExample(artifact) {
   try {
     if (!example) { const response = await fetch('./data/example.json'); if (!response.ok) throw new Error('已有工程示例加载失败，请重新构建网站。'); example = await response.json(); }
-    writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; request = undefined; stale = false;
+    writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; verification = undefined; workflow = undefined; request = undefined; stale = false;
     if (artifact) { request = structuredClone(example.request); result = validateResult(structuredClone(example.result),request); generationOrigin = 'example'; renderResult(); message(`显示仓库已有工程示例。该示例没有调用模型；修改需求后可交给 ${provider} 生成新草稿。`); }
     else { await prepare(); message(`已载入示例工艺需求。可修改后交给 ${provider}，或查看仓库已有工程。`); }
     showTab('spec'); updateActions();
+  } catch (error) { message(error.message,true); }
+}
+async function loadConveyorAcceptance() {
+  try {
+    const response = await fetch('./simulation-source.scl'); if (!response.ok) throw new Error('输送带原程序加载失败，请重新构建网站。');
+    writeBrief(conveyorAcceptanceBrief(await response.text()));
+    states = [{id:1,name:'待机',actions:'Motor=FALSE；沿用原故障与复位语义',completion:'Enable 且 Start 新上升沿，无 Stop、Reset 或故障',next_state:'输送'},
+      {id:2,name:'输送',actions:'Motor=TRUE；启动调用后计数为0',completion:'AtEnd 成功优先；第12次等待仍未到位则超时；Stop 撤销动作',next_state:'完成或待机'},
+      {id:3,name:'完成',actions:'Done 仅保持一次调用，Motor=FALSE',completion:'下一次调用返回待机',next_state:'待机'}];
+    result = undefined; verification = undefined; workflow = undefined; request = undefined; stale = false;
+    await prepare(); message('已载入原程序与固定验收要求。生成后将检查本次新代码；修复不能改变这组预期。');
   } catch (error) { message(error.message,true); }
 }
 document.querySelectorAll('[data-tab]').forEach((b,i,buttons) => {
@@ -145,6 +191,11 @@ document.querySelectorAll('[data-tab]').forEach((b,i,buttons) => {
 });
 $('brief-form').addEventListener('submit', async event => { event.preventDefault(); try { await prepare(); message(`生成任务已准备。审阅步骤后，可以交给 ${provider}。`); } catch (error) { message(error.message,true); } });
 $('brief-form').addEventListener('input', event => { if (event.target.id === 'flow') states = []; dirty(); });
+$('source-content').addEventListener('input', () => { const file = sourceFiles[Number($('source-files').value)]; if (file) file.content = $('source-content').value; });
+$('source-files').addEventListener('change',showSource);
+$('clear-source').addEventListener('click',() => { sourceFiles = []; renderSources(); dirty(); });
+$('load-conveyor-acceptance').addEventListener('click',loadConveyorAcceptance);
+$('modify-current').addEventListener('click',() => { if (stale || !result) return; sourceFiles = structuredClone(result.scl_files); renderSources(); dirty(); message('当前结果已作为原程序。修改左侧需求并整理任务后，AI 会基于这份代码继续修改。'); $('source-details').scrollIntoView({behavior:'smooth',block:'nearest'}); });
 $('generate').addEventListener('click',generate);
 $('cancel').addEventListener('click', async () => { if (jobId) { try { await api(`/api/jobs/${jobId}/cancel`,{}); message(`正在取消 ${provider}，需求草稿会保留。`); } catch (error) { message(error.message,true); } } });
 $('load-brief').addEventListener('click', () => loadExample(false)); $('view-example').addEventListener('click', () => loadExample(true)); $('scl-files').addEventListener('change',showCode);
@@ -154,28 +205,28 @@ $('open-project').addEventListener('click', () => { $('project-file').value = ''
 $('project-file').addEventListener('change', async event => {
   try {
     const file = event.target.files[0]; if (!file) return;
-    if (file.size > 1000000) throw new Error('工程文件超过 1 MB，请拆分工程。');
+    if (file.size > 10000000) throw new Error('工程文件超过 10 MB，请拆分工程。');
     const restored = await openEngineering(JSON.parse(await file.text()));
-    request = restored.request; result = restored.result; generationOrigin = 'import';
+    request = restored.request; result = restored.result; verification = restored.verification; workflow = restored.workflow; generationOrigin = 'import';
     writeBrief(request.brief); renderResult(); showTab('spec');
-    message('工程草稿已打开，原始需求与结果已恢复。导入文件不继承验证结论。');
+    message(verification ? '工程草稿和检查记录已恢复，源码指纹一致。本次会话未重跑检查；保存记录的来源未认证。' : '工程草稿已打开，原始需求与结果已恢复。本次会话未执行检查。');
   } catch (error) { message(error instanceof SyntaxError ? '工程文件不是有效 JSON。' : error.message, true); }
 });
 $('import-result').addEventListener('click', () => { $('result-file').value = ''; $('result-file').click(); });
-$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; generationOrigin = 'import'; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
+$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; verification = undefined; workflow = undefined; generationOrigin = 'import'; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
 $('download-scl').addEventListener('click', () => { if (stale || !result) return; const file = result.scl_files[Number($('scl-files').value)]; download(file.name,file.content,'text/plain;charset=utf-8'); });
 $('download-lad').addEventListener('click', () => { if (!stale && result) download('Main-LAD-networks.md',ladMarkdown(),'text/markdown;charset=utf-8'); });
 $('close-export').addEventListener('click',()=> $('export-dialog').close());
 $('save-export').addEventListener('click',saveExport);
 $('copy-export').addEventListener('click',async()=> { try { await navigator.clipboard.writeText(exportFile.content); text('export-feedback','文本已复制。'); } catch { text('export-feedback','浏览器不允许自动复制，请选中上方文本复制。'); } });
-$('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification_status:'not_run_for_import',lad_format:'review_networks_not_tia_project'}); });
+$('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification,workflow,verification_status:'saved_record_requires_rerun',industrial_acceptance:'not_run',lad_format:'review_networks_not_tia_project'}); });
 async function init() {
   try { const saved = JSON.parse(localStorage.getItem('plc-workspace-brief-v1')); if (saved?.brief && Array.isArray(saved.states)) { writeBrief(saved.brief); states = saved.states; message('已恢复此浏览器保存的需求草稿。请整理任务后重新生成。'); } } catch { /* Invalid/blocked local storage leaves a clean editable form. */ }
   try { const capability = await api('/api/capabilities'); ready = capability.ready === true && ['agy','zcode','mcode-cm'].includes(capability.provider); provider = capability.provider; generationBudget = capability.timeout_seconds ?? 180; } catch { ready = false; }
   text('connection',ready ? `本机 ${provider} CLI 可用` : '本机生成未连接'); $('connection').classList.toggle('ready',ready);
   if (!ready) { text('generate-title','本机生成未连接'); text('generate-help','使用 npm --prefix web run dev 启动本机桥接；也可导出任务、导入 Agent 结果。'); }
   if (ready) { text('generate-title', `交给本机 ${provider} 生成`); text('generate-help', generationBudget === 0 ? '本次生成不设时间限制，可以取消；结果仍需独立检查。' : '生成结果是待审阅草稿，编译与逐扫描检查需单独执行。'); }
-  if (ready && provider === 'mcode-cm') { text('generate-title','按严格流程生成工程'); text('generate-help','先澄清并审阅规格，再生成、双路检查和监督裁决；未决需求会阻断。不设生成时限，可以取消。'); }
+  if (ready && provider === 'mcode-cm') { text('generate-title','生成、检查与修复'); text('generate-help','加载专业资料与原程序，审阅规格，再检查本次代码；错误反馈给 AI 修复并重验。未决需求会阻断，可以取消。'); }
   updateActions();
 }
 init();

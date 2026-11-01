@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-10-31 — Connect each generated SCL to knowledge and feedback
+
+The user's product correction prioritizes a small, complete generation/change/check/repair/save operation. Keep existing specification and review roles; load the three project Skills and relevant references into controller-bound model packets. Original source and the selected behavior profile are part of the request fingerprint. Do not apply FB_MainSequence's continuous-enable contract to the separate conveyor draft's explicitly preserved behavior.
+
+Run real matiec against immutable captured current source, then the selected conveyor-12-v1 native scan contract. Compilation or behavior failures can trigger bounded source-only repairs and fresh checks; reviewer findings with requirement support can trigger repair and re-review. Unknown tools/reviews cannot be waived. Preserve each source, diff and report even when no draft passes. Export/reopen checks source hashes but does not authenticate external evidence. Linux results remain separate from TIA/PLCSIM/formal/machine acceptance. Canonical ST, projections and historical simulation candidates remain unchanged.
+
 ## 2026-09-22 — Converge scan semantics before platform work
 
 User direction: 收敛 PLC 语义. Preserve the existing industrial workflow and sequencing path; fix execution semantics before selecting OS/TIA/PLC version combinations.

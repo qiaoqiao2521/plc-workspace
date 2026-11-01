@@ -15,7 +15,8 @@ OUTPUTS = ('statState', 'statWaitCount', 'Motor', 'Busy', 'Done', 'Error', 'Time
 
 class NativeRuntime:
     """Compile a trusted, fixed FB interface; no user-supplied paths or identifiers."""
-    def __init__(self, folder, compiler, library, *, source_bytes, block_name, inputs, outputs):
+    def __init__(self, folder, compiler, library, *, source_bytes, block_name, inputs, outputs,
+                 normalized=False):
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", block_name) or any(
                 not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) for name in (*inputs, *outputs)):
             raise ValueError("Invalid fixed native interface")
@@ -26,12 +27,13 @@ class NativeRuntime:
         self.source_bytes = original
         self.source_hash = hashlib.sha256(original).hexdigest()
         source = original.decode()
-        source = re.sub(r'FUNCTION_BLOCK "([A-Za-z_][A-Za-z0-9_]*)"', r'FUNCTION_BLOCK \1', source)
-        source = re.sub(r'(?m)^\{[^\n]*\}\s*$', '', source)
-        source = re.sub(r'(?m)^VERSION\s*:[^\n]*$', '', source)
-        source = re.sub(r'(?m)^BEGIN\s*$', '', source)
-        source = re.sub(r'#(?=[A-Za-z_])', '', source)
-        source = re.sub(r'//[^\n]*', '', source)
+        if not normalized:
+            source = re.sub(r'FUNCTION_BLOCK "([A-Za-z_][A-Za-z0-9_]*)"', r'FUNCTION_BLOCK \1', source)
+            source = re.sub(r'(?m)^\{[^\n]*\}\s*$', '', source)
+            source = re.sub(r'(?m)^VERSION\s*:[^\n]*$', '', source)
+            source = re.sub(r'(?m)^BEGIN\s*$', '', source)
+            source = re.sub(r'#(?=[A-Za-z_])', '', source)
+            source = re.sub(r'//[^\n]*', '', source)
         source += f'\nPROGRAM SimProgram\nVAR\nb : {block_name};\nEND_VAR\nb();\nEND_PROGRAM\nCONFIGURATION SimConfig\nRESOURCE R ON PLC\nTASK Main(INTERVAL := T#50ms, PRIORITY := 0);\nPROGRAM P WITH Main : SimProgram;\nEND_RESOURCE\nEND_CONFIGURATION\n'
         folder = Path(folder).resolve()
         if folder.is_relative_to(ROOT):
@@ -39,33 +41,42 @@ class NativeRuntime:
         folder.mkdir(parents=True, exist_ok=True)
         (folder / 'input.st').write_text(source)
         self.normalized_hash = hashlib.sha256(source.encode()).hexdigest()
+        def run_tool(label, command):
+            result = subprocess.run(command, capture_output=True, text=True, timeout=120)
+            (folder / f'{label}.log').write_text(result.stdout + result.stderr)
+            if result.returncode:
+                raise RuntimeError(f'{label} failed; see {folder / (label + ".log")}')
+
+        run_tool('iec2c', [str(compiler), '-I', str(library), '-T', str(folder), str(folder / 'input.st')])
+        # Newer matiec versions expose FB data through a declaration macro and
+        # expect the embedding runtime to include the IEC headers. Older versions
+        # emit a self-contained POUS.h with the unsuffixed struct name.
+        macro_abi = '__DECLARE_FB_TYPE(' in (folder / 'POUS.h').read_text()
+        data_type = block_name.upper() + ('_data__' if macro_abi else '')
+        preamble = '#include "iec_std_lib.h"\n#include "accessor.h"\n' if macro_abi else ''
         assigns = '\n'.join(f'b->{n.upper()}.value = (flags >> {i}) & 1;' for i, n in enumerate(self.inputs))
         reads = '\n'.join(f'out[{i}] = b->{n.upper()}.value;' for i, n in enumerate(self.outputs))
         (folder / 'driver.c').write_text(f'''#include <stdint.h>
 #include <stdlib.h>
+{preamble}
 #include "POUS.h"
 TIME __CURRENT_TIME;
 #include "POUS.c"
 void *create_instance(void) {{
- {block_name.upper()} *b = calloc(1, sizeof(*b));
+ {data_type} *b = calloc(1, sizeof(*b));
  if(b) {block_name.upper()}_init__(b, 0);
  return b;
 }}
 void destroy_instance(void *p) {{ free(p); }}
 void scan(void *p, unsigned flags, int32_t *out) {{
- {block_name.upper()} *b = p;
+ {data_type} *b = p;
  {assigns}
  {block_name.upper()}_body__(b);
  {reads}
 }}
 ''')
-        for label, command in [
-            ('iec2c', [str(compiler), '-I', str(library), '-T', str(folder), str(folder / 'input.st')]),
-            ('gcc', ['gcc', '-shared', '-fPIC', '-std=gnu11', '-I', str(Path(library) / 'C'), '-I', str(folder), str(folder / 'driver.c'), '-lm', '-o', str(folder / 'runtime.so')])]:
-            result = subprocess.run(command, capture_output=True, text=True, timeout=120)
-            (folder / f'{label}.log').write_text(result.stdout + result.stderr)
-            if result.returncode:
-                raise RuntimeError(f'{label} failed; see {folder / (label + ".log")}')
+        run_tool('gcc', ['gcc', '-shared', '-fPIC', '-std=gnu11', '-I', str(Path(library) / 'C'),
+                        '-I', str(folder), str(folder / 'driver.c'), '-lm', '-o', str(folder / 'runtime.so')])
         self.lib = ctypes.CDLL(str(folder / 'runtime.so'))
         self.lib.create_instance.argtypes = []
         self.lib.create_instance.restype = ctypes.c_void_p

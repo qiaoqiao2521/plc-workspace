@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
@@ -53,10 +54,39 @@ def validate_request(request):
             raise ValueError('需求字段错误或过长。')
     if len(brief['requirement'].strip()) < 10:
         raise ValueError('需求描述过短。')
+    sources = brief.get('source_files', [])
+    if not isinstance(sources, list) or len(sources) > 10:
+        raise ValueError('原程序文件格式错误或过多。')
+    names = []
+    for source in sources:
+        if (not isinstance(source, dict) or set(source) != {'name', 'content'}
+                or not isinstance(source['name'], str)
+                or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_.-]*\.(?:scl|st)', source['name'])
+                or not isinstance(source['content'], str) or len(source['content']) > 200000):
+            raise ValueError('原程序文件名或内容错误。')
+        names.append(source['name'].casefold())
+    if len(set(names)) != len(names):
+        raise ValueError('原程序文件名重复。')
+    profile = brief.get('validation_profile')
+    if profile not in (None, '', 'conveyor-12-v1'):
+        raise ValueError('不支持的行为验收合同。')
     content = json.dumps({'brief': brief, 'states': states}, ensure_ascii=False, separators=(',', ':'))
     expected = hashlib.sha256(content.encode()).hexdigest()
     if request.get('request_fingerprint') != expected:
         raise ValueError('需求指纹不匹配。')
+
+
+def validate_workflow_artifact(result, request, validation=None):
+    """Keep a failed candidate reviewable without accepting stale tool reports."""
+    validate_schema(result, SCHEMA)
+    if (result['schema_version'] != 1 or result['request_id'] != request['request_id']
+            or result['request_fingerprint'] != request['request_fingerprint']):
+        raise ValueError('流程成果与当前需求不匹配。')
+    if validation is not None:
+        expected = [{'name': file['name'], 'sha256': hashlib.sha256(
+            file['content'].encode('utf-8')).hexdigest()} for file in result['scl_files']]
+        if validation.get('files') != expected:
+            raise ValueError('检查记录与当前程序文件不匹配。')
 
 
 def stop_process(proc):
@@ -76,6 +106,15 @@ class GenerationBridge:
         self.provider, self.node = provider, node
         self.workflow = workflow
         self.jobs, self.lock, self.active = {}, threading.Lock(), None
+
+    def keep_workflow(self, job_id, request, envelope):
+        validation = envelope.get('validation')
+        candidate = envelope.get('candidate') or envelope.get('result')
+        if candidate is not None:
+            validate_workflow_artifact(candidate, request, validation)
+        with self.lock:
+            self.jobs[job_id].update(workflow=envelope, verification=validation,
+                                     candidate_result=candidate)
 
     def begin(self, request, prompt):
         validate_request(request)
@@ -155,21 +194,37 @@ class GenerationBridge:
                     with self.lock:
                         self.jobs[job_id]['provider_exit_code'] = proc.returncode
                     if self.provider == 'mcode-cm':
+                        # A failed repair/worker can still leave a source-bound
+                        # candidate and tool diagnostics in the durable runtime.
+                        retained = Path(self.workflow['root']) / job_id / 'outcome.json'
+                        if retained.is_file() and retained.stat().st_size <= LIMIT * 8:
+                            try:
+                                self.keep_workflow(job_id, request, json.loads(retained.read_text()))
+                            except (ValueError, TypeError, AttributeError, KeyError):
+                                pass  # Never expose an invalid or stale artifact.
                         raise ValueError('严格流程执行失败或结果格式无效，工程未放行。需求已保留；请检查本机流程记录后重试。')
                     if 'timed out' in stderr.lower() or 'timeout' in stderr.lower():
                         raise ValueError(f'{self.provider} 达到 {self.timeout} 秒预算，结果未接受。请缩小需求或提高本机 --timeout 预算。')
                     raise ValueError(f'{self.provider} 未成功完成（退出码 {proc.returncode}）。请在本机检查登录、模型与网络后重试。')
-                if len(stdout.encode()) > LIMIT * 2:
+                if len(stdout.encode()) > LIMIT * (8 if self.provider == 'mcode-cm' else 2):
                     raise ValueError('模型返回内容过大，请缩小工程范围。')
                 envelope = json.loads(stdout)
                 if self.provider == 'mcode-cm':
+                    validation = envelope.get('validation')
+                    self.keep_workflow(job_id, request, envelope)
                     if envelope.get('verdict') != 'reviewed_draft':
-                        questions = envelope.get('analysis', {}).get('questions', [])
+                        questions = list(envelope.get('analysis', {}).get('questions', []))
                         questions += envelope.get('generation_questions', [])
                         findings = envelope.get('final_review', {}).get('findings', [])
+                        if validation:
+                            findings = findings + [c['detail'] for c in validation.get('checks', [])
+                                                   if c.get('status') in ['fail', 'unknown']]
                         raise ValueError('严格流程已阻断工程交付（' + str(envelope.get('verdict')) + '）：' +
-                                         '；'.join(questions + findings)[:3000])
+                                         '；'.join(questions + findings + [envelope.get('reason', '')])[:3000])
                     result = envelope['result']
+                    validate_workflow_artifact(result, request, validation)
+                    if not validation or validation.get('status') != 'pass':
+                        raise ValueError('流程没有返回本次程序通过检查的证据，工程未放行。')
                 elif self.provider == 'zcode':
                     # ZCode transports its answer as text; validate the parsed object
                     # with exactly the same schema and binding as the agy adapter.
