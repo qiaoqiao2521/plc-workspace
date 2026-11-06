@@ -3,7 +3,8 @@
 1. Read `PROJECT.md` for user intent and the current boundary.
 2. For PLC changes, read `projects/FB_MainSequence/01_specs/scan-contract.md` before source.
    Read `docs/SCL_STANDARD_BASELINE.md` as well: it supersedes the earlier request to let the user choose an arbitrary Enable/Reset convention and records the official basis and the implemented v0.3 scope.
-3. Follow `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` and `plans/plc-semantics-v1/` only as needed.
+3. For new generation/Harness work, read `plans/plc-logic-harness-v1/task_plan.md`, then its `findings.md` and `progress.md`. This is a plan, not implemented capability; begin with its current slice and stop at the stated boundary.
+4. Follow `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` and `plans/plc-semantics-v1/` only as needed for the existing implementation and abstract core.
 
 ## PLC-specific rules
 
@@ -17,9 +18,14 @@
 - Follow official language/runtime/interface rules before asking process questions. Distinguish Siemens engineering guidance, language semantics, safety functions and machine-specific requirements; do not present the current candidate as standards compliant.
 - Linux compiled-ST/formal evidence does not establish TIA compilation, PLCSIM, or real PLC acceptance.
 - `CURRENT_STATE.md` is a dated recovery snapshot, not current proof. Use source-bound reports.
+- Keep specification authority, generation, independent expected behavior and verdict authority separate. Shared IR or matching outputs alone do not prove correctness.
+- Do not add a scheduler or general Agent platform under the Harness refactor. SpecMesh records project intent and continuity; it does not replace the deterministic PLC checks.
+- No automatic device writes/downloads or F-safety logic generation. Optional TIA integration never upgrades unrun checks into acceptance.
 
-Update the contract and decision record when behavior changes. Keep large third-party tools out of project-memory documents.
+Update the contract and decision record when behavior changes. Keep large third-party tools out of project-memory documents. Keep plan status, historical evidence and newly executed verification distinct.
 
 ## New engineering generation
 
-Use [PLC Agent execution protocol](docs/PLC_AGENT_WORKFLOW.md): analyze → supervisor review → freeze → generate → parallel scan/interface reviews → same supervisor → programmatic draft gate. The selected strict workflow runs only mcode through CM/Paperclip. Unresolved process decisions must prevent generation, not merely accompany generated actions as questions. Review approval does not grant tool, Siemens or machine acceptance.
+The currently implemented path uses [PLC Agent execution protocol](docs/PLC_AGENT_WORKFLOW.md): analyze → supervisor review → freeze → generate → parallel scan/interface reviews → same supervisor → programmatic draft gate. The selected strict workflow runs only mcode through CM/Paperclip. Unresolved process decisions must prevent generation, not merely accompany generated actions as questions. Review approval does not grant tool, Siemens or machine acceptance.
+
+The new plan tightens evidence classification before adding bounded IR/LAD generation. Until a slice is implemented and verified, describe the existing runtime truthfully; do not infer new support from these planning documents. Update the affected protocol and architecture only with the corresponding implementation.
