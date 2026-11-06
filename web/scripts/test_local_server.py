@@ -68,6 +68,19 @@ class BridgeTests(unittest.TestCase):
         envelope={'status':'SUCCESS','structured_output':result(request())}
         self.assertEqual(self.run_stub(json.dumps(envelope),delay=1,cancel=True)['status'],'cancelled')
 
+    def test_cancel_request_is_distinct_from_finished_cleanup(self):
+        server=bridge.GenerationBridge(None)
+        server.jobs['cancel-test']={'status':'cancelled','process':None,'started':time.monotonic(),
+                                    'acceptance':{'scl_behavior':True}}
+        pending=server.snapshot('cancel-test')
+        self.assertFalse(pending['finished'])
+        self.assertFalse(any(pending['acceptance'].values()))
+        server.jobs['cancel-test'].update(duration_seconds=1,candidate_result=result(request()))
+        finished=server.snapshot('cancel-test')
+        self.assertTrue(finished['finished'])
+        self.assertEqual(finished['candidate_result'],result(request()))
+        self.assertFalse(any(finished['acceptance'].values()))
+
     def test_zcode_response_is_validated_and_prose_is_rejected(self):
         good=json.dumps({'response':json.dumps(result(request()))})
         self.assertEqual(self.run_stub(good,provider='zcode')['status'],'complete')
@@ -87,7 +100,11 @@ class BridgeTests(unittest.TestCase):
     def test_mcode_workflow_accepts_only_reviewed_draft(self):
         candidate=result(request())
         candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
-        validation={'status':'pass','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}]}
+        validation=bridge.verification_policy.complete_report({
+            'request_fingerprint':request()['request_fingerprint'],
+            'files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+            'checks':[{'name':name,'status':'pass','detail':'Synthetic tool fixture'}
+                      for name in ('source_structure','linux_compile')]})
         good={'verdict':'reviewed_draft','result':candidate,'validation':validation}
         self.assertEqual(self.run_stub(json.dumps(good),provider='mcode-cm',timeout=0)['status'],'complete')
         for verdict in ['blocked','rejected','unknown','audit_complete']:
@@ -122,6 +139,33 @@ class BridgeTests(unittest.TestCase):
                               provider='mcode-cm',timeout=0)
         self.assertEqual(outcome['status'],'failed')
         self.assertIn('没有返回',outcome['error'])
+
+    def test_legacy_total_pass_does_not_satisfy_new_workflow_gate(self):
+        candidate=result(request())
+        candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
+        report={'status':'pass','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+                'checks':[],'acceptance':{'scl_behavior':True}}
+        outcome=self.run_stub(json.dumps({'verdict':'reviewed_draft','result':candidate,'validation':report}),
+                              provider='mcode-cm',timeout=0)
+        self.assertEqual(outcome['status'],'failed')
+        self.assertEqual(outcome['candidate_result'],candidate)
+        self.assertFalse(any(outcome['acceptance'].values()))
+
+    def test_bridge_recomputes_required_checks_before_complete(self):
+        candidate=result(request())
+        candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
+        for status in ('fail','unknown','not_run'):
+            with self.subTest(status=status):
+                report=bridge.verification_policy.complete_report({
+                    'request_fingerprint':request()['request_fingerprint'],
+                    'files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+                    'checks':[{'name':'source_structure','status':'pass','detail':'structure fixture'},
+                              {'name':'linux_compile','status':status,'detail':'Mandatory compiler check'}]})
+                report['status']='pass'
+                outcome=self.run_stub(json.dumps({'verdict':'reviewed_draft','result':candidate,'validation':report}),
+                                      provider='mcode-cm',timeout=0)
+                self.assertEqual(outcome['status'],'failed')
+                self.assertFalse(any(outcome['acceptance'].values()))
 
     def test_original_program_and_behavior_contract_are_in_request_binding(self):
         req=request()

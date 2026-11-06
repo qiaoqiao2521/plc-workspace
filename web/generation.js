@@ -1,8 +1,8 @@
-import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification} from './generation-model.js';
+import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification, verificationSummary} from './generation-model.js';
 const $ = id => document.getElementById(id);
 const fieldIds = {name:'project-name', block_name:'block-name', requirement:'requirement', flow:'flow', io_text:'io-text', constraints:'constraints'};
 let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 180, provider = 'agy';
-let sourceFiles = [], verification, workflow;
+let sourceFiles = [], verification, workflow, currentAcceptance = false;
 const text = (id, value) => { $(id).textContent = value; };
 const node = (tag, value, className) => { const el = document.createElement(tag); if (value !== undefined) el.textContent = value; if (className) el.className = className; return el; };
 function message(value, error = false) { $('message').hidden = !value; text('message', value || ''); $('message').classList.toggle('error', error); }
@@ -27,6 +27,7 @@ function updateActions() {
   $('source-content').disabled = busy || !sourceFiles.length;
 }
 function dirty() {
+  currentAcceptance = false;
   request = undefined;
   stale = !!result;
   text('artifact-status', stale ? '需求已修改 · 结果过期' : '需求编辑中');
@@ -58,7 +59,7 @@ function renderStates() {
 function renderQuestions(questions) { $('questions-box').hidden = !questions.length; $('questions').replaceChildren(...questions.map(q => node('li',q))); }
 function renderResult() {
   stale = false; $('artifact-status').classList.remove('stale');
-  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? '已检查工程草稿 · TIA 未执行' : 'AI 工程草稿 · 待验证');
+  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? verificationSummary(verification,{profile:request.brief.validation_profile,current:true,approved:currentAcceptance}).title : 'AI 工程草稿 · 待验证');
   text('spec-summary', result.summary); states = structuredClone(result.states); renderStates(); renderQuestions(result.questions);
   $('io-empty').hidden = !!result.io.length; $('io-table').hidden = !result.io.length;
   $('io-rows').replaceChildren();
@@ -88,12 +89,15 @@ function renderResult() {
 function renderChecks() {
   const isExample = generationOrigin === 'example', saved = generationOrigin === 'import';
   const statuses = {not_run:'未执行',unknown:'未知',pass:'通过',fail:'失败'};
-  text('verification-title', verification ? `${saved ? '已保存检查记录' : '本次源码检查'} · ${statuses[verification.status]}` : isExample ? '仓库示例已有离线验证记录' : '新工程尚未验证');
-  text('verification-note', verification ? `${saved ? '文件指纹已核对；记录来源未认证，本次会话未重跑。' : '检查器运行了与下列指纹对应的本次源码。'}${typeof verification.scope === 'string' ? verification.scope : ''} TIA、PLCSIM、形式验证和实机验收仍未执行。` : isExample ? '这些记录只绑定 FB_MainSequence 的已有源码。LAD 接线网络仍是审阅草稿，TIA 编译与现场验收尚未完成。' : '以下为 Agent 自报检查；没有本次源码的实际检查记录。');
+  const summary = verificationSummary(verification,{profile:request.brief.validation_profile,current:generationOrigin === 'agent' && !stale,approved:currentAcceptance});
+  text('verification-title', verification ? summary.title : isExample ? '仓库示例已有离线验证记录' : '新工程尚未验证');
+  text('verification-note', verification ? `${saved ? '文件指纹已核对；记录来源未认证，本次会话未重跑。' : '以下记录关联本次需求和源码，实际执行情况以各项状态为准。'}${typeof verification.scope === 'string' ? verification.scope : ''} TIA、PLCSIM、形式验证和实机验收仍未执行。` : isExample ? '这些记录只绑定 FB_MainSequence 的已有源码。LAD 接线网络仍是审阅草稿，TIA 编译与现场验收尚未完成。' : '以下为 Agent 自报检查；没有本次源码的实际检查记录。');
   $('checks-list').replaceChildren();
   for (const c of verification?.checks || result.checks) {
     const row = node('article',undefined,'check-record');
-    row.append(node('strong',c.name),node('span',verification ? statuses[c.status] : isExample && c.status === 'pass' ? '已有记录' : ['pass','fail'].includes(c.status) ? `自报${statuses[c.status]}` : statuses[c.status]),node('p',c.detail));
+    const labels = {source_structure:'源文件结构（不含 PLC 逻辑）',linux_compile:'SCL 编译',scan_contract:'行为合同',lad_scl_compare:'LAD/SCL 对照',tia_compile:'TIA 编译'};
+    row.append(node('strong',labels[c.name] || c.name),node('span',verification ? statuses[c.status] : isExample && c.status === 'pass' ? '已有记录' : ['pass','fail'].includes(c.status) ? `自报${statuses[c.status]}` : statuses[c.status]),node('p',c.detail));
+    if (verification?.schema_version === 2) row.append(node('small',c.required ? '当前目标必选' : '未纳入本次目标'));
     $('checks-list').append(row);
   }
   if (verification) for (const f of verification.files) $('checks-list').append(node('p',`${f.name} · SHA-256 ${f.sha256}`,'source-binding form-hint'));
@@ -101,7 +105,7 @@ function renderChecks() {
     const history = node('details'), rounds = Array.isArray(workflow.attempts) ? workflow.attempts : [];
     history.append(node('summary',`检查与修复记录 · ${rounds.length} 轮 · ${workflow.verdict || 'unknown'}`));
     for (const round of rounds) {
-      history.append(node('p',`第 ${round.attempt} 轮 · ${statuses[round.validation?.status] || '未知'} · ${round.candidate_sha256 || ''}`));
+      history.append(node('p',`第 ${round.attempt} 轮 · ${round.validation?.target || '历史目标未记录'} · ${statuses[round.validation?.status] || '未知'} · ${round.candidate_sha256 || ''}`));
       const details = {diagnostics:round.validation?.diagnostics, reviews:round.reviews, final_review:round.final_review};
       history.append(node('pre',JSON.stringify(details,null,2)));
       if (round.diff) history.append(node('pre',typeof round.diff === 'string' ? round.diff : JSON.stringify(round.diff,null,2)));
@@ -112,6 +116,7 @@ function renderChecks() {
 }
 function showCode() { text('scl-code',result?.scl_files[Number($('scl-files').value)]?.content || ''); }
 async function prepare() {
+  currentAcceptance = false;
   if (!states.length) states = flowDraft($('flow').value);
   request = await makeRequest(readBrief(), states);
   stale = !!result; $('artifact-status').classList.toggle('stale',stale);
@@ -143,13 +148,16 @@ async function generate() {
   try {
     const accepted = await api('/api/generate', {request,prompt:agentPrompt(request)}); jobId = accepted.job_id;
     let response;
-    do { await new Promise(resolve => setTimeout(resolve,1200)); response = await api(`/api/jobs/${jobId}`); } while (response.status === 'running');
-    if (response.status === 'cancelled') { message('生成已取消，需求草稿仍保留。'); return; }
+    do { await new Promise(resolve => setTimeout(resolve,1200)); response = await api(`/api/jobs/${jobId}`); }
+    while (response.status === 'running' || (response.status === 'cancelled' && response.finished === false));
     const returned = response.result || response.candidate_result;
     if (returned) {
       const acceptedResult = validateResult(returned,request), acceptedVerification = await bindVerification(response.verification,acceptedResult);
-      result = acceptedResult; verification = acceptedVerification; workflow = response.workflow; generationOrigin = 'agent'; renderResult(); showTab(verification ? 'checks' : 'spec');
+      result = acceptedResult; verification = acceptedVerification; workflow = response.workflow;
+      currentAcceptance = response.status === 'complete' && workflow?.verdict === 'reviewed_draft';
+      generationOrigin = 'agent'; renderResult(); showTab(verification ? 'checks' : 'spec');
     }
+    if (response.status === 'cancelled') { currentAcceptance = false; message('生成已取消，未授予本次验收；需求和已有候选仍保留。'); return; }
     if (response.status !== 'complete') throw new Error((response.error || `生成未完成，请检查本机 ${provider} 后重试。`) + (returned ? ' 当前候选及检查记录已保留，可以审阅和导出。' : ''));
     message(`${provider} 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。${verification ? '请审阅本次检查、修复记录和代码；TIA 编译未执行。' : '请审阅规格、待确认项和代码，再运行工程检查。'}`);
   } catch (error) { message(error.message,true); }
@@ -207,7 +215,7 @@ $('project-file').addEventListener('change', async event => {
     const file = event.target.files[0]; if (!file) return;
     if (file.size > 10000000) throw new Error('工程文件超过 10 MB，请拆分工程。');
     const restored = await openEngineering(JSON.parse(await file.text()));
-    request = restored.request; result = restored.result; verification = restored.verification; workflow = restored.workflow; generationOrigin = 'import';
+    request = restored.request; result = restored.result; verification = restored.verification; workflow = restored.workflow; generationOrigin = 'import'; currentAcceptance = false;
     writeBrief(request.brief); renderResult(); showTab('spec');
     message(verification ? '工程草稿和检查记录已恢复，源码指纹一致。本次会话未重跑检查；保存记录的来源未认证。' : '工程草稿已打开，原始需求与结果已恢复。本次会话未执行检查。');
   } catch (error) { message(error instanceof SyntaxError ? '工程文件不是有效 JSON。' : error.message, true); }

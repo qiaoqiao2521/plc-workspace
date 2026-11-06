@@ -19,6 +19,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
+_policy_spec = importlib.util.spec_from_file_location('verification_policy', HERE / 'verification-policy.py')
+policy = importlib.util.module_from_spec(_policy_spec)
+_policy_spec.loader.exec_module(policy)
 PROFILE = 'conveyor-12-v1'
 INPUTS = ('Enable', 'Start', 'Stop', 'Reset', 'AtEnd')
 OUTPUTS = ('Motor', 'Busy', 'Done', 'Error', 'TimeoutFault')
@@ -37,7 +40,9 @@ def sha(value):
 
 
 def write_json(path, value):
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+    pending = path.with_suffix(path.suffix + '.tmp')
+    pending.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+    pending.replace(path)
 
 
 def check(name, status, detail):
@@ -174,6 +179,9 @@ def _worker(folder):
         return
     checks = [check('linux_compile', 'pass', 'Captured candidate compiled by matiec (syntax-adapted IEC ST subset)')]
     outcome = {**normalized, 'status': 'pass', 'diagnostics': diagnostics[-40000:], 'checks': checks}
+    # Preserve completed compilation even if a later native scan is cancelled or
+    # terminated by its watchdog. These are observations, not final acceptance.
+    write_json(folder / 'worker-progress.json', outcome)
     if not job['profile']:
         checks.append(check('scan_contract', 'not_run', 'No independently fixed behavior profile selected'))
     elif job['profile'] != PROFILE:
@@ -235,7 +243,13 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
     files = []
     report = {'status': 'unknown', 'files': files, 'checks': [], 'diagnostics': '', 'scope': SCOPE,
               'profile': profile, 'industrial_acceptance': 'not_run', 'tia_compile': 'not_run',
-              'adapter_sha256': sha(Path(__file__).read_bytes())}
+              'adapter_sha256': sha(Path(__file__).read_bytes()),
+              'request_fingerprint': result.get('request_fingerprint')}
+    def finish_report():
+        # Tool checks describe distinct scopes; never upgrade compile-only work.
+        complete = policy.complete_report(report, profile)
+        write_json(folder / 'report.json', complete)
+        return complete
     if profile == PROFILE:
         report['contract'] = dict(CONTRACT)
         report['contract_sha256'] = sha(json.dumps(CONTRACT, sort_keys=True, separators=(',', ':')).encode())
@@ -255,19 +269,21 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
             (source_folder / name).write_bytes(captured)
             files.append({'name': name, 'sha256': sha(captured)})
     except (KeyError, TypeError, ValueError) as error:
-        report.update(status='fail', diagnostics=str(error), checks=[check('source_capture', 'fail', str(error))])
-        write_json(folder / 'report.json', report)
-        return report
+        report.update(reason='source_invalid', diagnostics=str(error),
+                      checks=[check('source_structure', 'fail', str(error))])
+        return finish_report()
+    captured_check = check('source_structure', 'pass',
+                           'Source file names, UTF-8 content, uniqueness and size checked; not PLC behavior')
+    report['checks'] = [captured_check]
     report['source_sha256'] = sha(json.dumps(files, sort_keys=True, separators=(',', ':')).encode())
     compiler = compiler or os.getenv('SIM_IEC2C')
     library = library or os.getenv('SIM_MATIEC_LIB')
     executable = shutil.which(str(compiler)) if compiler else None
     if not executable or not library or not (Path(library) / 'ieclib.txt').is_file():
-        report.update(diagnostics='Configure SIM_IEC2C and SIM_MATIEC_LIB for an installed matiec compiler',
-                      checks=[check('linux_compile', 'unknown', 'matiec compiler/library unavailable'),
+        report.update(reason='tool_missing', diagnostics='Configure SIM_IEC2C and SIM_MATIEC_LIB for an installed matiec compiler',
+                      checks=[captured_check, check('linux_compile', 'unknown', 'matiec compiler/library unavailable'),
                               check('scan_contract', 'not_run', 'Compilation unavailable')])
-        write_json(folder / 'report.json', report)
-        return report
+        return finish_report()
     compiler = str(Path(executable).resolve())
     library = str(Path(library).resolve())
     report['tools'] = {'iec2c': {'path': compiler, 'binary_sha256': sha(Path(compiler).read_bytes())},
@@ -285,29 +301,40 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
         except ProcessLookupError:
             pass
         return process.communicate()
+    def interrupted_checks(detail):
+        progress = folder / 'worker-progress.json'
+        completed = json.loads(progress.read_text()) if progress.is_file() else {}
+        compiled = next((c for c in completed.get('checks', []) if c['name'] == 'linux_compile'),
+                        check('linux_compile', 'unknown', detail))
+        return [captured_check, compiled, check('scan_contract', 'unknown' if profile else 'not_run', detail)]
     try:
         stdout, stderr = process.communicate(timeout=90)
     except subprocess.TimeoutExpired:
         stdout, stderr = terminate_worker()
-        report.update(diagnostics='Candidate check exceeded the 90 second tool budget; no pass accepted',
-                      checks=[check('linux_validation', 'unknown', 'Tool/native execution timed out')])
-    except BaseException:
+        report.update(reason='tool_timeout', diagnostics='Candidate check exceeded the 90 second tool budget; no pass accepted',
+                      checks=interrupted_checks('Tool/native execution timed out'))
+    except BaseException as error:
         # Cancellation must also reap the independent native process group.
         terminate_worker()
+        report.update(reason='cancelled' if isinstance(error, (InterruptedError, KeyboardInterrupt)) else 'worker_failed',
+                      diagnostics='Candidate validation interrupted; no current acceptance',
+                      checks=interrupted_checks('Validation interrupted'))
+        finish_report()
         raise
     else:
         outcome_file = folder / 'worker-result.json'
         if process.returncode == 0 and outcome_file.is_file():
             report.update(json.loads(outcome_file.read_text()))
+            report['checks'].insert(0, captured_check)
         else:
             explanation = ('Native scan exceeded the 5 second execution budget'
                            if process.returncode == -signal.SIGALRM else f'Validation worker exited {process.returncode}')
-            report.update(diagnostics=stderr[-40000:] or explanation,
-                          checks=[check('linux_validation', 'unknown', 'Tool/native execution failed')])
+            report.update(reason='tool_timeout' if process.returncode == -signal.SIGALRM else 'worker_failed',
+                          diagnostics=stderr[-40000:] or explanation,
+                          checks=interrupted_checks('Tool/native execution failed'))
     (folder / 'worker.log').write_text(stdout + stderr)
     report['checks'].append(check('tia_compile', 'not_run', 'Requires target Windows TIA/Openness environment'))
-    write_json(folder / 'report.json', report)
-    return report
+    return finish_report()
 
 
 if __name__ == '__main__':

@@ -1,5 +1,11 @@
 # Decisions
 
+## S1 — Scope acceptance to explicit required checks
+
+Report v2 distinguishes source-file structure, Linux compilation, fixed behavior, LAD/SCL comparison and TIA. The controller freezes either a compile-only or named behavior goal; workflow and bridge use one deterministic policy to recompute required checks instead of trusting totals or model claims. `reviewed_draft` remains compatible, but compile-only results never gain behavior acceptance. Missing/unknown/unrun mandatory evidence cannot be waived. Imported legacy reports remain readable history and cannot authorize a new task.
+
+Cancellation retains completed observations without acceptance and reaps the validation worker. SIGTERM must unwind with an exception that subprocess selectors do not swallow as transient InterruptedError. This changes Harness verdict handling only; PLC semantics, existing contracts, tool support and scheduler roles stay unchanged.
+
 ## 2026-10-31 — Connect each generated SCL to knowledge and feedback
 
 The user's product correction prioritizes a small, complete generation/change/check/repair/save operation. Keep existing specification and review roles; load the three project Skills and relevant references into controller-bound model packets. Original source and the selected behavior profile are part of the request fingerprint. Do not apply FB_MainSequence's continuous-enable contract to the separate conveyor draft's explicitly preserved behavior.
