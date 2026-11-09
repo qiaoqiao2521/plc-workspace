@@ -9,6 +9,6 @@
     "test": "node --test scripts/test-*.mjs && python3 -m unittest discover -s scripts -p \"test_*.py\""
   },
   "dependencies": {
-    "three": "0.186.1"
+    "three": "0.187.0"
   }
 }
