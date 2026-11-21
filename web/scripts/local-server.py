@@ -2,6 +2,7 @@
 """Loopback-only static preview + bounded local CLI generation, no PLC/device writes."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -87,6 +88,16 @@ def validate_workflow_artifact(result, request, validation=None):
             file['content'].encode('utf-8')).hexdigest()} for file in result['scl_files']]
         if validation.get('files') != expected:
             raise ValueError('检查记录与当前程序文件不匹配。')
+        if validation.get('request_fingerprint') != request['request_fingerprint']:
+            raise ValueError('检查记录与当前需求不匹配。')
+
+
+def validation_level(report, profile, request_fingerprint):
+    spec = importlib.util.spec_from_file_location('candidate_validation',
+        Path(__file__).with_name('candidate-validation.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.validation_level(report, profile, request_fingerprint)
 
 
 def stop_process(proc):
@@ -115,6 +126,20 @@ class GenerationBridge:
         with self.lock:
             self.jobs[job_id].update(workflow=envelope, verification=validation,
                                      candidate_result=candidate)
+
+    def recover_workflow(self, job_id, request, *, cancelled=False):
+        retained = Path(self.workflow['root']) / job_id / 'outcome.json'
+        try:
+            if not retained.is_file() or retained.stat().st_size > LIMIT * 8:
+                return
+            envelope = json.loads(retained.read_text())
+            if cancelled:
+                envelope = {**envelope, 'verdict': 'cancelled',
+                            'candidate': envelope.get('candidate') or envelope.get('result'),
+                            'result': None, 'validation_level': 'not_accepted'}
+            self.keep_workflow(job_id, request, envelope)
+        except (OSError, ValueError, TypeError, AttributeError, KeyError):
+            pass  # Never expose an invalid or stale artifact.
 
     def begin(self, request, prompt):
         validate_request(request)
@@ -189,6 +214,8 @@ class GenerationBridge:
                 with self.lock:
                     cancelled = self.jobs[job_id]['status'] == 'cancelled'
                 if cancelled:
+                    if self.provider == 'mcode-cm':
+                        self.recover_workflow(job_id, request, cancelled=True)
                     return
                 if proc.returncode != 0:
                     with self.lock:
@@ -196,12 +223,7 @@ class GenerationBridge:
                     if self.provider == 'mcode-cm':
                         # A failed repair/worker can still leave a source-bound
                         # candidate and tool diagnostics in the durable runtime.
-                        retained = Path(self.workflow['root']) / job_id / 'outcome.json'
-                        if retained.is_file() and retained.stat().st_size <= LIMIT * 8:
-                            try:
-                                self.keep_workflow(job_id, request, json.loads(retained.read_text()))
-                            except (ValueError, TypeError, AttributeError, KeyError):
-                                pass  # Never expose an invalid or stale artifact.
+                        self.recover_workflow(job_id, request)
                         raise ValueError('严格流程执行失败或结果格式无效，工程未放行。需求已保留；请检查本机流程记录后重试。')
                     if 'timed out' in stderr.lower() or 'timeout' in stderr.lower():
                         raise ValueError(f'{self.provider} 达到 {self.timeout} 秒预算，结果未接受。请缩小需求或提高本机 --timeout 预算。')
@@ -223,8 +245,11 @@ class GenerationBridge:
                                          '；'.join(questions + findings + [envelope.get('reason', '')])[:3000])
                     result = envelope['result']
                     validate_workflow_artifact(result, request, validation)
-                    if not validation or validation.get('status') != 'pass':
-                        raise ValueError('流程没有返回本次程序通过检查的证据，工程未放行。')
+                    level = validation_level(validation, request['brief'].get('validation_profile'),
+                                             request['request_fingerprint'])
+                    if not result['scl_files'] or level is None or envelope.get('validation_level') != level:
+                        raise ValueError('流程没有返回满足本次目标的必选检查证据，工程未放行。')
+                    # compile_only grants a reviewable draft, NEVER behavior acceptance.
                 elif self.provider == 'zcode':
                     # ZCode transports its answer as text; validate the parsed object
                     # with exactly the same schema and binding as the agy adapter.
@@ -260,7 +285,9 @@ class GenerationBridge:
             job = self.jobs.get(job_id)
             if not job:
                 return None
-            return {k: v for k, v in job.items() if k not in ['process', 'started']}
+            snapshot = {k: v for k, v in job.items() if k not in ['process', 'started']}
+            snapshot['finished'] = 'duration_seconds' in job
+            return snapshot
 
     def cancel(self, job_id):
         with self.lock:

@@ -15,9 +15,11 @@ spec = importlib.util.spec_from_file_location('bridge', Path(__file__).with_name
 bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 
-def request():
+def request(profile=None):
     brief = {k: '' for k in ['name','block_name','requirement','flow','io_text','constraints']}
     brief.update(name='test',block_name='FB_Test',requirement='启动输送，到位停止，故障撤销动作。')
+    if profile is not None:
+        brief['validation_profile'] = profile
     content = json.dumps({'brief':brief,'states':[]},ensure_ascii=False,separators=(',',':'))
     return {'schema_version':1,'request_id':'test-run','request_fingerprint':hashlib.sha256(content.encode()).hexdigest(),'brief':brief,'states':[]}
 
@@ -33,7 +35,7 @@ class BridgeTests(unittest.TestCase):
         for value in [None,{}, {'schema_version':1}]:
             with self.assertRaises(ValueError):bridge.validate_schema(value,bridge.SCHEMA)
 
-    def run_stub(self, stdout, code=0, delay=0, cancel=False, provider="agy", timeout=2):
+    def run_stub(self, stdout, code=0, delay=0, cancel=False, provider="agy", timeout=2, profile=None):
         with tempfile.TemporaryDirectory() as td:
             script=Path(td)/'fake-agy'
             script.write_text('#!/usr/bin/env python3\nimport time\ntime.sleep('+str(delay)+')\nprint('+repr(stdout)+')\nraise SystemExit('+str(code)+')\n')
@@ -46,7 +48,7 @@ class BridgeTests(unittest.TestCase):
                 return original_popen([str(script)], **kwargs)
             context=patch.object(bridge.subprocess,'Popen',side_effect=run_fake) if provider=='mcode-cm' else nullcontext()
             with context:
-                job=server.begin(request(),'prompt')
+                job=server.begin(request(profile),'prompt')
                 if cancel:server.cancel(job)
                 deadline=time.monotonic()+5
                 while server.active and time.monotonic()<deadline:time.sleep(.01)
@@ -68,6 +70,26 @@ class BridgeTests(unittest.TestCase):
         envelope={'status':'SUCCESS','structured_output':result(request())}
         self.assertEqual(self.run_stub(json.dumps(envelope),delay=1,cancel=True)['status'],'cancelled')
 
+    def test_cancel_before_cleanup_recovers_only_a_draft(self):
+        req = request()
+        candidate = result(req)
+        with tempfile.TemporaryDirectory() as temp:
+            bridge_obj = bridge.GenerationBridge(None, workflow={'root': temp})
+            bridge_obj.jobs['job'] = {'status':'cancelled'}
+            self.assertFalse(bridge_obj.snapshot('job')['finished'])
+            saved = Path(temp) / 'job'
+            saved.mkdir()
+            (saved/'outcome.json').write_text(json.dumps({
+                'result':candidate, 'verdict':'reviewed_draft', 'validation_level':'behavior_pass'}))
+            bridge_obj.recover_workflow('job', req, cancelled=True)
+            bridge_obj.jobs['job']['duration_seconds'] = 1
+            snapshot = bridge_obj.snapshot('job')
+            self.assertTrue(snapshot['finished'])
+            self.assertEqual(snapshot['candidate_result'],candidate)
+            self.assertNotIn('result',snapshot)
+            self.assertEqual(snapshot['workflow']['validation_level'],'not_accepted')
+            self.assertIsNone(snapshot['workflow']['result'])
+
     def test_zcode_response_is_validated_and_prose_is_rejected(self):
         good=json.dumps({'response':json.dumps(result(request()))})
         self.assertEqual(self.run_stub(good,provider='zcode')['status'],'complete')
@@ -87,9 +109,30 @@ class BridgeTests(unittest.TestCase):
     def test_mcode_workflow_accepts_only_reviewed_draft(self):
         candidate=result(request())
         candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
-        validation={'status':'pass','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}]}
-        good={'verdict':'reviewed_draft','result':candidate,'validation':validation}
+        validation={'schema_version':2,'request_fingerprint':candidate['request_fingerprint'],
+                    'verification_goal':{'target':'scl_compile','required_checks':['source_capture','linux_compile']},
+                    'status':'unknown','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+                    'checks':[{'name':'linux_compile','status':'pass','detail':'fixture'},
+                              {'name':'scan_contract','status':'not_run','detail':'no contract'},
+                              {'name':'source_capture','status':'pass','detail':'fixture'}]}
+        good={'verdict':'reviewed_draft','result':candidate,'validation':validation,
+              'validation_level':'compile_only'}
         self.assertEqual(self.run_stub(json.dumps(good),provider='mcode-cm',timeout=0)['status'],'complete')
+        for change in [{'status':'pass'}, {'checks':validation['checks'][:1]},
+                       {'checks':[validation['checks'][0],{**validation['checks'][1],'status':'unknown'},validation['checks'][2]]},
+                       {'verification_goal':{'target':'scl_compile','required_checks':['linux_compile']}},
+                       {'schema_version':1}]:
+            forged={**good,'validation':{**validation,**change}}
+            blocked=self.run_stub(json.dumps(forged),provider='mcode-cm',timeout=0)
+            self.assertEqual(blocked['status'],'failed')
+            self.assertNotIn('result',blocked)
+            self.assertEqual(blocked['candidate_result'],candidate)
+        self.assertEqual(self.run_stub(json.dumps({**good,'validation_level':'behavior_pass'}),
+            provider='mcode-cm',timeout=0)['status'],'failed')
+        stale={**good, 'validation':{**validation,'request_fingerprint':'older'}}
+        rejected=self.run_stub(json.dumps(stale),provider='mcode-cm')
+        self.assertEqual(rejected['status'],'failed')
+        self.assertNotIn('candidate_result',rejected)
         for verdict in ['blocked','rejected','unknown','audit_complete']:
             outcome=self.run_stub(json.dumps({'verdict':verdict,'result':result(request()),
                 'analysis':{'questions':['Confirm valve']}}),provider='mcode-cm',timeout=0)
@@ -99,10 +142,36 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(failure['status'],'failed')
         self.assertIn('工程未放行',failure['error'])
 
+    def test_profile_cannot_skip_scan_or_frozen_contract(self):
+        spec=importlib.util.spec_from_file_location('candidate_validation',
+            Path(__file__).with_name('candidate-validation.py'))
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        candidate=result(request(module.PROFILE))
+        candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
+        report={'schema_version':2,'request_fingerprint':candidate['request_fingerprint'],
+                'verification_goal':module.verification_goal(module.PROFILE),
+                'profile':module.PROFILE,'status':'pass',
+                'files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+                'checks':[module.check('linux_compile','pass','fixture'),
+                          module.check('scan_contract','pass','fixture'),
+                          module.check('source_capture','pass','fixture')]}
+        def finish():
+            envelope={'verdict':'reviewed_draft','result':candidate,'validation':report,
+                      'validation_level':'behavior_pass'}
+            return self.run_stub(json.dumps(envelope),provider='mcode-cm',profile=module.PROFILE)['status']
+        self.assertEqual(finish(),'failed')
+        report['contract']=module.CONTRACT
+        report['contract_sha256']=module.sha(json.dumps(module.CONTRACT,sort_keys=True,
+            separators=(',',':')).encode())
+        self.assertEqual(finish(),'complete')
+        report['checks'][1]['status']='not_run'
+        self.assertEqual(finish(),'failed')
+
     def test_mcode_failure_preserves_source_and_bound_diagnostics(self):
         candidate=result(request())
         candidate['scl_files']=[{'name':'Broken.scl','content':'broken source'}]
-        validation={'status':'fail','files':[{'name':'Broken.scl','sha256':hashlib.sha256(b'broken source').hexdigest()}],
+        validation={'status':'fail','request_fingerprint':candidate['request_fingerprint'],'files':[{'name':'Broken.scl','sha256':hashlib.sha256(b'broken source').hexdigest()}],
                     'checks':[{'name':'Linux compile','status':'fail','detail':'type mismatch'}]}
         envelope={'verdict':'rejected','result':None,'candidate':candidate,
                   'validation':validation,'attempts':[{'attempt':0}]}

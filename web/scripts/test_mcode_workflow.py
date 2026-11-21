@@ -39,10 +39,15 @@ class Gates(unittest.TestCase):
         return {'input_sha256': workflow.digest(packet), 'answer': copy.deepcopy(self.answers[name])}
 
     def validate(self, candidate, directory, *, profile=None):
-        report = {'status': 'pass', 'files': workflow.source_manifest(candidate),
-                'checks': [{'name': 'Injected compiler fixture', 'status': 'pass',
-                            'detail': 'Synthetic unit-test evidence, not native compilation'}],
+        report = {'schema_version': 2, 'request_fingerprint': candidate['request_fingerprint'],
+                'verification_goal': workflow.validation_module().verification_goal(profile),
+                'profile': profile, 'status': 'pass' if profile else 'unknown', 'files': workflow.source_manifest(candidate),
+                'checks': [{'name': 'linux_compile', 'status': 'pass',
+                            'detail': 'Synthetic compiler fixture, NOT native compilation'},
+                           {'name': 'scan_contract', 'status': 'pass' if profile else 'not_run',
+                            'detail': 'Synthetic test fixture, NOT native scans'}],
                 'diagnostics': '', 'scope': 'Unit-test injection only'}
+        report['checks'].append({'name':'source_capture', 'status':'pass', 'detail':'fixture'})
         if profile == 'conveyor-12-v1':
             report['contract'] = copy.deepcopy(workflow.validation_module().CONTRACT)
             report['contract_sha256'] = workflow.digest(report['contract'])
@@ -106,6 +111,8 @@ class Gates(unittest.TestCase):
             return self.dispatch(stage, role, packet)
         outcome = self.run_workflow(dispatch=parallel)
         self.assertEqual(outcome['verdict'], 'reviewed_draft')
+        self.assertEqual(outcome['validation_level'], 'compile_only')
+        self.assertEqual(outcome['validation']['status'], 'unknown')
         self.assertEqual(outcome['industrial_acceptance'], 'not_run')
         self.assertEqual([role for stage, role in self.calls if stage.endswith('review') and
                           stage in ['spec-review', 'final-review']], ['supervisor', 'supervisor'])
@@ -173,6 +180,62 @@ class Gates(unittest.TestCase):
         self.assertFalse(any(stage.startswith('repair') for stage, _ in self.calls))
         self.assertEqual(json.loads((Path(self.folder.name) / 'outcome.json').read_text()), outcome)
 
+    def test_malformed_pass_never_reaches_model_reviews(self):
+        req = request('conveyor-12-v1')
+        self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
+        for scan_status in ('not_run', 'unknown', 'fail', None):
+            with self.subTest(scan=scan_status):
+                self.calls.clear()
+                def inconsistent(candidate, directory, *, profile=None):
+                    report = self.validate(candidate, directory, profile=profile)
+                    if scan_status is None:
+                        report['checks'].pop()
+                    else:
+                        report['checks'][1]['status'] = scan_status
+                    return report
+                outcome = self.run_workflow(req, validator=inconsistent, max_repairs=1)
+                self.assertEqual(outcome['verdict'], 'blocked')
+                self.assertIsNone(outcome['result'])
+                self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+                self.assertFalse(any(stage.startswith('repair') for stage, _ in self.calls))
+
+    def test_bound_behavior_failure_gets_one_repair_then_fresh_review(self):
+        req = request('conveyor-12-v1')
+        self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
+        self.answers['repair'] = {'scl_files': [{'name': 'Fixture.scl', 'content': 'repaired fixture'}],
+                                  'summary': 'Address observed scan failure'}
+        def checker(candidate, directory, *, profile=None):
+            report = self.validate(candidate, directory, profile=profile)
+            if candidate['scl_files'][0]['content'] != 'repaired fixture':
+                report['status'] = 'fail'
+                report['checks'][1]['status'] = 'fail'
+            return report
+        outcome = self.run_workflow(req, validator=checker, max_repairs=1)
+        self.assertEqual(outcome['verdict'], 'reviewed_draft')
+        self.assertEqual(outcome['attempts'][0]['validation']['status'], 'fail')
+        self.assertIn(('repair-1', 'engineer'), self.calls)
+        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+        self.assertEqual(outcome['validation_level'], 'behavior_pass')
+
+    def test_same_source_old_request_evidence_cannot_pass(self):
+        def stale(candidate, directory, *, profile=None):
+            return {**self.validate(candidate, directory, profile=profile), 'request_fingerprint': 'older'}
+        outcome = self.run_workflow(validator=stale)
+        self.assertEqual(outcome['verdict'], 'blocked')
+        self.assertEqual(outcome['validation_level'], 'not_accepted')
+
+    def test_cancel_persists_candidate_and_never_runs_reviews(self):
+        def cancelled(candidate, directory, *, profile=None):
+            raise KeyboardInterrupt('cancel fixture')
+        with self.assertRaises(KeyboardInterrupt):
+            self.run_workflow(validator=cancelled)
+        outcome = json.loads((Path(self.folder.name) / 'outcome.json').read_text())
+        self.assertEqual(outcome['verdict'], 'cancelled')
+        self.assertEqual(outcome['validation_level'], 'not_accepted')
+        self.assertIsNone(outcome['result'])
+        self.assertTrue(outcome['candidate']['scl_files'])
+        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+
     def test_stale_compiler_source_binding_is_unknown(self):
         def stale(candidate, directory, *, profile=None):
             report = self.validate(candidate, directory, profile=profile)
@@ -210,7 +273,7 @@ class Gates(unittest.TestCase):
                 context = packet['data']['repair_context']
                 self.assertIn('was not requested', context['summary'])
                 self.assertEqual(context['previous_reviews']['semantics']['verdict'], 'fail')
-                self.assertEqual(context['previous_validation']['status'], 'pass')
+                self.assertEqual(context['previous_validation']['status'], 'unknown')
                 self.assertEqual(packet['data']['result']['scl_files'], self.answers['generation']['scl_files'])
             return response
         outcome = self.run_workflow(dispatch=disputed, max_repairs=1)
@@ -250,6 +313,7 @@ class Gates(unittest.TestCase):
         self.assertNotEqual(outcome['attempts'][0]['files'], outcome['attempts'][1]['files'])
         self.assertEqual(outcome['validation']['files'], workflow.source_manifest(outcome['result']))
         self.assertEqual(outcome['validation']['contract']['waiting_calls'], 12)
+        self.assertEqual(outcome['validation_level'], 'behavior_pass')
 
 
 if __name__ == '__main__':

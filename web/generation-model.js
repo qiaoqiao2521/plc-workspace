@@ -50,7 +50,23 @@ export async function bindVerification(report, result) {
     hashes.set(f.name,f.sha256);
   }
   for (const f of result.scl_files) if (hashes.get(f.name) !== await sourceHash(f.content)) throw new Error('检查记录与当前源码不匹配，记录已过期。');
+  if (report.schema_version === 2 && report.request_fingerprint !== result.request_fingerprint)
+    throw new Error('检查记录与当前需求不匹配，记录已过期。');
   return structuredClone(report);
+}
+
+export function verificationSummary(report, liveDraftLevel) {
+  if (!report) return '未验证';
+  const items = Array.isArray(report.checks) ? report.checks : [];
+  const checks = new Map(items.map(c => [c.name, c.status]));
+  if (report.reason === 'cancelled') return '检查已取消 · 未授予验收';
+  if (report.status === 'fail') return '检查失败';
+  if (checks.size !== items.length) return '必选检查不一致 · 不可放行';
+  if (checks.get('linux_compile') === 'pass' && checks.get('scan_contract') === 'not_run')
+    return '编译通过 · 行为未验收';
+  if (report.status === 'pass' && checks.get('linux_compile') === 'pass' && checks.get('scan_contract') === 'pass')
+    return liveDraftLevel === 'behavior_pass' ? '受限行为检查通过' : '记录显示行为检查通过 · 不授予本次验收';
+  return report.status === 'pass' ? '必选检查未证实 · 不可放行' : '检查未知 · 不可放行';
 }
 
 export async function fingerprint(brief, states) {

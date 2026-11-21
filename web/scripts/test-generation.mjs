@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
-import {flowDraft, makeRequest, validateBrief, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification, sourceHash} from '../generation-model.js';
+import {flowDraft, makeRequest, validateBrief, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification, sourceHash, verificationSummary} from '../generation-model.js';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 const brief = {name:'测试输送线',block_name:'FB_Test',requirement:'启动后输送，到位停止。停止撤销动作。',flow:'输送 → 到位 → 输送',io_text:'',constraints:'',target:{cpu:'unknown',tia_version:'unknown'}};
 const candidate = req => ({schema_version:1,request_id:req.request_id,request_fingerprint:req.request_fingerprint,summary:'未验证草稿',questions:[],states:[],io:[],scl_files:[{name:'FB_Test.scl',content:'FUNCTION_BLOCK FB_Test\nEND_FUNCTION_BLOCK'}],lad_networks:[],checks:[]});
@@ -68,4 +68,25 @@ test('verification binding rejects partial, duplicate and wrong-name evidence',a
   await assert.rejects(bindVerification({...report,files:report.files.slice(0,1)},res),/格式错误/);
   await assert.rejects(bindVerification({...report,files:[report.files[0],report.files[0]]},res),/指纹错误/);
   await assert.rejects(bindVerification({...report,files:[report.files[0],{...report.files[1],name:'Another.scl'}]},res),/源码不匹配/);
+});
+
+test('headlines never confuse compile-only or imported legacy pass with logic acceptance',()=>{
+  const compile = {name:'linux_compile',status:'pass'};
+  const scan = status => ({name:'scan_contract',status});
+  assert.match(verificationSummary({status:'unknown',checks:[compile,scan('not_run')]}),/编译通过 · 行为未验收/);
+  assert.match(verificationSummary({status:'pass',checks:[compile,scan('not_run')]}),/编译通过 · 行为未验收/);
+  assert.match(verificationSummary({status:'pass',checks:[compile,scan('pass')]}, 'behavior_pass'),/受限行为检查通过/);
+  assert.match(verificationSummary({status:'pass',checks:[compile,scan('pass')]}),/不授予本次验收/);
+  assert.match(verificationSummary({status:'pass',checks:[compile,scan('pass'),scan('pass')]}, 'behavior_pass'),/不可放行/);
+  assert.match(verificationSummary({status:'fail',checks:[compile,scan('fail')]}),/失败/);
+  assert.match(verificationSummary({status:'pass',checks:[]}),/不可放行/);
+});
+
+test('request-bound v2 evidence cannot be reopened against identical source and older request',async()=>{
+  const req=await makeRequest(brief,[]), value=candidate(req);
+  const files=await Promise.all(value.scl_files.map(async f=>({name:f.name,sha256:await sourceHash(f.content)})));
+  const report={schema_version:2,status:'pass',checks:[],files,request_fingerprint:req.request_fingerprint};
+  assert.equal((await bindVerification(report,value)).request_fingerprint,req.request_fingerprint);
+  await assert.rejects(bindVerification({...report,request_fingerprint:'old'},value),/当前需求不匹配/);
+  assert.match(verificationSummary({...report, reason:'cancelled'},'behavior_pass'),/检查已取消/);
 });
