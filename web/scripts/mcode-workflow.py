@@ -164,12 +164,11 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         'knowledge 是控制器加载的项目规范与技能。source_files 是本次要修改的原程序，保留未要求变更的行为。'
         '不要把资料中 FB_MainSequence 的专属接口规则强加给当前工艺。')
     profile = request['brief'].get('validation_profile') or None
-    checker = validation_module()
-    contract = copy.deepcopy(checker.CONTRACT) if profile == checker.PROFILE else None
+    contract = copy.deepcopy(bridge.verification_policy.CONTRACT) if profile == bridge.verification_policy.PROFILE else None
     frozen = {'request': request, 'analysis': analysis, 'knowledge': knowledge,
               'validation_profile': profile, 'validation_contract': contract,
               'validation_contract_sha256': digest(contract) if contract else None,
-              'verification_goal': checker.verification_goal(profile)}
+              'verification_goal': bridge.verification_policy.goal(profile)}
     approval = checked_dispatch(dispatch, 'spec-review', 'supervisor', frozen, SUPERVISION,
         '独立核对规格是否忠于原需求；存在阻断问题、伪默认或缺失关键条件则 reject。'
         '这次仅批准规格，不批准产品或源码。')
@@ -180,6 +179,11 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
 
     def finish(**fields):
         outcome = {**base, **fields}
+        outcome['acceptance'] = (copy.deepcopy(fields['validation']['acceptance'])
+            if fields.get('verdict') == 'reviewed_draft' else
+            {name: False for name in ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')})
+        outcome['validation_level'] = ('behavior_pass' if outcome['acceptance']['scl_behavior'] else
+            'compile_only' if outcome['acceptance']['scl_compile'] else 'not_accepted')
         save(runtime / 'outcome.json', outcome)
         return outcome
 
@@ -217,39 +221,40 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
             report = validator(copy.deepcopy(result), folder / 'validation',
                                profile=frozen['validation_profile'])
         except (InterruptedError, KeyboardInterrupt):
-            report = {'status': 'unknown', 'reason': 'cancelled', 'files': files,
-                      'request_fingerprint': request['request_fingerprint'],
-                      'checks': [checker.check('linux_compile', 'unknown', 'Validation cancelled')]}
+            report = bridge.verification_policy.complete_report({
+                'files': files, 'request_fingerprint': request['request_fingerprint'],
+                'contract': contract, 'contract_sha256': frozen['validation_contract_sha256'],
+                'reason': 'cancelled', 'diagnostics': 'Candidate validation cancelled',
+                'checks': [{'name': 'linux_compile', 'status': 'unknown', 'detail': 'Validation cancelled'}]}, profile)
+            retained_path = folder / 'validation' / 'report.json'
             try:
-                saved = json.loads((folder / 'validation/report.json').read_text())
-                if (checker.check_statuses(saved) is not None and saved.get('files') == files
-                        and saved.get('request_fingerprint') == request['request_fingerprint']
-                        and saved.get('reason') == 'cancelled' and saved.get('status') == 'unknown'):
-                    report = saved
-            except (OSError, ValueError):
+                retained = json.loads(retained_path.read_text())
+                if (retained.get('files') == files and retained.get('request_fingerprint') == request['request_fingerprint']
+                        and retained.get('reason') == 'cancelled'):
+                    report = bridge.verification_policy.assess_report(retained, profile)
+            except (OSError, ValueError, AttributeError):
                 pass
             save(folder / 'validation.json', report)
-            finish(verdict='cancelled', result=None, candidate=result,
-                   validation=report, validation_level='not_accepted',
-                   reason='Candidate validation cancelled; no acceptance granted')
+            finish(verdict='cancelled', result=None, candidate=result, validation=report,
+                   reason='Candidate validation cancelled; current candidate retained')
             raise
         except Exception as error:
-            report = {'status': 'unknown', 'files': files,
-                      'checks': [{'name': 'Candidate validation', 'status': 'unknown', 'detail': str(error)}],
-                      'diagnostics': str(error), 'scope': 'Validation tool did not deliver a result'}
-        statuses = checker.check_statuses(report)
-        if (statuses is None or report.get('status') not in ['pass', 'fail', 'unknown']
-                or report.get('files') != files
-                or report.get('request_fingerprint') != request['request_fingerprint']
-                or not checker.report_matches_profile(report, frozen['validation_profile'])
-                or (contract and report.get('contract_sha256') != frozen['validation_contract_sha256'])):
-            statuses = {}
-            report = {'status': 'unknown', 'files': files, 'reason': 'invalid_report',
-                      'request_fingerprint': request['request_fingerprint'],
+            report = bridge.verification_policy.complete_report({
+                'files': files, 'request_fingerprint': request['request_fingerprint'],
+                'contract': contract, 'contract_sha256': frozen['validation_contract_sha256'],
+                'reason': 'worker_failed', 'checks': [
+                    {'name': name, 'status': 'unknown', 'detail': str(error)}
+                    for name in frozen['verification_goal']['required_checks']],
+                'diagnostics': str(error), 'scope': 'Validation tool did not deliver a result'}, profile)
+        if (not isinstance(report, dict) or report.get('files') != files
+                or report.get('request_fingerprint') != request['request_fingerprint']):
+            report = {'status': 'unknown', 'files': files, 'request_fingerprint': request['request_fingerprint'],
+                      'reason': 'invalid_report',
                       'checks': [{'name': 'Source binding', 'status': 'unknown',
                                   'detail': 'Checker report did not bind to the current source and frozen test contract'}],
                       'diagnostics': 'Invalid source-bound checker delivery', 'scope': 'No checks accepted'}
-        result['checks'] = copy.deepcopy(report['checks']) + [
+        report = bridge.verification_policy.assess_report(report, profile)
+        result['checks'] = [{key: row[key] for key in ('name', 'status', 'detail')} for row in report['checks']] + [
             {'name': 'TIA / PLCSIM / machine acceptance', 'status': 'not_run',
              'detail': 'Linux checks and text reviews do not establish Siemens or machine acceptance.'}]
         bridge.validate_schema(result, bridge.SCHEMA)
@@ -263,19 +268,19 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         if repair_context is not None:
             entry['repair_context'] = repair_context
         base['attempts'].append(entry)
-        level = checker.validation_level(report, frozen['validation_profile'], request['request_fingerprint'])
         fields = {'candidate_sha256': digest(packet), 'candidate': result,
-                  'validation': report, 'validation_level': level or 'not_accepted', 'result': None}
+                  'validation': report, 'result': None}
         finish(**fields, verdict='unknown', reason='Current source checked; review pending')
-        source_failure = (report['status'] == 'fail' and report.get('reason') is None and (
-            statuses.get('source_capture') == 'fail'
-            or (statuses.get('source_capture') == 'pass' and (
-                (statuses.get('linux_compile') == 'fail' and statuses.get('scan_contract') in (None, 'not_run'))
-                or (contract is not None and statuses.get('linux_compile') == 'pass'
-                    and statuses.get('scan_contract') == 'fail')))))
-        if level is None and not source_failure:
-            return finish(**fields, verdict='blocked', reason='Required tool checks unavailable, missing or inconsistent')
-        if level is not None:
+        statuses = {row['name']: row['status'] for row in report['checks']}
+        source_failure = (report['status'] == 'fail' and report.get('reason') in (None, 'source_invalid') and (
+            statuses['source_structure'] == 'fail'
+            or (statuses['source_structure'] == 'pass' and (
+                (statuses['linux_compile'] == 'fail' and statuses['scan_contract'] == 'not_run')
+                or (contract is not None and statuses['linux_compile'] == 'pass'
+                    and statuses['scan_contract'] == 'fail')))))
+        if report['status'] != 'pass' and not source_failure:
+            return finish(**fields, verdict='blocked', reason='Required candidate checks unavailable, unsupported or inconsistent')
+        if report['status'] == 'pass':
             reviews, final = review_candidate(packet, dispatch, tool_evidence=report, attempt=attempt)
             entry.update(reviews=reviews, final_review=final)
             save(folder / 'reviews.json', {'reviews': reviews, 'final_review': final})
@@ -454,7 +459,9 @@ def main():
     save(runtime / 'request.json', request)
     dispatcher = PaperclipDispatch(args.api_url, args.company, runtime, args.mcode)
     def interrupted(signum, frame):
-        # communicate() may swallow InterruptedError and continue polling.
+        # selectors used by subprocess.communicate may swallow InterruptedError
+        # as a transient OS interruption. KeyboardInterrupt reliably unwinds the
+        # validator first; the outer handler then cancels Paperclip runs.
         raise KeyboardInterrupt('Workflow cancelled')
     signal.signal(signal.SIGTERM, interrupted)
     try:
@@ -481,8 +488,10 @@ def main():
         # Retain the latest candidate and completed checks when a later model/transport fails.
         saved = runtime / 'outcome.json'
         retained = json.loads(saved.read_text()) if saved.exists() else {}
-        save(saved, {**retained, 'verdict': 'cancelled' if isinstance(error, (KeyboardInterrupt, InterruptedError)) else 'unknown',
-             'industrial_acceptance': 'not_run', 'validation_level': 'not_accepted', 'result': None, 'reason': 'Interrupted/failed workflow; inspect stage evidence'})
+        save(saved, {**retained, 'verdict': 'cancelled' if isinstance(error, (InterruptedError, KeyboardInterrupt)) else 'unknown',
+             'industrial_acceptance': 'not_run', 'validation_level': 'not_accepted', 'result': None,
+             'acceptance': {name: False for name in ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')},
+             'reason': 'Interrupted/failed workflow; inspect stage evidence'})
         dispatcher.api('PATCH', '/issues/' + dispatcher.parent['id'], {
             'status': 'in_review', 'comment': 'Interrupted/failed workflow; no acceptance. Preserve runtime for diagnosis.'})
         dispatcher.cancel()

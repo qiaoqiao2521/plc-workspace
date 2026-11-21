@@ -17,6 +17,8 @@ This protocol governs new requirement-to-engineering drafts. It does not change 
 
 The controller starts each stage, validates JSON and input SHA-256, and decides whether the next stage may start. It loads project Skill content and relevant references, records their hashes, and supplies them alongside original SCL in the actual packets. A prompt asking a model to wait is not the gate. Every invocation runs in a fresh mcode session; the supervisor is one persistent Paperclip role, with the exact current packet supplied for each review. It does not rely on conversational memory.
 
+S1 freezes a verification goal alongside the contract: `scl_compile` requires source-file structure and actual compilation; `scl_behavior` additionally requires the selected independent scan contract. Report v2 records each scope and its mandatory status. The workflow and bridge recompute the gate; any mandatory fail/unknown/not_run or incomplete/mismatched report blocks acceptance. A compile-only `reviewed_draft` is still behavior-unaccepted. `acceptance` is issued only after the selected goal and reviews pass; LAD comparison and TIA remain unrun. Old imported reports are historical records, never current gate evidence.
+
 Specification/source changes invalidate prior approvals. This implementation creates a fresh workflow directory for a new request rather than reuse previous packets. Models cannot waive a failed programmatic gate. An `approve` verdict for a specification containing unresolved questions does not authorize generation.
 
 ## Evidence and authority
@@ -43,6 +45,8 @@ python3 web/scripts/local-server.py --provider mcode-cm --timeout 0 \
 The existing Paperclip loopback API defaults to port 3100. It owns model processes; there is no new general scheduler or change to its upstream source. Periodic heartbeats are disabled for these task-local roles; one explicit wake starts each stage. Roles are paused after completion. Native issues/runs preserve execution history. Runtime requests, jobs, diagnostics and sessions stay outside Git.
 
 No mcode timeout/max-step cutoff or Paperclip process timeout is imposed. HTTP request timeouts handle transport failures, not model generation budgets. Frontend cancellation signals the controller; it requests native cancellation of active Paperclip runs and pauses its roles. Native cancellation/API outages can fail: inspect retained run IDs and use Paperclip's run-cancel endpoint rather than assume all remote processes stopped. Full UI-to-native cancellation has not yet been accepted.
+
+The local validator's cancellation/worker cleanup is regression-tested separately: SIGTERM unwinds the native wait, reaps its process group, retains completed tool observations and records cancellation without acceptance. This does not establish online Paperclip/mcode cancellation acceptance.
 
 The previous agy/ZCode single-generation adapters remain explicit diagnostic options; they do not execute or satisfy this protocol.
 

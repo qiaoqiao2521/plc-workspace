@@ -19,17 +19,15 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-PROFILE = 'conveyor-12-v1'
+_policy_spec = importlib.util.spec_from_file_location('verification_policy', HERE / 'verification-policy.py')
+policy = importlib.util.module_from_spec(_policy_spec)
+_policy_spec.loader.exec_module(policy)
+PROFILE = policy.PROFILE
 INPUTS = ('Enable', 'Start', 'Stop', 'Reset', 'AtEnd')
 OUTPUTS = ('Motor', 'Busy', 'Done', 'Error', 'TimeoutFault')
 SCOPE = ('Linux matiec IEC ST subset after syntax-only Siemens adaptation; '
          'not TIA compilation, PLCSIM, formal verification or machine acceptance')
-CONTRACT = {
-    'id': PROFILE, 'block': 'FB_ConveyorPack', 'waiting_calls': 12,
-    'start_call_counts_as_waiting': False, 'arrival_wins_at_deadline': True,
-    'stop_revokes_motor': True, 'start_held_through_stop_restarts': False,
-    'new_start_edge_after_release_restarts': True, 'done_is_one_call': True,
-}
+CONTRACT = policy.CONTRACT
 
 
 def sha(value):
@@ -46,55 +44,34 @@ def check(name, status, detail):
     return {'name': name, 'status': status, 'detail': detail}
 
 
-def verification_goal(profile):
-    return {
-        'target': 'scl_behavior' if profile else 'scl_compile',
-        'required_checks': ['source_capture', 'linux_compile'] + (['scan_contract'] if profile else []),
-    }
+# Compatibility helpers delegate to the one report policy.
+verification_goal = policy.goal
+report_matches_profile = policy.report_matches_profile
 
 
 def check_statuses(report):
-    checks = report.get('checks') if isinstance(report, dict) else None
-    if not isinstance(checks, list) or len(checks) >= 100:
+    """Validate raw worker observations before using a partial checkpoint."""
+    rows = report.get('checks') if isinstance(report, dict) else None
+    if not isinstance(rows, list) or len(rows) >= 100:
         return None
     statuses = {}
-    for item in checks:
-        if (not isinstance(item, dict) or set(item) != {'name', 'status', 'detail'}
-                or not isinstance(item['name'], str) or not isinstance(item['detail'], str)
-                or item['name'] in statuses
-                or item['status'] not in ('pass', 'fail', 'unknown', 'not_run')):
+    for row in rows:
+        if (not isinstance(row, dict) or set(row) != {'name', 'status', 'detail'}
+                or not isinstance(row['name'], str) or not isinstance(row['detail'], str)
+                or row['name'] in statuses or row['status'] not in policy.STATUSES):
             return None
-        statuses[item['name']] = item['status']
+        statuses[row['name']] = row['status']
     return statuses
 
 
-def report_matches_profile(report, profile):
-    if not isinstance(report, dict) or (report.get('profile') or None) != (profile or None):
-        return False
-    if not profile:
-        return report.get('contract') is None and report.get('contract_sha256') is None
-    return (profile == PROFILE and report.get('contract') == CONTRACT
-            and report.get('contract_sha256') == sha(json.dumps(
-                CONTRACT, sort_keys=True, separators=(',', ':')).encode()))
-
-
 def validation_level(report, profile, request_fingerprint):
-    """Classify current source-bound evidence; compile-only permits draft review only."""
-    statuses = check_statuses(report)
-    goal = verification_goal(profile)
-    if (not statuses or not report_matches_profile(report, profile)
-            or report.get('schema_version') != 2
-            or report.get('request_fingerprint') != request_fingerprint
-            or not isinstance(request_fingerprint, str)
-            or report.get('verification_goal') != goal
-            or report.get('reason') in ('cancelled', 'worker_failed', 'tool_timeout', 'tool_missing', 'invalid_report')
-            or any(statuses.get(name) != 'pass' for name in goal['required_checks'])
-            or any(statuses.get(name, 'not_run') != 'not_run' for name in ('tia_compile', 'lad_scl_compare'))
-            or statuses.get('linux_validation', 'pass') != 'pass'):
+    if (not isinstance(report, dict) or not isinstance(request_fingerprint, str)
+            or report.get('request_fingerprint') != request_fingerprint):
         return None
-    if profile == PROFILE and report.get('status') == 'pass' and statuses.get('scan_contract') == 'pass':
+    assessed = policy.assess_report(report, profile)
+    if assessed['acceptance']['scl_behavior']:
         return 'behavior_pass'
-    if not profile and report.get('status') == 'unknown' and statuses.get('scan_contract') == 'not_run':
+    if assessed['acceptance']['scl_compile']:
         return 'compile_only'
     return None
 
@@ -229,6 +206,8 @@ def _worker(folder):
         return
     checks = [check('linux_compile', 'pass', 'Captured candidate compiled by matiec (syntax-adapted IEC ST subset)')]
     outcome = {**normalized, 'status': 'unknown', 'diagnostics': diagnostics[-40000:], 'checks': checks}
+    # Preserve completed compilation even if a later native scan is cancelled or
+    # terminated by its watchdog. These are observations, not final acceptance.
     write_json(folder / 'worker-progress.json', outcome)
     if not job['profile']:
         checks.append(check('scan_contract', 'not_run', 'No independently fixed behavior profile selected'))
@@ -264,10 +243,12 @@ def _worker(folder):
                 finally:
                     if os.name == 'posix':
                         signal.alarm(0)
-                passed = bool(cases) and all(case['passed'] for case in cases)
+                passed = bool(cases) and all(case['calls'] and case['passed'] for case in cases)
                 outcome.update(status='pass' if passed else 'fail', scenarios=cases)
                 failures = [f"{case['name']} call {row['call']}: expected {row['expected']}, actual {row['actual']}"
                             for case in cases for row in case['calls'] if not row['passed']]
+                if not cases or any(not case['calls'] for case in cases):
+                    failures.append('Fixed behavior checks returned no native scan evidence')
                 if failures:
                     outcome['diagnostics'] = '\n'.join(failures)
                 checks.append(check('scan_contract', 'pass' if passed else 'fail',
@@ -290,10 +271,14 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
     source_folder.mkdir()
     files = []
     report = {'status': 'unknown', 'files': files, 'checks': [], 'diagnostics': '', 'scope': SCOPE,
-              'profile': profile or None, 'schema_version': 2, 'request_fingerprint': result.get('request_fingerprint'),
-              'verification_goal': verification_goal(profile),
-              'industrial_acceptance': 'not_run', 'tia_compile': 'not_run',
-              'adapter_sha256': sha(Path(__file__).read_bytes())}
+              'profile': profile or None, 'industrial_acceptance': 'not_run', 'tia_compile': 'not_run',
+              'adapter_sha256': sha(Path(__file__).read_bytes()),
+              'request_fingerprint': result.get('request_fingerprint')}
+    def finish_report():
+        # Tool checks describe distinct scopes; never upgrade compile-only work.
+        complete = policy.complete_report(report, profile)
+        write_json(folder / 'report.json', complete)
+        return complete
     if profile == PROFILE:
         report['contract'] = dict(CONTRACT)
         report['contract_sha256'] = sha(json.dumps(CONTRACT, sort_keys=True, separators=(',', ':')).encode())
@@ -313,10 +298,12 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
             (source_folder / name).write_bytes(captured)
             files.append({'name': name, 'sha256': sha(captured)})
     except (KeyError, TypeError, ValueError) as error:
-        report.update(status='fail', diagnostics=str(error), checks=[check('source_capture', 'fail', str(error))])
-        write_json(folder / 'report.json', report)
-        return report
-    captured_check = check('source_capture', 'pass', 'Captured this candidate after source file structure checks')
+        report.update(reason='source_invalid', diagnostics=str(error),
+                      checks=[check('source_structure', 'fail', str(error))])
+        return finish_report()
+    captured_check = check('source_structure', 'pass',
+                           'Source file names, UTF-8 content, uniqueness and size checked; not PLC behavior')
+    report['checks'] = [captured_check]
     report['source_sha256'] = sha(json.dumps(files, sort_keys=True, separators=(',', ':')).encode())
     compiler = compiler or os.getenv('SIM_IEC2C')
     library = library or os.getenv('SIM_MATIEC_LIB')
@@ -325,8 +312,7 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
         report.update(reason='tool_missing', diagnostics='Configure SIM_IEC2C and SIM_MATIEC_LIB for an installed matiec compiler',
                       checks=[captured_check, check('linux_compile', 'unknown', 'matiec compiler/library unavailable'),
                               check('scan_contract', 'not_run', 'Compilation unavailable')])
-        write_json(folder / 'report.json', report)
-        return report
+        return finish_report()
     compiler = str(Path(executable).resolve())
     library = str(Path(library).resolve())
     report['tools'] = {'iec2c': {'path': compiler, 'binary_sha256': sha(Path(compiler).read_bytes())},
@@ -344,7 +330,6 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
         except ProcessLookupError:
             pass
         return process.communicate()
-
     def interrupted_checks(detail):
         compiled = check('linux_compile', 'unknown', detail)
         try:
@@ -365,20 +350,28 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
     except BaseException as error:
         # Cancellation must also reap the independent native process group.
         terminate_worker()
-        report.update(reason='cancelled' if isinstance(error, (KeyboardInterrupt, InterruptedError)) else 'worker_failed',
-                      diagnostics='Validation interrupted; no current acceptance',
+        report.update(reason='cancelled' if isinstance(error, (InterruptedError, KeyboardInterrupt)) else 'worker_failed',
+                      diagnostics='Candidate validation interrupted; no current acceptance',
                       checks=interrupted_checks('Validation interrupted'))
-        write_json(folder / 'report.json', report)
+        finish_report()
         raise
     else:
         outcome_file = folder / 'worker-result.json'
         if process.returncode == 0 and outcome_file.is_file():
-            outcome = json.loads(outcome_file.read_text())
-            report.update(status=outcome['status'], diagnostics=outcome['diagnostics'],
-                          checks=[captured_check, *outcome['checks']])
-            for key in ('normalized_sha256', 'scenarios'):
-                if key in outcome:
-                    report[key] = outcome[key]
+            try:
+                outcome = json.loads(outcome_file.read_text())
+                if (check_statuses(outcome) is None or outcome.get('status') not in policy.STATUSES
+                        or not isinstance(outcome.get('diagnostics'), str)):
+                    raise ValueError('Invalid validation worker delivery')
+                report.update(status=outcome['status'], diagnostics=outcome['diagnostics'],
+                              checks=[captured_check, *outcome['checks']])
+                # Workers supply observations, never source/request/contract identity.
+                for key in ('normalized_sha256', 'scenarios'):
+                    if key in outcome:
+                        report[key] = outcome[key]
+            except (OSError, ValueError):
+                report.update(reason='invalid_report', diagnostics='Invalid validation worker delivery',
+                              checks=interrupted_checks('Worker result could not be validated'))
         else:
             explanation = ('Native scan exceeded the 5 second execution budget'
                            if process.returncode == -signal.SIGALRM else f'Validation worker exited {process.returncode}')
@@ -387,8 +380,7 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
                           checks=interrupted_checks('Tool/native execution failed'))
     (folder / 'worker.log').write_text(stdout + stderr)
     report['checks'].append(check('tia_compile', 'not_run', 'Requires target Windows TIA/Openness environment'))
-    write_json(folder / 'report.json', report)
-    return report
+    return finish_report()
 
 
 if __name__ == '__main__':

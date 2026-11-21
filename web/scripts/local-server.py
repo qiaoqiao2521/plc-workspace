@@ -21,6 +21,9 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / 'data/generation-result.schema.json').read_text())
 LIMIT = 1_000_000
+_policy_spec = importlib.util.spec_from_file_location('verification_policy', Path(__file__).with_name('verification-policy.py'))
+verification_policy = importlib.util.module_from_spec(_policy_spec)
+_policy_spec.loader.exec_module(verification_policy)
 
 
 def validate_schema(value, schema):
@@ -92,14 +95,6 @@ def validate_workflow_artifact(result, request, validation=None):
             raise ValueError('检查记录与当前需求不匹配。')
 
 
-def validation_level(report, profile, request_fingerprint):
-    spec = importlib.util.spec_from_file_location('candidate_validation',
-        Path(__file__).with_name('candidate-validation.py'))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.validation_level(report, profile, request_fingerprint)
-
-
 def stop_process(proc):
     if proc and proc.poll() is None:
         try:
@@ -136,7 +131,9 @@ class GenerationBridge:
             if cancelled:
                 envelope = {**envelope, 'verdict': 'cancelled',
                             'candidate': envelope.get('candidate') or envelope.get('result'),
-                            'result': None, 'validation_level': 'not_accepted'}
+                            'result': None, 'validation_level': 'not_accepted',
+                            'acceptance': {name: False for name in
+                                ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')}}
             self.keep_workflow(job_id, request, envelope)
         except (OSError, ValueError, TypeError, AttributeError, KeyError):
             pass  # Never expose an invalid or stale artifact.
@@ -245,11 +242,17 @@ class GenerationBridge:
                                          '；'.join(questions + findings + [envelope.get('reason', '')])[:3000])
                     result = envelope['result']
                     validate_workflow_artifact(result, request, validation)
-                    level = validation_level(validation, request['brief'].get('validation_profile'),
-                                             request['request_fingerprint'])
-                    if not result['scl_files'] or level is None or envelope.get('validation_level') != level:
-                        raise ValueError('流程没有返回满足本次目标的必选检查证据，工程未放行。')
-                    # compile_only grants a reviewable draft, NEVER behavior acceptance.
+                    assessed = verification_policy.assess_report(validation, request['brief'].get('validation_profile'))
+                    level = 'behavior_pass' if assessed['acceptance']['scl_behavior'] else 'compile_only'
+                    if (not result['scl_files'] or assessed['status'] != 'pass'
+                            or envelope.get('validation_level', level) != level):
+                        raise ValueError('流程没有返回当前目标必选检查通过的证据，工程未放行。')
+                    envelope = {**envelope, 'validation': assessed,
+                                'validation_level': level, 'acceptance': assessed['acceptance']}
+                    with self.lock:
+                        if self.jobs[job_id]['status'] != 'cancelled':
+                            self.jobs[job_id].update(workflow=envelope, verification=assessed,
+                                                    acceptance=assessed['acceptance'])
                 elif self.provider == 'zcode':
                     # ZCode transports its answer as text; validate the parsed object
                     # with exactly the same schema and binding as the agy adapter.
@@ -287,6 +290,18 @@ class GenerationBridge:
                 return None
             snapshot = {k: v for k, v in job.items() if k not in ['process', 'started']}
             snapshot['finished'] = 'duration_seconds' in job
+            if snapshot['status'] != 'complete':
+                snapshot['acceptance'] = {name: False for name in
+                    ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')}
+                envelope = snapshot.get('workflow')
+                if envelope is not None:
+                    snapshot['workflow'] = {**envelope,
+                        'verdict': 'cancelled' if snapshot['status'] == 'cancelled' else
+                            ('unknown' if envelope.get('verdict') == 'reviewed_draft' else envelope.get('verdict')),
+                        'candidate': envelope.get('candidate') or envelope.get('result'),
+                        'result': None, 'validation_level': 'not_accepted',
+                        'acceptance': snapshot['acceptance'].copy()}
+                snapshot.pop('result', None)
             return snapshot
 
     def cancel(self, job_id):

@@ -39,19 +39,16 @@ class Gates(unittest.TestCase):
         return {'input_sha256': workflow.digest(packet), 'answer': copy.deepcopy(self.answers[name])}
 
     def validate(self, candidate, directory, *, profile=None):
-        report = {'schema_version': 2, 'request_fingerprint': candidate['request_fingerprint'],
-                'verification_goal': workflow.validation_module().verification_goal(profile),
-                'profile': profile, 'status': 'pass' if profile else 'unknown', 'files': workflow.source_manifest(candidate),
-                'checks': [{'name': 'linux_compile', 'status': 'pass',
-                            'detail': 'Synthetic compiler fixture, NOT native compilation'},
-                           {'name': 'scan_contract', 'status': 'pass' if profile else 'not_run',
-                            'detail': 'Synthetic test fixture, NOT native scans'}],
+        report = {'files': workflow.source_manifest(candidate), 'request_fingerprint': candidate['request_fingerprint'],
+                'checks': [{'name': name, 'status': 'pass',
+                            'detail': 'Synthetic unit-test evidence, not native compilation'}
+                            for name in ('source_structure', 'linux_compile')],
                 'diagnostics': '', 'scope': 'Unit-test injection only'}
-        report['checks'].append({'name':'source_capture', 'status':'pass', 'detail':'fixture'})
         if profile == 'conveyor-12-v1':
             report['contract'] = copy.deepcopy(workflow.validation_module().CONTRACT)
             report['contract_sha256'] = workflow.digest(report['contract'])
-        return report
+            report['checks'].append({'name': 'scan_contract', 'status': 'pass', 'detail': 'Synthetic scan fixture'})
+        return workflow.bridge.verification_policy.complete_report(report, profile)
 
     def run_workflow(self, request_value=None, dispatch=None, **kwargs):
         return workflow.run_workflow(request_value or request(), dispatch or self.dispatch,
@@ -111,8 +108,6 @@ class Gates(unittest.TestCase):
             return self.dispatch(stage, role, packet)
         outcome = self.run_workflow(dispatch=parallel)
         self.assertEqual(outcome['verdict'], 'reviewed_draft')
-        self.assertEqual(outcome['validation_level'], 'compile_only')
-        self.assertEqual(outcome['validation']['status'], 'unknown')
         self.assertEqual(outcome['industrial_acceptance'], 'not_run')
         self.assertEqual([role for stage, role in self.calls if stage.endswith('review') and
                           stage in ['spec-review', 'final-review']], ['supervisor', 'supervisor'])
@@ -147,7 +142,8 @@ class Gates(unittest.TestCase):
             report = self.validate(candidate, directory, profile=profile)
             if len(checked) == 1:
                 report.update(status='fail', diagnostics='Type mismatch at input.st:12')
-                report['checks'][0].update(status='fail', detail=report['diagnostics'])
+                next(c for c in report['checks'] if c['name'] == 'linux_compile').update(
+                    status='fail', detail=report['diagnostics'])
             return report
         outcome = self.run_workflow(validator=compiler, max_repairs=1)
         self.assertEqual(outcome['verdict'], 'reviewed_draft')
@@ -171,7 +167,8 @@ class Gates(unittest.TestCase):
         def unavailable(candidate, directory, *, profile=None):
             report = self.validate(candidate, directory, profile=profile)
             report.update(status='unknown', diagnostics='Compiler unavailable')
-            report['checks'][0].update(status='unknown', detail='Compiler unavailable')
+            next(c for c in report['checks'] if c['name'] == 'linux_compile').update(
+                status='unknown', detail='Compiler unavailable')
             return report
         outcome = self.run_workflow(validator=unavailable, max_repairs=2)
         self.assertEqual(outcome['verdict'], 'blocked')
@@ -180,24 +177,55 @@ class Gates(unittest.TestCase):
         self.assertFalse(any(stage.startswith('repair') for stage, _ in self.calls))
         self.assertEqual(json.loads((Path(self.folder.name) / 'outcome.json').read_text()), outcome)
 
-    def test_malformed_pass_never_reaches_model_reviews(self):
-        req = request('conveyor-12-v1')
+    def test_stale_compiler_source_binding_is_unknown(self):
+        def stale(candidate, directory, *, profile=None):
+            report = self.validate(candidate, directory, profile=profile)
+            report['files'][0]['sha256'] = 'old source hash'
+            return report
+        outcome = self.run_workflow(validator=stale)
+        self.assertEqual(outcome['validation']['status'], 'unknown')
+        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+
+    def test_compile_only_draft_does_not_acquire_behavior_acceptance(self):
+        outcome = self.run_workflow()
+        self.assertEqual(outcome['verdict'], 'reviewed_draft')
+        self.assertEqual(outcome['verification_goal']['target'], 'scl_compile')
+        self.assertTrue(outcome['acceptance']['scl_compile'])
+        self.assertFalse(outcome['acceptance']['scl_behavior'])
+        self.assertEqual(outcome['validation_level'], 'compile_only')
+        self.assertEqual(next(c['status'] for c in outcome['validation']['checks']
+                              if c['name'] == 'scan_contract'), 'not_run')
+
+    def test_required_behavior_cannot_be_waived_by_checker_total_or_supervisor(self):
+        req = request()
+        req['brief']['validation_profile'] = 'conveyor-12-v1'
+        req['request_fingerprint'] = workflow.hashlib.sha256(json.dumps(
+            {'brief': req['brief'], 'states': req['states']}, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
         self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
-        for scan_status in ('not_run', 'unknown', 'fail', None):
-            with self.subTest(scan=scan_status):
-                self.calls.clear()
-                def inconsistent(candidate, directory, *, profile=None):
+        for status in ('not_run', 'unknown', 'fail'):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as folder:
+                def invalid(candidate, directory, *, profile=None):
                     report = self.validate(candidate, directory, profile=profile)
-                    if scan_status is None:
-                        report['checks'].pop()
-                    else:
-                        report['checks'][1]['status'] = scan_status
+                    next(c for c in report['checks'] if c['name'] == 'scan_contract')['status'] = status
+                    report.update(status='pass', acceptance={'scl_behavior': True})
                     return report
-                outcome = self.run_workflow(req, validator=inconsistent, max_repairs=1)
-                self.assertEqual(outcome['verdict'], 'blocked')
+                before = len(self.calls)
+                outcome = workflow.run_workflow(req, self.dispatch, validator=invalid, runtime=folder, max_repairs=0)
                 self.assertIsNone(outcome['result'])
-                self.assertNotIn(('semantic-review', 'semantics'), self.calls)
-                self.assertFalse(any(stage.startswith('repair') for stage, _ in self.calls))
+                self.assertIsNotNone(outcome['candidate'])
+                self.assertFalse(any(outcome['acceptance'].values()))
+                self.assertNotIn('semantic-review', [stage for stage, _ in self.calls[before:]])
+
+    def test_same_source_with_changed_requirement_cannot_reuse_old_report(self):
+        def stale(candidate, directory, *, profile=None):
+            report = self.validate(candidate, directory, profile=profile)
+            report['request_fingerprint'] = 'previous requirement'
+            return report
+        outcome = self.run_workflow(validator=stale)
+        self.assertEqual(outcome['validation']['status'], 'unknown')
+        self.assertFalse(any(outcome['acceptance'].values()))
+        self.assertIsNotNone(outcome['candidate'])
+        self.assertEqual(outcome['validation_level'], 'not_accepted')
 
     def test_bound_behavior_failure_gets_one_repair_then_fresh_review(self):
         req = request('conveyor-12-v1')
@@ -208,7 +236,7 @@ class Gates(unittest.TestCase):
             report = self.validate(candidate, directory, profile=profile)
             if candidate['scl_files'][0]['content'] != 'repaired fixture':
                 report['status'] = 'fail'
-                report['checks'][1]['status'] = 'fail'
+                next(c for c in report['checks'] if c['name'] == 'scan_contract')['status'] = 'fail'
             return report
         outcome = self.run_workflow(req, validator=checker, max_repairs=1)
         self.assertEqual(outcome['verdict'], 'reviewed_draft')
@@ -216,34 +244,104 @@ class Gates(unittest.TestCase):
         self.assertIn(('repair-1', 'engineer'), self.calls)
         self.assertNotIn(('semantic-review', 'semantics'), self.calls)
         self.assertEqual(outcome['validation_level'], 'behavior_pass')
+        self.assertTrue(outcome['acceptance']['scl_behavior'])
 
-    def test_same_source_old_request_evidence_cannot_pass(self):
-        def stale(candidate, directory, *, profile=None):
-            return {**self.validate(candidate, directory, profile=profile), 'request_fingerprint': 'older'}
-        outcome = self.run_workflow(validator=stale)
-        self.assertEqual(outcome['verdict'], 'blocked')
-        self.assertEqual(outcome['validation_level'], 'not_accepted')
+    def test_mixed_unknown_and_failure_never_spends_source_repair_budget(self):
+        req = request('conveyor-12-v1')
+        self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
+        for states in ({'source_structure': 'unknown', 'linux_compile': 'fail', 'scan_contract': 'not_run'},
+                       {'source_structure': 'pass', 'linux_compile': 'unknown', 'scan_contract': 'fail'},
+                       {'source_structure': 'pass', 'linux_compile': 'fail', 'scan_contract': 'unknown'}):
+            with self.subTest(states=states):
+                self.calls.clear()
+                def inconsistent(candidate, directory, *, profile=None):
+                    report = self.validate(candidate, directory, profile=profile)
+                    for row in report['checks']:
+                        if row['name'] in states:
+                            row['status'] = states[row['name']]
+                    report.update(status='pass', acceptance={'scl_behavior': True})
+                    return report
+                outcome = self.run_workflow(req, validator=inconsistent, max_repairs=1)
+                self.assertEqual(outcome['verdict'], 'blocked')
+                self.assertEqual(outcome['validation_level'], 'not_accepted')
+                self.assertFalse(any(outcome['acceptance'].values()))
+                self.assertFalse(any(stage.startswith(('repair', 'semantic-review')) for stage, _ in self.calls))
 
-    def test_cancel_persists_candidate_and_never_runs_reviews(self):
+    def test_changed_or_missing_contract_cannot_reach_reviews_or_repair(self):
+        req = request('conveyor-12-v1')
+        self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
+        for variant in ('missing', 'changed', 'hash'):
+            with self.subTest(variant=variant):
+                self.calls.clear()
+                def invalid(candidate, directory, *, profile=None):
+                    report = self.validate(candidate, directory, profile=profile)
+                    if variant == 'missing':
+                        report.pop('contract')
+                    elif variant == 'changed':
+                        report['contract']['waiting_calls'] = 8
+                        report['contract_sha256'] = workflow.digest(report['contract'])
+                    else:
+                        report['contract_sha256'] = 'wrong'
+                    report.update(status='pass', acceptance={'scl_behavior': True})
+                    return report
+                outcome = self.run_workflow(req, validator=invalid, max_repairs=1)
+                self.assertEqual(outcome['verdict'], 'blocked')
+                self.assertEqual(outcome['validation_level'], 'not_accepted')
+                self.assertFalse(any(outcome['acceptance'].values()))
+                self.assertFalse(any(stage.startswith(('repair', 'semantic-review')) for stage, _ in self.calls))
+
+    def test_legacy_or_incomplete_checker_report_cannot_authorize_a_new_run(self):
+        for variant in ('legacy', 'missing', 'waived'):
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory() as folder:
+                def incomplete(candidate, directory, *, profile=None):
+                    report = self.validate(candidate, directory, profile=profile)
+                    if variant == 'legacy':
+                        del report['schema_version']
+                    elif variant == 'missing':
+                        report['checks'].pop(1)
+                    else:
+                        report['checks'][1]['required'] = False
+                    return report
+                outcome = workflow.run_workflow(request(), self.dispatch, validator=incomplete, runtime=folder, max_repairs=0)
+                self.assertEqual(outcome['verdict'], 'blocked')
+                self.assertFalse(any(outcome['acceptance'].values()))
+
+    def test_cancelled_check_retains_candidate_and_reason_without_acceptance(self):
         def cancelled(candidate, directory, *, profile=None):
-            raise KeyboardInterrupt('cancel fixture')
+            raise InterruptedError('User cancelled')
+        with self.assertRaises(InterruptedError):
+            self.run_workflow(validator=cancelled)
+        retained = json.loads((Path(self.folder.name) / 'outcome.json').read_text())
+        self.assertEqual(retained['verdict'], 'cancelled')
+        self.assertEqual(retained['validation']['reason'], 'cancelled')
+        self.assertEqual(retained['candidate']['scl_files'], self.answers['generation']['scl_files'])
+        self.assertFalse(any(retained['acceptance'].values()))
+        self.assertEqual(retained['validation_level'], 'not_accepted')
+        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+
+    def test_cancelled_workflow_retains_checker_completed_observations(self):
+        def cancelled(candidate, directory, *, profile=None):
+            report = self.validate(candidate, directory, profile=profile)
+            report['reason'] = 'cancelled'
+            directory.mkdir()
+            workflow.save(directory / 'report.json', report)
+            raise KeyboardInterrupt('Cancelled after compiler observation')
         with self.assertRaises(KeyboardInterrupt):
             self.run_workflow(validator=cancelled)
-        outcome = json.loads((Path(self.folder.name) / 'outcome.json').read_text())
-        self.assertEqual(outcome['verdict'], 'cancelled')
-        self.assertEqual(outcome['validation_level'], 'not_accepted')
-        self.assertIsNone(outcome['result'])
-        self.assertTrue(outcome['candidate']['scl_files'])
-        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+        retained = json.loads((Path(self.folder.name) / 'outcome.json').read_text())
+        self.assertEqual(retained['verdict'], 'cancelled')
+        self.assertEqual(next(c['status'] for c in retained['validation']['checks']
+                              if c['name'] == 'linux_compile'), 'pass')
+        self.assertFalse(any(retained['acceptance'].values()))
 
-    def test_stale_compiler_source_binding_is_unknown(self):
-        def stale(candidate, directory, *, profile=None):
-            report = self.validate(candidate, directory, profile=profile)
-            report['files'][0]['sha256'] = 'old source hash'
-            return report
-        outcome = self.run_workflow(validator=stale)
-        self.assertEqual(outcome['validation']['status'], 'unknown')
-        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+    def test_checker_crash_is_unknown_with_its_actual_reason(self):
+        def crashed(candidate, directory, *, profile=None):
+            raise RuntimeError('Compiler worker unexpectedly exited')
+        outcome = self.run_workflow(validator=crashed)
+        self.assertEqual(outcome['verdict'], 'blocked')
+        self.assertEqual(outcome['validation']['reason'], 'worker_failed')
+        self.assertIn('unexpectedly exited', outcome['validation']['diagnostics'])
+        self.assertFalse(any(outcome['acceptance'].values()))
 
     def test_review_failure_can_be_repaired_without_overriding_earlier_rejection(self):
         self.answers['repair'] = {'scl_files': [{'name': 'Fixture.scl', 'content': 'fixed edge handling'}],
@@ -273,7 +371,7 @@ class Gates(unittest.TestCase):
                 context = packet['data']['repair_context']
                 self.assertIn('was not requested', context['summary'])
                 self.assertEqual(context['previous_reviews']['semantics']['verdict'], 'fail')
-                self.assertEqual(context['previous_validation']['status'], 'unknown')
+                self.assertEqual(context['previous_validation']['status'], 'pass')
                 self.assertEqual(packet['data']['result']['scl_files'], self.answers['generation']['scl_files'])
             return response
         outcome = self.run_workflow(dispatch=disputed, max_repairs=1)

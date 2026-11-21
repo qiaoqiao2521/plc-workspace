@@ -41,7 +41,7 @@ export async function sourceHash(content) {
 // This checks source association, not the authenticity of a saved report.
 export async function bindVerification(report, result) {
   if (report == null) return undefined;
-  if (!['pass','fail','unknown'].includes(report.status) || !Array.isArray(report.files) || report.files.length !== result.scl_files.length ||
+  if (!['pass','fail','unknown','not_run'].includes(report.status) || !Array.isArray(report.files) || report.files.length !== result.scl_files.length ||
       !Array.isArray(report.checks) || report.checks.length > 100 || report.checks.some(c => !c || typeof c.name !== 'string' ||
         typeof c.detail !== 'string' || !['not_run','unknown','pass','fail'].includes(c.status))) throw new Error('检查记录格式错误。');
   const hashes = new Map();
@@ -50,23 +50,39 @@ export async function bindVerification(report, result) {
     hashes.set(f.name,f.sha256);
   }
   for (const f of result.scl_files) if (hashes.get(f.name) !== await sourceHash(f.content)) throw new Error('检查记录与当前源码不匹配，记录已过期。');
-  if (report.schema_version === 2 && report.request_fingerprint !== result.request_fingerprint)
-    throw new Error('检查记录与当前需求不匹配，记录已过期。');
+  if (report.schema_version === 2 && report.request_fingerprint !== result.request_fingerprint) throw new Error('检查记录与当前需求不匹配，记录已过期。');
   return structuredClone(report);
 }
 
-export function verificationSummary(report, liveDraftLevel) {
-  if (!report) return '未验证';
-  const items = Array.isArray(report.checks) ? report.checks : [];
-  const checks = new Map(items.map(c => [c.name, c.status]));
-  if (report.reason === 'cancelled') return '检查已取消 · 未授予验收';
-  if (report.status === 'fail') return '检查失败';
-  if (checks.size !== items.length) return '必选检查不一致 · 不可放行';
-  if (checks.get('linux_compile') === 'pass' && checks.get('scan_contract') === 'not_run')
-    return '编译通过 · 行为未验收';
-  if (report.status === 'pass' && checks.get('linux_compile') === 'pass' && checks.get('scan_contract') === 'pass')
-    return liveDraftLevel === 'behavior_pass' ? '受限行为检查通过' : '记录显示行为检查通过 · 不授予本次验收';
-  return report.status === 'pass' ? '必选检查未证实 · 不可放行' : '检查未知 · 不可放行';
+const checkTargets = {source_structure:'candidate',linux_compile:'scl_compile',scan_contract:'scl_behavior',lad_scl_compare:'lad_scl_compare',tia_compile:'tia_compile'};
+// Display only: current comes from a completed local workflow, never a saved file.
+export function verificationSummary(report, {profile, current = false, approved = false} = {}) {
+  const target = profile ? 'scl_behavior' : 'scl_compile';
+  const required = ['source_structure','linux_compile',...(profile ? ['scan_contract'] : [])];
+  const acceptance = {scl_compile:false,scl_behavior:false,lad_scl_compare:false,tia_compile:false};
+  if (!report) return {title:'新工程尚未验证',target,status:'not_run',acceptance};
+  const rows = Array.isArray(report.checks) ? report.checks : [];
+  const byName = new Map(rows.map(c=>[c?.name,c]));
+  const valid = [undefined,null,'','conveyor-12-v1'].includes(profile) &&
+    report.schema_version === 2 && report.profile === (profile || null) && report.target === target &&
+    JSON.stringify(report.required_checks) === JSON.stringify(required) && rows.length === Object.keys(checkTargets).length &&
+    byName.size === rows.length && Object.entries(checkTargets).every(([name,scope])=>{
+      const c = byName.get(name);
+      return c?.target === scope && c.required === required.includes(name) && typeof c.detail === 'string' &&
+        ['pass','fail','unknown','not_run'].includes(c.status) &&
+        (!['lad_scl_compare','tia_compile'].includes(name) || c.status === 'not_run') &&
+        (name !== 'scan_contract' || profile || c.status === 'not_run');
+    });
+  if (!current) return {title:'已保存检查记录 · 本次未验收',target,status:'not_run',acceptance};
+  if (!valid) return {title:'检查记录不完整 · 未授予验收',target,status:'unknown',acceptance};
+  const statuses = required.map(name=>byName.get(name).status);
+  const interrupted = ['cancelled','worker_failed','tool_timeout','tool_missing','invalid_report'].includes(report.reason);
+  const status = interrupted ? 'unknown' : ['fail','unknown','not_run'].find(s=>statuses.includes(s)) || 'pass';
+  if (status !== 'pass') return {title:target === 'scl_behavior' ? '行为尚未验收' : '编译尚未通过',target,status,acceptance};
+  if (!approved) return {title:'工具检查已完成 · 候选尚未批准',target,status,acceptance};
+  acceptance.scl_compile = true;
+  acceptance.scl_behavior = profile === 'conveyor-12-v1' && byName.get('scan_contract').status === 'pass';
+  return {title:acceptance.scl_behavior ? '受限 SCL 行为检查通过' : '编译通过，行为未验收',target,status,acceptance};
 }
 
 export async function fingerprint(brief, states) {

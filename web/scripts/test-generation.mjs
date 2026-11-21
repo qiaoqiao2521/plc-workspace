@@ -70,23 +70,82 @@ test('verification binding rejects partial, duplicate and wrong-name evidence',a
   await assert.rejects(bindVerification({...report,files:[report.files[0],{...report.files[1],name:'Another.scl'}]},res),/源码不匹配/);
 });
 
-test('headlines never confuse compile-only or imported legacy pass with logic acceptance',()=>{
-  const compile = {name:'linux_compile',status:'pass'};
-  const scan = status => ({name:'scan_contract',status});
-  assert.match(verificationSummary({status:'unknown',checks:[compile,scan('not_run')]}),/编译通过 · 行为未验收/);
-  assert.match(verificationSummary({status:'pass',checks:[compile,scan('not_run')]}),/编译通过 · 行为未验收/);
-  assert.match(verificationSummary({status:'pass',checks:[compile,scan('pass')]}, 'behavior_pass'),/受限行为检查通过/);
-  assert.match(verificationSummary({status:'pass',checks:[compile,scan('pass')]}),/不授予本次验收/);
-  assert.match(verificationSummary({status:'pass',checks:[compile,scan('pass'),scan('pass')]}, 'behavior_pass'),/不可放行/);
-  assert.match(verificationSummary({status:'fail',checks:[compile,scan('fail')]}),/失败/);
-  assert.match(verificationSummary({status:'pass',checks:[]}),/不可放行/);
+function currentReport(profile) {
+  const targets={source_structure:'candidate',linux_compile:'scl_compile',scan_contract:'scl_behavior',lad_scl_compare:'lad_scl_compare',tia_compile:'tia_compile'};
+  const required=['source_structure','linux_compile',...(profile?['scan_contract']:[])];
+  return {schema_version:2,profile:profile || null,target:profile?'scl_behavior':'scl_compile',status:'pass',required_checks:required,
+    acceptance:{scl_behavior:true,tia_compile:true},
+    checks:Object.entries(targets).map(([name,target])=>({name,target,required:required.includes(name),status:required.includes(name)?'pass':'not_run',detail:'Synthetic evidence'}))};
+}
+
+test('compile-only result is explicitly separate from behavior acceptance',()=>{
+  const summary=verificationSummary(currentReport(),{current:true,approved:true});
+  assert.equal(summary.title,'编译通过，行为未验收');
+  assert.equal(summary.acceptance.scl_compile,true);
+  assert.equal(summary.acceptance.scl_behavior,false);
+  assert.equal(summary.acceptance.tia_compile,false);
 });
 
-test('request-bound v2 evidence cannot be reopened against identical source and older request',async()=>{
-  const req=await makeRequest(brief,[]), value=candidate(req);
-  const files=await Promise.all(value.scl_files.map(async f=>({name:f.name,sha256:await sourceHash(f.content)})));
-  const report={schema_version:2,status:'pass',checks:[],files,request_fingerprint:req.request_fingerprint};
-  assert.equal((await bindVerification(report,value)).request_fingerprint,req.request_fingerprint);
-  await assert.rejects(bindVerification({...report,request_fingerprint:'old'},value),/当前需求不匹配/);
-  assert.match(verificationSummary({...report, reason:'cancelled'},'behavior_pass'),/检查已取消/);
+test('required failure unknown and not-run cannot be hidden behind a forged total pass',()=>{
+  const profile='conveyor-12-v1';
+  for(const name of ['source_structure','linux_compile','scan_contract']) for(const status of ['fail','unknown','not_run']){
+    const report=currentReport(profile);report.checks.find(c=>c.name===name).status=status;
+    const summary=verificationSummary(report,{profile,current:true,approved:true});
+    assert.equal(summary.status,status);assert.equal(Object.values(summary.acceptance).some(Boolean),false);
+  }
+  const passed=verificationSummary(currentReport(profile),{profile,current:true,approved:true});
+  assert.equal(passed.title,'受限 SCL 行为检查通过');assert.equal(passed.acceptance.scl_behavior,true);
+});
+
+test('legacy imported cancelled unapproved and incomplete results cannot regain current acceptance',async()=>{
+  const profile='conveyor-12-v1',report=currentReport(profile);
+  for(const options of [{},{profile},{profile,current:false,approved:true},{profile,current:true,approved:false}]){
+    assert.equal(Object.values(verificationSummary(report,options).acceptance).some(Boolean),false);
+  }
+  const incomplete=structuredClone(report);incomplete.checks=incomplete.checks.filter(c=>c.name!=='scan_contract');
+  assert.equal(verificationSummary(incomplete,{profile,current:true,approved:true}).status,'unknown');
+  const waived=structuredClone(report);waived.checks.find(c=>c.name==='scan_contract').required=false;
+  assert.equal(verificationSummary(waived,{profile,current:true,approved:true}).status,'unknown');
+  const legacy=structuredClone(report);delete legacy.schema_version;
+  assert.equal(verificationSummary(legacy,{profile,current:true,approved:true}).status,'unknown');
+  for(const reason of ['cancelled','worker_failed','tool_timeout']) {
+    assert.equal(verificationSummary({...report,reason},{profile,current:true,approved:true}).status,'unknown');
+  }
+  const req=await makeRequest({...brief,validation_profile:profile},[]),res=candidate(req);
+  report.request_fingerprint=req.request_fingerprint;
+  report.files=[{name:res.scl_files[0].name,sha256:await sourceHash(res.scl_files[0].content)}];
+  const restored=await openEngineering({kind:'agent_candidate',request:req,result:res,verification:report,workflow:{verdict:'reviewed_draft',acceptance:{scl_behavior:true}}});
+  assert.equal(Object.values(verificationSummary(restored.verification,{profile}).acceptance).some(Boolean),false);
+});
+
+test('same source with changed requirements cannot reuse a v2 report',async()=>{
+  const req=await makeRequest(brief,[]),res=candidate(req),report=currentReport();
+  report.request_fingerprint=req.request_fingerprint;
+  report.files=[{name:res.scl_files[0].name,sha256:await sourceHash(res.scl_files[0].content)}];
+  assert.equal((await bindVerification(report,res)).request_fingerprint,req.request_fingerprint);
+  const changed=await makeRequest({...brief,requirement:brief.requirement+' 修改等待规则。'},[]);
+  await assert.rejects(bindVerification(report,candidate(changed)),/需求不匹配/);
+});
+
+test('display rejects duplicate, relabeled, unsupported and unselected checks',()=>{
+  const profile='conveyor-12-v1';
+  const mutations=[
+    report=>{report.checks[2]=structuredClone(report.checks[1]);},
+    report=>{report.checks[2].target='scl_compile';},
+    report=>{report.checks[2].required=false;},
+    report=>{report.checks[2].detail=null;},
+    report=>{report.required_checks=['source_structure','linux_compile'];},
+    report=>{report.checks.find(c=>c.name==='tia_compile').status='pass';},
+    report=>{report.checks.find(c=>c.name==='lad_scl_compare').status='pass';},
+  ];
+  for(const mutate of mutations){
+    const report=currentReport(profile); mutate(report);
+    const summary=verificationSummary(report,{profile,current:true,approved:true});
+    assert.equal(summary.status,'unknown');
+    assert.equal(Object.values(summary.acceptance).some(Boolean),false);
+  }
+  const unselected=currentReport();
+  unselected.checks.find(c=>c.name==='scan_contract').status='pass';
+  assert.equal(verificationSummary(unselected,{current:true,approved:true}).status,'unknown');
+  assert.equal(verificationSummary(currentReport('unsupported'),{profile:'unsupported',current:true,approved:true}).status,'unknown');
 });
