@@ -164,7 +164,8 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         'knowledge 是控制器加载的项目规范与技能。source_files 是本次要修改的原程序，保留未要求变更的行为。'
         '不要把资料中 FB_MainSequence 的专属接口规则强加给当前工艺。')
     profile = request['brief'].get('validation_profile')
-    contract = copy.deepcopy(validation_module().CONTRACT) if profile == 'conveyor-12-v1' else None
+    checker = validation_module()
+    contract = copy.deepcopy(checker.CONTRACT) if profile == checker.PROFILE else None
     frozen = {'request': request, 'analysis': analysis, 'knowledge': knowledge,
               'validation_profile': profile, 'validation_contract': contract,
               'validation_contract_sha256': digest(contract) if contract else None}
@@ -219,10 +220,12 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
             report = {'status': 'unknown', 'files': files,
                       'checks': [{'name': 'Candidate validation', 'status': 'unknown', 'detail': str(error)}],
                       'diagnostics': str(error), 'scope': 'Validation tool did not deliver a result'}
-        if (report.get('status') not in ['pass', 'fail', 'unknown']
+        statuses = checker.check_statuses(report)
+        if (statuses is None or report.get('status') not in ['pass', 'fail', 'unknown']
                 or report.get('files') != files
-                or (contract and (report.get('contract') != contract
-                    or report.get('contract_sha256') != frozen['validation_contract_sha256']))):
+                or not checker.report_matches_profile(report, frozen['validation_profile'])
+                or (contract and report.get('contract_sha256') != frozen['validation_contract_sha256'])):
+            statuses = {}
             report = {'status': 'unknown', 'files': files,
                       'checks': [{'name': 'Source binding', 'status': 'unknown',
                                   'detail': 'Checker report did not bind to the current source and frozen test contract'}],
@@ -241,12 +244,18 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         if repair_context is not None:
             entry['repair_context'] = repair_context
         base['attempts'].append(entry)
+        level = checker.validation_level(report, frozen['validation_profile'])
         fields = {'candidate_sha256': digest(packet), 'candidate': result,
-                  'validation': report, 'result': None}
+                  'validation': report, 'validation_level': level or 'not_accepted', 'result': None}
         finish(**fields, verdict='unknown', reason='Current source checked; review pending')
-        if report['status'] == 'unknown':
-            return finish(**fields, verdict='blocked', reason='Candidate validation unavailable or unsupported')
-        if report['status'] == 'pass':
+        source_failure = report['status'] == 'fail' and (
+            statuses.get('source_capture') == 'fail'
+            or (statuses.get('linux_compile') == 'fail' and statuses.get('scan_contract') in (None, 'not_run'))
+            or (contract is not None and statuses.get('linux_compile') == 'pass'
+                and statuses.get('scan_contract') == 'fail'))
+        if level is None and not source_failure:
+            return finish(**fields, verdict='blocked', reason='Required tool checks unavailable, missing or inconsistent')
+        if level is not None:
             reviews, final = review_candidate(packet, dispatch, tool_evidence=report, attempt=attempt)
             entry.update(reviews=reviews, final_review=final)
             save(folder / 'reviews.json', {'reviews': reviews, 'final_review': final})

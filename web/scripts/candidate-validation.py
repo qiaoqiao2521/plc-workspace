@@ -44,6 +44,46 @@ def check(name, status, detail):
     return {'name': name, 'status': status, 'detail': detail}
 
 
+def check_statuses(report):
+    checks = report.get('checks') if isinstance(report, dict) else None
+    if not isinstance(checks, list) or len(checks) >= 100:
+        return None
+    statuses = {}
+    for item in checks:
+        if (not isinstance(item, dict) or set(item) != {'name', 'status', 'detail'}
+                or not isinstance(item['name'], str) or not isinstance(item['detail'], str)
+                or item['name'] in statuses
+                or item['status'] not in ('pass', 'fail', 'unknown', 'not_run')):
+            return None
+        statuses[item['name']] = item['status']
+    return statuses
+
+
+def report_matches_profile(report, profile):
+    if not isinstance(report, dict) or (report.get('profile') or None) != (profile or None):
+        return False
+    if not profile:
+        return report.get('contract') is None and report.get('contract_sha256') is None
+    return (profile == PROFILE and report.get('contract') == CONTRACT
+            and report.get('contract_sha256') == sha(json.dumps(
+                CONTRACT, sort_keys=True, separators=(',', ':')).encode()))
+
+
+def validation_level(report, profile):
+    """Classify current source-bound evidence; compile-only permits draft review only."""
+    statuses = check_statuses(report)
+    if (not statuses or not report_matches_profile(report, profile)
+            or statuses.get('linux_compile') != 'pass'
+            or any(statuses.get(name, 'pass') != 'pass'
+                   for name in ('source_capture', 'linux_validation'))):
+        return None
+    if profile == PROFILE and report.get('status') == 'pass' and statuses.get('scan_contract') == 'pass':
+        return 'behavior_pass'
+    if not profile and report.get('status') == 'unknown' and statuses.get('scan_contract') == 'not_run':
+        return 'compile_only'
+    return None
+
+
 def normalize(source):
     """Only remove Siemens declaration decoration and local-variable prefixes.
 
@@ -173,7 +213,7 @@ def _worker(folder):
             'checks': [check('linux_compile', 'fail', 'matiec rejected the captured candidate; see build/iec2c.log')]})
         return
     checks = [check('linux_compile', 'pass', 'Captured candidate compiled by matiec (syntax-adapted IEC ST subset)')]
-    outcome = {**normalized, 'status': 'pass', 'diagnostics': diagnostics[-40000:], 'checks': checks}
+    outcome = {**normalized, 'status': 'unknown', 'diagnostics': diagnostics[-40000:], 'checks': checks}
     if not job['profile']:
         checks.append(check('scan_contract', 'not_run', 'No independently fixed behavior profile selected'))
     elif job['profile'] != PROFILE:
@@ -208,7 +248,7 @@ def _worker(folder):
                 finally:
                     if os.name == 'posix':
                         signal.alarm(0)
-                passed = all(case['passed'] for case in cases)
+                passed = bool(cases) and all(case['passed'] for case in cases)
                 outcome.update(status='pass' if passed else 'fail', scenarios=cases)
                 failures = [f"{case['name']} call {row['call']}: expected {row['expected']}, actual {row['actual']}"
                             for case in cases for row in case['calls'] if not row['passed']]

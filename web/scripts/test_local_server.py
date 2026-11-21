@@ -15,9 +15,11 @@ spec = importlib.util.spec_from_file_location('bridge', Path(__file__).with_name
 bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 
-def request():
+def request(profile=None):
     brief = {k: '' for k in ['name','block_name','requirement','flow','io_text','constraints']}
     brief.update(name='test',block_name='FB_Test',requirement='启动输送，到位停止，故障撤销动作。')
+    if profile is not None:
+        brief['validation_profile'] = profile
     content = json.dumps({'brief':brief,'states':[]},ensure_ascii=False,separators=(',',':'))
     return {'schema_version':1,'request_id':'test-run','request_fingerprint':hashlib.sha256(content.encode()).hexdigest(),'brief':brief,'states':[]}
 
@@ -33,7 +35,7 @@ class BridgeTests(unittest.TestCase):
         for value in [None,{}, {'schema_version':1}]:
             with self.assertRaises(ValueError):bridge.validate_schema(value,bridge.SCHEMA)
 
-    def run_stub(self, stdout, code=0, delay=0, cancel=False, provider="agy", timeout=2):
+    def run_stub(self, stdout, code=0, delay=0, cancel=False, provider="agy", timeout=2, profile=None):
         with tempfile.TemporaryDirectory() as td:
             script=Path(td)/'fake-agy'
             script.write_text('#!/usr/bin/env python3\nimport time\ntime.sleep('+str(delay)+')\nprint('+repr(stdout)+')\nraise SystemExit('+str(code)+')\n')
@@ -46,7 +48,7 @@ class BridgeTests(unittest.TestCase):
                 return original_popen([str(script)], **kwargs)
             context=patch.object(bridge.subprocess,'Popen',side_effect=run_fake) if provider=='mcode-cm' else nullcontext()
             with context:
-                job=server.begin(request(),'prompt')
+                job=server.begin(request(profile),'prompt')
                 if cancel:server.cancel(job)
                 deadline=time.monotonic()+5
                 while server.active and time.monotonic()<deadline:time.sleep(.01)
@@ -87,9 +89,21 @@ class BridgeTests(unittest.TestCase):
     def test_mcode_workflow_accepts_only_reviewed_draft(self):
         candidate=result(request())
         candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
-        validation={'status':'pass','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}]}
-        good={'verdict':'reviewed_draft','result':candidate,'validation':validation}
+        validation={'status':'unknown','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+                    'checks':[{'name':'linux_compile','status':'pass','detail':'fixture'},
+                              {'name':'scan_contract','status':'not_run','detail':'no contract'}]}
+        good={'verdict':'reviewed_draft','result':candidate,'validation':validation,
+              'validation_level':'compile_only'}
         self.assertEqual(self.run_stub(json.dumps(good),provider='mcode-cm',timeout=0)['status'],'complete')
+        for change in [{'status':'pass'}, {'checks':validation['checks'][:1]},
+                       {'checks':[validation['checks'][0],{**validation['checks'][1],'status':'unknown'}]}]:
+            forged={**good,'validation':{**validation,**change}}
+            blocked=self.run_stub(json.dumps(forged),provider='mcode-cm',timeout=0)
+            self.assertEqual(blocked['status'],'failed')
+            self.assertNotIn('result',blocked)
+            self.assertEqual(blocked['candidate_result'],candidate)
+        self.assertEqual(self.run_stub(json.dumps({**good,'validation_level':'behavior_pass'}),
+            provider='mcode-cm',timeout=0)['status'],'failed')
         for verdict in ['blocked','rejected','unknown','audit_complete']:
             outcome=self.run_stub(json.dumps({'verdict':verdict,'result':result(request()),
                 'analysis':{'questions':['Confirm valve']}}),provider='mcode-cm',timeout=0)
@@ -98,6 +112,29 @@ class BridgeTests(unittest.TestCase):
         failure=self.run_stub('{}',code=1,provider='mcode-cm',timeout=0)
         self.assertEqual(failure['status'],'failed')
         self.assertIn('工程未放行',failure['error'])
+
+    def test_profile_cannot_skip_scan_or_frozen_contract(self):
+        spec=importlib.util.spec_from_file_location('candidate_validation',
+            Path(__file__).with_name('candidate-validation.py'))
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        candidate=result(request(module.PROFILE))
+        candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
+        report={'profile':module.PROFILE,'status':'pass',
+                'files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+                'checks':[module.check('linux_compile','pass','fixture'),
+                          module.check('scan_contract','pass','fixture')]}
+        def finish():
+            envelope={'verdict':'reviewed_draft','result':candidate,'validation':report,
+                      'validation_level':'behavior_pass'}
+            return self.run_stub(json.dumps(envelope),provider='mcode-cm',profile=module.PROFILE)['status']
+        self.assertEqual(finish(),'failed')
+        report['contract']=module.CONTRACT
+        report['contract_sha256']=module.sha(json.dumps(module.CONTRACT,sort_keys=True,
+            separators=(',',':')).encode())
+        self.assertEqual(finish(),'complete')
+        report['checks'][1]['status']='not_run'
+        self.assertEqual(finish(),'failed')
 
     def test_mcode_failure_preserves_source_and_bound_diagnostics(self):
         candidate=result(request())

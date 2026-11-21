@@ -2,6 +2,7 @@
 """Loopback-only static preview + bounded local CLI generation, no PLC/device writes."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -87,6 +88,14 @@ def validate_workflow_artifact(result, request, validation=None):
             file['content'].encode('utf-8')).hexdigest()} for file in result['scl_files']]
         if validation.get('files') != expected:
             raise ValueError('检查记录与当前程序文件不匹配。')
+
+
+def validation_level(report, profile):
+    spec = importlib.util.spec_from_file_location('candidate_validation',
+        Path(__file__).with_name('candidate-validation.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.validation_level(report, profile)
 
 
 def stop_process(proc):
@@ -223,8 +232,10 @@ class GenerationBridge:
                                          '；'.join(questions + findings + [envelope.get('reason', '')])[:3000])
                     result = envelope['result']
                     validate_workflow_artifact(result, request, validation)
-                    if not validation or validation.get('status') != 'pass':
-                        raise ValueError('流程没有返回本次程序通过检查的证据，工程未放行。')
+                    level = validation_level(validation, request['brief'].get('validation_profile'))
+                    if not result['scl_files'] or level is None or envelope.get('validation_level') != level:
+                        raise ValueError('流程没有返回满足本次目标的必选检查证据，工程未放行。')
+                    # compile_only grants a reviewable draft, NEVER behavior acceptance.
                 elif self.provider == 'zcode':
                     # ZCode transports its answer as text; validate the parsed object
                     # with exactly the same schema and binding as the agy adapter.

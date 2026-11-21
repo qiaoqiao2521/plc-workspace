@@ -1,8 +1,8 @@
-import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification} from './generation-model.js';
+import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification, verificationSummary} from './generation-model.js';
 const $ = id => document.getElementById(id);
 const fieldIds = {name:'project-name', block_name:'block-name', requirement:'requirement', flow:'flow', io_text:'io-text', constraints:'constraints'};
 let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 180, provider = 'agy';
-let sourceFiles = [], verification, workflow;
+let sourceFiles = [], verification, workflow, liveDraftLevel;
 const text = (id, value) => { $(id).textContent = value; };
 const node = (tag, value, className) => { const el = document.createElement(tag); if (value !== undefined) el.textContent = value; if (className) el.className = className; return el; };
 function message(value, error = false) { $('message').hidden = !value; text('message', value || ''); $('message').classList.toggle('error', error); }
@@ -58,7 +58,7 @@ function renderStates() {
 function renderQuestions(questions) { $('questions-box').hidden = !questions.length; $('questions').replaceChildren(...questions.map(q => node('li',q))); }
 function renderResult() {
   stale = false; $('artifact-status').classList.remove('stale');
-  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? '已检查工程草稿 · TIA 未执行' : 'AI 工程草稿 · 待验证');
+  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? `工程草稿 · ${verificationSummary(verification, liveDraftLevel)}` : 'AI 工程草稿 · 待验证');
   text('spec-summary', result.summary); states = structuredClone(result.states); renderStates(); renderQuestions(result.questions);
   $('io-empty').hidden = !!result.io.length; $('io-table').hidden = !result.io.length;
   $('io-rows').replaceChildren();
@@ -88,7 +88,7 @@ function renderResult() {
 function renderChecks() {
   const isExample = generationOrigin === 'example', saved = generationOrigin === 'import';
   const statuses = {not_run:'未执行',unknown:'未知',pass:'通过',fail:'失败'};
-  text('verification-title', verification ? `${saved ? '已保存检查记录' : '本次源码检查'} · ${statuses[verification.status]}` : isExample ? '仓库示例已有离线验证记录' : '新工程尚未验证');
+  text('verification-title', verification ? `${saved ? '已保存检查记录' : '本次源码检查'} · ${verificationSummary(verification, saved ? undefined : liveDraftLevel)}` : isExample ? '仓库示例已有离线验证记录' : '新工程尚未验证');
   text('verification-note', verification ? `${saved ? '文件指纹已核对；记录来源未认证，本次会话未重跑。' : '检查器运行了与下列指纹对应的本次源码。'}${typeof verification.scope === 'string' ? verification.scope : ''} TIA、PLCSIM、形式验证和实机验收仍未执行。` : isExample ? '这些记录只绑定 FB_MainSequence 的已有源码。LAD 接线网络仍是审阅草稿，TIA 编译与现场验收尚未完成。' : '以下为 Agent 自报检查；没有本次源码的实际检查记录。');
   $('checks-list').replaceChildren();
   for (const c of verification?.checks || result.checks) {
@@ -101,7 +101,7 @@ function renderChecks() {
     const history = node('details'), rounds = Array.isArray(workflow.attempts) ? workflow.attempts : [];
     history.append(node('summary',`检查与修复记录 · ${rounds.length} 轮 · ${workflow.verdict || 'unknown'}`));
     for (const round of rounds) {
-      history.append(node('p',`第 ${round.attempt} 轮 · ${statuses[round.validation?.status] || '未知'} · ${round.candidate_sha256 || ''}`));
+      history.append(node('p',`第 ${round.attempt} 轮 · ${verificationSummary(round.validation)} · ${round.candidate_sha256 || ''}`));
       const details = {diagnostics:round.validation?.diagnostics, reviews:round.reviews, final_review:round.final_review};
       history.append(node('pre',JSON.stringify(details,null,2)));
       if (round.diff) history.append(node('pre',typeof round.diff === 'string' ? round.diff : JSON.stringify(round.diff,null,2)));
@@ -148,6 +148,8 @@ async function generate() {
     const returned = response.result || response.candidate_result;
     if (returned) {
       const acceptedResult = validateResult(returned,request), acceptedVerification = await bindVerification(response.verification,acceptedResult);
+      liveDraftLevel = response.status === 'complete' && response.workflow?.verdict === 'reviewed_draft'
+        ? response.workflow.validation_level : undefined;
       result = acceptedResult; verification = acceptedVerification; workflow = response.workflow; generationOrigin = 'agent'; renderResult(); showTab(verification ? 'checks' : 'spec');
     }
     if (response.status !== 'complete') throw new Error((response.error || `生成未完成，请检查本机 ${provider} 后重试。`) + (returned ? ' 当前候选及检查记录已保留，可以审阅和导出。' : ''));
@@ -168,7 +170,7 @@ function ladMarkdown() { return '# Main LAD 网络规格（待 TIA 实现与编�
 async function loadExample(artifact) {
   try {
     if (!example) { const response = await fetch('./data/example.json'); if (!response.ok) throw new Error('已有工程示例加载失败，请重新构建网站。'); example = await response.json(); }
-    writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; verification = undefined; workflow = undefined; request = undefined; stale = false;
+    writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; verification = undefined; workflow = undefined; liveDraftLevel = undefined; request = undefined; stale = false;
     if (artifact) { request = structuredClone(example.request); result = validateResult(structuredClone(example.result),request); generationOrigin = 'example'; renderResult(); message(`显示仓库已有工程示例。该示例没有调用模型；修改需求后可交给 ${provider} 生成新草稿。`); }
     else { await prepare(); message(`已载入示例工艺需求。可修改后交给 ${provider}，或查看仓库已有工程。`); }
     showTab('spec'); updateActions();
@@ -181,7 +183,7 @@ async function loadConveyorAcceptance() {
     states = [{id:1,name:'待机',actions:'Motor=FALSE；沿用原故障与复位语义',completion:'Enable 且 Start 新上升沿，无 Stop、Reset 或故障',next_state:'输送'},
       {id:2,name:'输送',actions:'Motor=TRUE；启动调用后计数为0',completion:'AtEnd 成功优先；第12次等待仍未到位则超时；Stop 撤销动作',next_state:'完成或待机'},
       {id:3,name:'完成',actions:'Done 仅保持一次调用，Motor=FALSE',completion:'下一次调用返回待机',next_state:'待机'}];
-    result = undefined; verification = undefined; workflow = undefined; request = undefined; stale = false;
+    result = undefined; verification = undefined; workflow = undefined; liveDraftLevel = undefined; request = undefined; stale = false;
     await prepare(); message('已载入原程序与固定验收要求。生成后将检查本次新代码；修复不能改变这组预期。');
   } catch (error) { message(error.message,true); }
 }
@@ -207,13 +209,13 @@ $('project-file').addEventListener('change', async event => {
     const file = event.target.files[0]; if (!file) return;
     if (file.size > 10000000) throw new Error('工程文件超过 10 MB，请拆分工程。');
     const restored = await openEngineering(JSON.parse(await file.text()));
-    request = restored.request; result = restored.result; verification = restored.verification; workflow = restored.workflow; generationOrigin = 'import';
+    request = restored.request; result = restored.result; verification = restored.verification; workflow = restored.workflow; liveDraftLevel = undefined; generationOrigin = 'import';
     writeBrief(request.brief); renderResult(); showTab('spec');
     message(verification ? '工程草稿和检查记录已恢复，源码指纹一致。本次会话未重跑检查；保存记录的来源未认证。' : '工程草稿已打开，原始需求与结果已恢复。本次会话未执行检查。');
   } catch (error) { message(error instanceof SyntaxError ? '工程文件不是有效 JSON。' : error.message, true); }
 });
 $('import-result').addEventListener('click', () => { $('result-file').value = ''; $('result-file').click(); });
-$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; verification = undefined; workflow = undefined; generationOrigin = 'import'; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
+$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; verification = undefined; workflow = undefined; liveDraftLevel = undefined; generationOrigin = 'import'; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
 $('download-scl').addEventListener('click', () => { if (stale || !result) return; const file = result.scl_files[Number($('scl-files').value)]; download(file.name,file.content,'text/plain;charset=utf-8'); });
 $('download-lad').addEventListener('click', () => { if (!stale && result) download('Main-LAD-networks.md',ladMarkdown(),'text/markdown;charset=utf-8'); });
 $('close-export').addEventListener('click',()=> $('export-dialog').close());

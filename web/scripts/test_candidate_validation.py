@@ -55,6 +55,48 @@ class CaptureTests(unittest.TestCase):
             validation.normalize('{#include <stdio.h>}')
 
 
+class VerdictTests(unittest.TestCase):
+    def test_worker_with_successful_compiler_does_not_claim_behavior(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            source = b'FUNCTION_BLOCK FB_Test\nEND_FUNCTION_BLOCK'
+            (folder / 'sources').mkdir()
+            (folder / 'sources/FB_Test.st').write_bytes(source)
+            validation.write_json(folder / 'job.json', {'files': [
+                {'name': 'FB_Test.st', 'sha256': validation.sha(source)}],
+                'compiler': 'synthetic-fixture', 'library': 'synthetic-fixture', 'profile': None})
+            with patch.object(validation.subprocess, 'run') as compiler:
+                compiler.return_value = validation.subprocess.CompletedProcess([], 0, 'compiler fixture', '')
+                validation._worker(folder)
+            report = json.loads((folder / 'worker-result.json').read_text())
+            self.assertEqual(report['status'], 'unknown')
+            self.assertEqual(validation.validation_level(report, None), 'compile_only')
+            self.assertEqual(report['diagnostics'], 'compiler fixture')
+            self.assertNotIn('scenarios', report)
+
+    def test_required_checks_are_not_inferred_from_headline(self):
+        report = {'status': 'unknown', 'checks': [
+            validation.check('linux_compile', 'pass', 'native compiler'),
+            validation.check('scan_contract', 'not_run', 'no profile')]}
+        self.assertEqual(validation.validation_level(report, None), 'compile_only')
+        self.assertIsNone(validation.validation_level({**report, 'status': 'pass'}, None))
+        for status in ('fail', 'unknown', 'not_run'):
+            with self.subTest(scan=status):
+                checks = [report['checks'][0], validation.check('scan_contract', status, 'incomplete')]
+                self.assertIsNone(validation.validation_level({'status': 'pass', 'checks': checks}, validation.PROFILE))
+        behavior = {'status': 'pass', 'profile': validation.PROFILE, 'contract': validation.CONTRACT,
+            'contract_sha256': validation.sha(json.dumps(validation.CONTRACT, sort_keys=True,
+                separators=(',', ':')).encode()), 'checks': [
+                    report['checks'][0], validation.check('scan_contract', 'pass', 'fixture scans')]}
+        self.assertEqual(validation.validation_level(behavior, validation.PROFILE), 'behavior_pass')
+        self.assertIsNone(validation.validation_level({**behavior, 'contract_sha256': 'stale'}, validation.PROFILE))
+        self.assertIsNone(validation.validation_level(behavior, None))
+        self.assertIsNone(validation.validation_level({'status': 'pass', 'checks': [report['checks'][0]]},
+            validation.PROFILE))
+        self.assertIsNone(validation.validation_level({'status': 'pass', 'checks': [report['checks'][0]] * 2},
+            validation.PROFILE))
+
+
 class NativeCandidateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -71,6 +113,7 @@ class NativeCandidateTests(unittest.TestCase):
     def test_twelve_waiting_calls_and_simultaneous_inputs_pass(self):
         report = self.validate(candidate())
         self.assertEqual(report['status'], 'pass', report['diagnostics'])
+        self.assertEqual(validation.validation_level(report, validation.PROFILE), 'behavior_pass')
         self.assertEqual(len(report['scenarios']), 5)
         self.assertTrue(all(case['passed'] for case in report['scenarios']))
         self.assertEqual(report['scenarios'][0]['calls'][-1]['call'], 13)
@@ -105,11 +148,12 @@ class NativeCandidateTests(unittest.TestCase):
 
     def test_generic_candidate_compiles_without_inheriting_behavior_tests(self):
         report = self.validate(candidate(8), profile=None)
-        self.assertEqual(report['status'], 'pass', report['diagnostics'])
+        self.assertEqual(report['status'], 'unknown', report['diagnostics'])
         checks = {item['name']: item['status'] for item in report['checks']}
         self.assertEqual(checks['linux_compile'], 'pass')
         self.assertEqual(checks['scan_contract'], 'not_run')
         self.assertNotIn('scenarios', report)
+        self.assertEqual(validation.validation_level(report, None), 'compile_only')
 
     @unittest.skipUnless(os.name == 'posix', 'Native execution watchdog uses POSIX SIGALRM')
     def test_native_infinite_scan_is_bounded_and_never_accepted(self):
