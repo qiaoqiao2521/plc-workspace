@@ -39,12 +39,15 @@ class Gates(unittest.TestCase):
         return {'input_sha256': workflow.digest(packet), 'answer': copy.deepcopy(self.answers[name])}
 
     def validate(self, candidate, directory, *, profile=None):
-        report = {'profile': profile, 'status': 'pass' if profile else 'unknown', 'files': workflow.source_manifest(candidate),
+        report = {'schema_version': 2, 'request_fingerprint': candidate['request_fingerprint'],
+                'verification_goal': workflow.validation_module().verification_goal(profile),
+                'profile': profile, 'status': 'pass' if profile else 'unknown', 'files': workflow.source_manifest(candidate),
                 'checks': [{'name': 'linux_compile', 'status': 'pass',
                             'detail': 'Synthetic compiler fixture, NOT native compilation'},
                            {'name': 'scan_contract', 'status': 'pass' if profile else 'not_run',
                             'detail': 'Synthetic test fixture, NOT native scans'}],
                 'diagnostics': '', 'scope': 'Unit-test injection only'}
+        report['checks'].append({'name':'source_capture', 'status':'pass', 'detail':'fixture'})
         if profile == 'conveyor-12-v1':
             report['contract'] = copy.deepcopy(workflow.validation_module().CONTRACT)
             report['contract_sha256'] = workflow.digest(report['contract'])
@@ -213,6 +216,25 @@ class Gates(unittest.TestCase):
         self.assertIn(('repair-1', 'engineer'), self.calls)
         self.assertNotIn(('semantic-review', 'semantics'), self.calls)
         self.assertEqual(outcome['validation_level'], 'behavior_pass')
+
+    def test_same_source_old_request_evidence_cannot_pass(self):
+        def stale(candidate, directory, *, profile=None):
+            return {**self.validate(candidate, directory, profile=profile), 'request_fingerprint': 'older'}
+        outcome = self.run_workflow(validator=stale)
+        self.assertEqual(outcome['verdict'], 'blocked')
+        self.assertEqual(outcome['validation_level'], 'not_accepted')
+
+    def test_cancel_persists_candidate_and_never_runs_reviews(self):
+        def cancelled(candidate, directory, *, profile=None):
+            raise KeyboardInterrupt('cancel fixture')
+        with self.assertRaises(KeyboardInterrupt):
+            self.run_workflow(validator=cancelled)
+        outcome = json.loads((Path(self.folder.name) / 'outcome.json').read_text())
+        self.assertEqual(outcome['verdict'], 'cancelled')
+        self.assertEqual(outcome['validation_level'], 'not_accepted')
+        self.assertIsNone(outcome['result'])
+        self.assertTrue(outcome['candidate']['scl_files'])
+        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
 
     def test_stale_compiler_source_binding_is_unknown(self):
         def stale(candidate, directory, *, profile=None):

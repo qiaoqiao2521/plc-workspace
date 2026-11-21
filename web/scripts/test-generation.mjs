@@ -81,3 +81,12 @@ test('headlines never confuse compile-only or imported legacy pass with logic ac
   assert.match(verificationSummary({status:'fail',checks:[compile,scan('fail')]}),/失败/);
   assert.match(verificationSummary({status:'pass',checks:[]}),/不可放行/);
 });
+
+test('request-bound v2 evidence cannot be reopened against identical source and older request',async()=>{
+  const req=await makeRequest(brief,[]), value=candidate(req);
+  const files=await Promise.all(value.scl_files.map(async f=>({name:f.name,sha256:await sourceHash(f.content)})));
+  const report={schema_version:2,status:'pass',checks:[],files,request_fingerprint:req.request_fingerprint};
+  assert.equal((await bindVerification(report,value)).request_fingerprint,req.request_fingerprint);
+  await assert.rejects(bindVerification({...report,request_fingerprint:'old'},value),/当前需求不匹配/);
+  assert.match(verificationSummary({...report, reason:'cancelled'},'behavior_pass'),/检查已取消/);
+});

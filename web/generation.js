@@ -27,6 +27,7 @@ function updateActions() {
   $('source-content').disabled = busy || !sourceFiles.length;
 }
 function dirty() {
+  liveDraftLevel = undefined;
   request = undefined;
   stale = !!result;
   text('artifact-status', stale ? '需求已修改 · 结果过期' : '需求编辑中');
@@ -94,6 +95,8 @@ function renderChecks() {
   for (const c of verification?.checks || result.checks) {
     const row = node('article',undefined,'check-record');
     row.append(node('strong',c.name),node('span',verification ? statuses[c.status] : isExample && c.status === 'pass' ? '已有记录' : ['pass','fail'].includes(c.status) ? `自报${statuses[c.status]}` : statuses[c.status]),node('p',c.detail));
+    if (verification?.verification_goal?.required_checks?.includes?.(c.name))
+      row.append(node('small', '目标必选'));
     $('checks-list').append(row);
   }
   if (verification) for (const f of verification.files) $('checks-list').append(node('p',`${f.name} · SHA-256 ${f.sha256}`,'source-binding form-hint'));
@@ -112,6 +115,7 @@ function renderChecks() {
 }
 function showCode() { text('scl-code',result?.scl_files[Number($('scl-files').value)]?.content || ''); }
 async function prepare() {
+  liveDraftLevel = undefined;
   if (!states.length) states = flowDraft($('flow').value);
   request = await makeRequest(readBrief(), states);
   stale = !!result; $('artifact-status').classList.toggle('stale',stale);
@@ -143,14 +147,19 @@ async function generate() {
   try {
     const accepted = await api('/api/generate', {request,prompt:agentPrompt(request)}); jobId = accepted.job_id;
     let response;
-    do { await new Promise(resolve => setTimeout(resolve,1200)); response = await api(`/api/jobs/${jobId}`); } while (response.status === 'running');
-    if (response.status === 'cancelled') { message('生成已取消，需求草稿仍保留。'); return; }
+    do { await new Promise(resolve => setTimeout(resolve,1200)); response = await api(`/api/jobs/${jobId}`); }
+    while (response.status === 'running' || (response.status === 'cancelled' && response.finished === false));
     const returned = response.result || response.candidate_result;
     if (returned) {
       const acceptedResult = validateResult(returned,request), acceptedVerification = await bindVerification(response.verification,acceptedResult);
       liveDraftLevel = response.status === 'complete' && response.workflow?.verdict === 'reviewed_draft'
         ? response.workflow.validation_level : undefined;
       result = acceptedResult; verification = acceptedVerification; workflow = response.workflow; generationOrigin = 'agent'; renderResult(); showTab(verification ? 'checks' : 'spec');
+    }
+    if (response.status === 'cancelled') {
+      liveDraftLevel = undefined;
+      message('生成已取消，未授予本次验收；需求和已有候选仍保留。');
+      return;
     }
     if (response.status !== 'complete') throw new Error((response.error || `生成未完成，请检查本机 ${provider} 后重试。`) + (returned ? ' 当前候选及检查记录已保留，可以审阅和导出。' : ''));
     message(`${provider} 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。${verification ? '请审阅本次检查、修复记录和代码；TIA 编译未执行。' : '请审阅规格、待确认项和代码，再运行工程检查。'}`);

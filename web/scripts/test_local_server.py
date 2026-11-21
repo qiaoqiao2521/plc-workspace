@@ -70,6 +70,26 @@ class BridgeTests(unittest.TestCase):
         envelope={'status':'SUCCESS','structured_output':result(request())}
         self.assertEqual(self.run_stub(json.dumps(envelope),delay=1,cancel=True)['status'],'cancelled')
 
+    def test_cancel_before_cleanup_recovers_only_a_draft(self):
+        req = request()
+        candidate = result(req)
+        with tempfile.TemporaryDirectory() as temp:
+            bridge_obj = bridge.GenerationBridge(None, workflow={'root': temp})
+            bridge_obj.jobs['job'] = {'status':'cancelled'}
+            self.assertFalse(bridge_obj.snapshot('job')['finished'])
+            saved = Path(temp) / 'job'
+            saved.mkdir()
+            (saved/'outcome.json').write_text(json.dumps({
+                'result':candidate, 'verdict':'reviewed_draft', 'validation_level':'behavior_pass'}))
+            bridge_obj.recover_workflow('job', req, cancelled=True)
+            bridge_obj.jobs['job']['duration_seconds'] = 1
+            snapshot = bridge_obj.snapshot('job')
+            self.assertTrue(snapshot['finished'])
+            self.assertEqual(snapshot['candidate_result'],candidate)
+            self.assertNotIn('result',snapshot)
+            self.assertEqual(snapshot['workflow']['validation_level'],'not_accepted')
+            self.assertIsNone(snapshot['workflow']['result'])
+
     def test_zcode_response_is_validated_and_prose_is_rejected(self):
         good=json.dumps({'response':json.dumps(result(request()))})
         self.assertEqual(self.run_stub(good,provider='zcode')['status'],'complete')
@@ -89,14 +109,19 @@ class BridgeTests(unittest.TestCase):
     def test_mcode_workflow_accepts_only_reviewed_draft(self):
         candidate=result(request())
         candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
-        validation={'status':'unknown','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
+        validation={'schema_version':2,'request_fingerprint':candidate['request_fingerprint'],
+                    'verification_goal':{'target':'scl_compile','required_checks':['source_capture','linux_compile']},
+                    'status':'unknown','files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
                     'checks':[{'name':'linux_compile','status':'pass','detail':'fixture'},
-                              {'name':'scan_contract','status':'not_run','detail':'no contract'}]}
+                              {'name':'scan_contract','status':'not_run','detail':'no contract'},
+                              {'name':'source_capture','status':'pass','detail':'fixture'}]}
         good={'verdict':'reviewed_draft','result':candidate,'validation':validation,
               'validation_level':'compile_only'}
         self.assertEqual(self.run_stub(json.dumps(good),provider='mcode-cm',timeout=0)['status'],'complete')
         for change in [{'status':'pass'}, {'checks':validation['checks'][:1]},
-                       {'checks':[validation['checks'][0],{**validation['checks'][1],'status':'unknown'}]}]:
+                       {'checks':[validation['checks'][0],{**validation['checks'][1],'status':'unknown'},validation['checks'][2]]},
+                       {'verification_goal':{'target':'scl_compile','required_checks':['linux_compile']}},
+                       {'schema_version':1}]:
             forged={**good,'validation':{**validation,**change}}
             blocked=self.run_stub(json.dumps(forged),provider='mcode-cm',timeout=0)
             self.assertEqual(blocked['status'],'failed')
@@ -104,6 +129,10 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(blocked['candidate_result'],candidate)
         self.assertEqual(self.run_stub(json.dumps({**good,'validation_level':'behavior_pass'}),
             provider='mcode-cm',timeout=0)['status'],'failed')
+        stale={**good, 'validation':{**validation,'request_fingerprint':'older'}}
+        rejected=self.run_stub(json.dumps(stale),provider='mcode-cm')
+        self.assertEqual(rejected['status'],'failed')
+        self.assertNotIn('candidate_result',rejected)
         for verdict in ['blocked','rejected','unknown','audit_complete']:
             outcome=self.run_stub(json.dumps({'verdict':verdict,'result':result(request()),
                 'analysis':{'questions':['Confirm valve']}}),provider='mcode-cm',timeout=0)
@@ -120,10 +149,13 @@ class BridgeTests(unittest.TestCase):
         spec.loader.exec_module(module)
         candidate=result(request(module.PROFILE))
         candidate['scl_files']=[{'name':'Test.scl','content':'fixture'}]
-        report={'profile':module.PROFILE,'status':'pass',
+        report={'schema_version':2,'request_fingerprint':candidate['request_fingerprint'],
+                'verification_goal':module.verification_goal(module.PROFILE),
+                'profile':module.PROFILE,'status':'pass',
                 'files':[{'name':'Test.scl','sha256':hashlib.sha256(b'fixture').hexdigest()}],
                 'checks':[module.check('linux_compile','pass','fixture'),
-                          module.check('scan_contract','pass','fixture')]}
+                          module.check('scan_contract','pass','fixture'),
+                          module.check('source_capture','pass','fixture')]}
         def finish():
             envelope={'verdict':'reviewed_draft','result':candidate,'validation':report,
                       'validation_level':'behavior_pass'}
@@ -139,7 +171,7 @@ class BridgeTests(unittest.TestCase):
     def test_mcode_failure_preserves_source_and_bound_diagnostics(self):
         candidate=result(request())
         candidate['scl_files']=[{'name':'Broken.scl','content':'broken source'}]
-        validation={'status':'fail','files':[{'name':'Broken.scl','sha256':hashlib.sha256(b'broken source').hexdigest()}],
+        validation={'status':'fail','request_fingerprint':candidate['request_fingerprint'],'files':[{'name':'Broken.scl','sha256':hashlib.sha256(b'broken source').hexdigest()}],
                     'checks':[{'name':'Linux compile','status':'fail','detail':'type mismatch'}]}
         envelope={'verdict':'rejected','result':None,'candidate':candidate,
                   'validation':validation,'attempts':[{'attempt':0}]}
