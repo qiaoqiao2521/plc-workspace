@@ -63,12 +63,15 @@ export function verificationSummary(report, {profile, current = false, approved 
   if (!report) return {title:'新工程尚未验证',target,status:'not_run',acceptance};
   const rows = Array.isArray(report.checks) ? report.checks : [];
   const byName = new Map(rows.map(c=>[c?.name,c]));
-  const valid = report.schema_version === 2 && report.profile === (profile || null) && report.target === target &&
+  const valid = [undefined,null,'','conveyor-12-v1'].includes(profile) &&
+    report.schema_version === 2 && report.profile === (profile || null) && report.target === target &&
     JSON.stringify(report.required_checks) === JSON.stringify(required) && rows.length === Object.keys(checkTargets).length &&
     byName.size === rows.length && Object.entries(checkTargets).every(([name,scope])=>{
       const c = byName.get(name);
-      return c?.target === scope && c.required === required.includes(name) && ['pass','fail','unknown','not_run'].includes(c.status) &&
-        (!['lad_scl_compare','tia_compile'].includes(name) || c.status === 'not_run');
+      return c?.target === scope && c.required === required.includes(name) && typeof c.detail === 'string' &&
+        ['pass','fail','unknown','not_run'].includes(c.status) &&
+        (!['lad_scl_compare','tia_compile'].includes(name) || c.status === 'not_run') &&
+        (name !== 'scan_contract' || profile || c.status === 'not_run');
     });
   if (!current) return {title:'已保存检查记录 · 本次未验收',target,status:'not_run',acceptance};
   if (!valid) return {title:'检查记录不完整 · 未授予验收',target,status:'unknown',acceptance};

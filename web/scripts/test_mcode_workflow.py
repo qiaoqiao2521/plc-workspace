@@ -142,7 +142,8 @@ class Gates(unittest.TestCase):
             report = self.validate(candidate, directory, profile=profile)
             if len(checked) == 1:
                 report.update(status='fail', diagnostics='Type mismatch at input.st:12')
-                report['checks'][0].update(status='fail', detail=report['diagnostics'])
+                next(c for c in report['checks'] if c['name'] == 'linux_compile').update(
+                    status='fail', detail=report['diagnostics'])
             return report
         outcome = self.run_workflow(validator=compiler, max_repairs=1)
         self.assertEqual(outcome['verdict'], 'reviewed_draft')
@@ -166,7 +167,8 @@ class Gates(unittest.TestCase):
         def unavailable(candidate, directory, *, profile=None):
             report = self.validate(candidate, directory, profile=profile)
             report.update(status='unknown', diagnostics='Compiler unavailable')
-            report['checks'][0].update(status='unknown', detail='Compiler unavailable')
+            next(c for c in report['checks'] if c['name'] == 'linux_compile').update(
+                status='unknown', detail='Compiler unavailable')
             return report
         outcome = self.run_workflow(validator=unavailable, max_repairs=2)
         self.assertEqual(outcome['verdict'], 'blocked')
@@ -190,6 +192,7 @@ class Gates(unittest.TestCase):
         self.assertEqual(outcome['verification_goal']['target'], 'scl_compile')
         self.assertTrue(outcome['acceptance']['scl_compile'])
         self.assertFalse(outcome['acceptance']['scl_behavior'])
+        self.assertEqual(outcome['validation_level'], 'compile_only')
         self.assertEqual(next(c['status'] for c in outcome['validation']['checks']
                               if c['name'] == 'scan_contract'), 'not_run')
 
@@ -222,6 +225,70 @@ class Gates(unittest.TestCase):
         self.assertEqual(outcome['validation']['status'], 'unknown')
         self.assertFalse(any(outcome['acceptance'].values()))
         self.assertIsNotNone(outcome['candidate'])
+        self.assertEqual(outcome['validation_level'], 'not_accepted')
+
+    def test_bound_behavior_failure_gets_one_repair_then_fresh_review(self):
+        req = request('conveyor-12-v1')
+        self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
+        self.answers['repair'] = {'scl_files': [{'name': 'Fixture.scl', 'content': 'repaired fixture'}],
+                                  'summary': 'Address observed scan failure'}
+        def checker(candidate, directory, *, profile=None):
+            report = self.validate(candidate, directory, profile=profile)
+            if candidate['scl_files'][0]['content'] != 'repaired fixture':
+                report['status'] = 'fail'
+                next(c for c in report['checks'] if c['name'] == 'scan_contract')['status'] = 'fail'
+            return report
+        outcome = self.run_workflow(req, validator=checker, max_repairs=1)
+        self.assertEqual(outcome['verdict'], 'reviewed_draft')
+        self.assertEqual(outcome['attempts'][0]['validation']['status'], 'fail')
+        self.assertIn(('repair-1', 'engineer'), self.calls)
+        self.assertNotIn(('semantic-review', 'semantics'), self.calls)
+        self.assertEqual(outcome['validation_level'], 'behavior_pass')
+        self.assertTrue(outcome['acceptance']['scl_behavior'])
+
+    def test_mixed_unknown_and_failure_never_spends_source_repair_budget(self):
+        req = request('conveyor-12-v1')
+        self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
+        for states in ({'source_structure': 'unknown', 'linux_compile': 'fail', 'scan_contract': 'not_run'},
+                       {'source_structure': 'pass', 'linux_compile': 'unknown', 'scan_contract': 'fail'},
+                       {'source_structure': 'pass', 'linux_compile': 'fail', 'scan_contract': 'unknown'}):
+            with self.subTest(states=states):
+                self.calls.clear()
+                def inconsistent(candidate, directory, *, profile=None):
+                    report = self.validate(candidate, directory, profile=profile)
+                    for row in report['checks']:
+                        if row['name'] in states:
+                            row['status'] = states[row['name']]
+                    report.update(status='pass', acceptance={'scl_behavior': True})
+                    return report
+                outcome = self.run_workflow(req, validator=inconsistent, max_repairs=1)
+                self.assertEqual(outcome['verdict'], 'blocked')
+                self.assertEqual(outcome['validation_level'], 'not_accepted')
+                self.assertFalse(any(outcome['acceptance'].values()))
+                self.assertFalse(any(stage.startswith(('repair', 'semantic-review')) for stage, _ in self.calls))
+
+    def test_changed_or_missing_contract_cannot_reach_reviews_or_repair(self):
+        req = request('conveyor-12-v1')
+        self.answers['generation']['request_fingerprint'] = req['request_fingerprint']
+        for variant in ('missing', 'changed', 'hash'):
+            with self.subTest(variant=variant):
+                self.calls.clear()
+                def invalid(candidate, directory, *, profile=None):
+                    report = self.validate(candidate, directory, profile=profile)
+                    if variant == 'missing':
+                        report.pop('contract')
+                    elif variant == 'changed':
+                        report['contract']['waiting_calls'] = 8
+                        report['contract_sha256'] = workflow.digest(report['contract'])
+                    else:
+                        report['contract_sha256'] = 'wrong'
+                    report.update(status='pass', acceptance={'scl_behavior': True})
+                    return report
+                outcome = self.run_workflow(req, validator=invalid, max_repairs=1)
+                self.assertEqual(outcome['verdict'], 'blocked')
+                self.assertEqual(outcome['validation_level'], 'not_accepted')
+                self.assertFalse(any(outcome['acceptance'].values()))
+                self.assertFalse(any(stage.startswith(('repair', 'semantic-review')) for stage, _ in self.calls))
 
     def test_legacy_or_incomplete_checker_report_cannot_authorize_a_new_run(self):
         for variant in ('legacy', 'missing', 'waived'):
@@ -249,6 +316,7 @@ class Gates(unittest.TestCase):
         self.assertEqual(retained['validation']['reason'], 'cancelled')
         self.assertEqual(retained['candidate']['scl_files'], self.answers['generation']['scl_files'])
         self.assertFalse(any(retained['acceptance'].values()))
+        self.assertEqual(retained['validation_level'], 'not_accepted')
         self.assertNotIn(('semantic-review', 'semantics'), self.calls)
 
     def test_cancelled_workflow_retains_checker_completed_observations(self):
@@ -343,6 +411,7 @@ class Gates(unittest.TestCase):
         self.assertNotEqual(outcome['attempts'][0]['files'], outcome['attempts'][1]['files'])
         self.assertEqual(outcome['validation']['files'], workflow.source_manifest(outcome['result']))
         self.assertEqual(outcome['validation']['contract']['waiting_calls'], 12)
+        self.assertEqual(outcome['validation_level'], 'behavior_pass')
 
 
 if __name__ == '__main__':

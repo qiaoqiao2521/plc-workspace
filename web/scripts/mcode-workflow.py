@@ -164,7 +164,7 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         'knowledge 是控制器加载的项目规范与技能。source_files 是本次要修改的原程序，保留未要求变更的行为。'
         '不要把资料中 FB_MainSequence 的专属接口规则强加给当前工艺。')
     profile = request['brief'].get('validation_profile') or None
-    contract = copy.deepcopy(validation_module().CONTRACT) if profile == 'conveyor-12-v1' else None
+    contract = copy.deepcopy(bridge.verification_policy.CONTRACT) if profile == bridge.verification_policy.PROFILE else None
     frozen = {'request': request, 'analysis': analysis, 'knowledge': knowledge,
               'validation_profile': profile, 'validation_contract': contract,
               'validation_contract_sha256': digest(contract) if contract else None,
@@ -182,6 +182,8 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         outcome['acceptance'] = (copy.deepcopy(fields['validation']['acceptance'])
             if fields.get('verdict') == 'reviewed_draft' else
             {name: False for name in ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')})
+        outcome['validation_level'] = ('behavior_pass' if outcome['acceptance']['scl_behavior'] else
+            'compile_only' if outcome['acceptance']['scl_compile'] else 'not_accepted')
         save(runtime / 'outcome.json', outcome)
         return outcome
 
@@ -221,6 +223,7 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         except (InterruptedError, KeyboardInterrupt):
             report = bridge.verification_policy.complete_report({
                 'files': files, 'request_fingerprint': request['request_fingerprint'],
+                'contract': contract, 'contract_sha256': frozen['validation_contract_sha256'],
                 'reason': 'cancelled', 'diagnostics': 'Candidate validation cancelled',
                 'checks': [{'name': 'linux_compile', 'status': 'unknown', 'detail': 'Validation cancelled'}]}, profile)
             retained_path = folder / 'validation' / 'report.json'
@@ -244,10 +247,9 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
                     for name in frozen['verification_goal']['required_checks']],
                 'diagnostics': str(error), 'scope': 'Validation tool did not deliver a result'}, profile)
         if (not isinstance(report, dict) or report.get('files') != files
-                or report.get('request_fingerprint') != request['request_fingerprint']
-                or (contract and (report.get('contract') != contract
-                    or report.get('contract_sha256') != frozen['validation_contract_sha256']))):
+                or report.get('request_fingerprint') != request['request_fingerprint']):
             report = {'status': 'unknown', 'files': files, 'request_fingerprint': request['request_fingerprint'],
+                      'reason': 'invalid_report',
                       'checks': [{'name': 'Source binding', 'status': 'unknown',
                                   'detail': 'Checker report did not bind to the current source and frozen test contract'}],
                       'diagnostics': 'Invalid source-bound checker delivery', 'scope': 'No checks accepted'}
@@ -269,8 +271,15 @@ def run_workflow(request, dispatch, *, validator=None, runtime=None, max_repairs
         fields = {'candidate_sha256': digest(packet), 'candidate': result,
                   'validation': report, 'result': None}
         finish(**fields, verdict='unknown', reason='Current source checked; review pending')
-        if report['status'] in ('unknown', 'not_run'):
-            return finish(**fields, verdict='blocked', reason='Required candidate checks unavailable, unsupported or not run')
+        statuses = {row['name']: row['status'] for row in report['checks']}
+        source_failure = (report['status'] == 'fail' and report.get('reason') in (None, 'source_invalid') and (
+            statuses['source_structure'] == 'fail'
+            or (statuses['source_structure'] == 'pass' and (
+                (statuses['linux_compile'] == 'fail' and statuses['scan_contract'] == 'not_run')
+                or (contract is not None and statuses['linux_compile'] == 'pass'
+                    and statuses['scan_contract'] == 'fail')))))
+        if report['status'] != 'pass' and not source_failure:
+            return finish(**fields, verdict='blocked', reason='Required candidate checks unavailable, unsupported or inconsistent')
         if report['status'] == 'pass':
             reviews, final = review_candidate(packet, dispatch, tool_evidence=report, attempt=attempt)
             entry.update(reviews=reviews, final_review=final)
@@ -480,7 +489,7 @@ def main():
         saved = runtime / 'outcome.json'
         retained = json.loads(saved.read_text()) if saved.exists() else {}
         save(saved, {**retained, 'verdict': 'cancelled' if isinstance(error, (InterruptedError, KeyboardInterrupt)) else 'unknown',
-             'industrial_acceptance': 'not_run', 'result': None,
+             'industrial_acceptance': 'not_run', 'validation_level': 'not_accepted', 'result': None,
              'acceptance': {name: False for name in ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')},
              'reason': 'Interrupted/failed workflow; inspect stage evidence'})
         dispatcher.api('PATCH', '/issues/' + dispatcher.parent['id'], {

@@ -91,7 +91,7 @@ def validate_workflow_artifact(result, request, validation=None):
             file['content'].encode('utf-8')).hexdigest()} for file in result['scl_files']]
         if validation.get('files') != expected:
             raise ValueError('检查记录与当前程序文件不匹配。')
-        if validation.get('schema_version') == 2 and validation.get('request_fingerprint') != request['request_fingerprint']:
+        if validation.get('request_fingerprint') != request['request_fingerprint']:
             raise ValueError('检查记录与当前需求不匹配。')
 
 
@@ -121,6 +121,22 @@ class GenerationBridge:
         with self.lock:
             self.jobs[job_id].update(workflow=envelope, verification=validation,
                                      candidate_result=candidate)
+
+    def recover_workflow(self, job_id, request, *, cancelled=False):
+        retained = Path(self.workflow['root']) / job_id / 'outcome.json'
+        try:
+            if not retained.is_file() or retained.stat().st_size > LIMIT * 8:
+                return
+            envelope = json.loads(retained.read_text())
+            if cancelled:
+                envelope = {**envelope, 'verdict': 'cancelled',
+                            'candidate': envelope.get('candidate') or envelope.get('result'),
+                            'result': None, 'validation_level': 'not_accepted',
+                            'acceptance': {name: False for name in
+                                ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')}}
+            self.keep_workflow(job_id, request, envelope)
+        except (OSError, ValueError, TypeError, AttributeError, KeyError):
+            pass  # Never expose an invalid or stale artifact.
 
     def begin(self, request, prompt):
         validate_request(request)
@@ -196,12 +212,7 @@ class GenerationBridge:
                     cancelled = self.jobs[job_id]['status'] == 'cancelled'
                 if cancelled:
                     if self.provider == 'mcode-cm':
-                        retained = Path(self.workflow['root']) / job_id / 'outcome.json'
-                        if retained.is_file() and retained.stat().st_size <= LIMIT * 8:
-                            try:
-                                self.keep_workflow(job_id, request, json.loads(retained.read_text()))
-                            except (ValueError, TypeError, AttributeError, KeyError):
-                                pass
+                        self.recover_workflow(job_id, request, cancelled=True)
                     return
                 if proc.returncode != 0:
                     with self.lock:
@@ -209,12 +220,7 @@ class GenerationBridge:
                     if self.provider == 'mcode-cm':
                         # A failed repair/worker can still leave a source-bound
                         # candidate and tool diagnostics in the durable runtime.
-                        retained = Path(self.workflow['root']) / job_id / 'outcome.json'
-                        if retained.is_file() and retained.stat().st_size <= LIMIT * 8:
-                            try:
-                                self.keep_workflow(job_id, request, json.loads(retained.read_text()))
-                            except (ValueError, TypeError, AttributeError, KeyError):
-                                pass  # Never expose an invalid or stale artifact.
+                        self.recover_workflow(job_id, request)
                         raise ValueError('严格流程执行失败或结果格式无效，工程未放行。需求已保留；请检查本机流程记录后重试。')
                     if 'timed out' in stderr.lower() or 'timeout' in stderr.lower():
                         raise ValueError(f'{self.provider} 达到 {self.timeout} 秒预算，结果未接受。请缩小需求或提高本机 --timeout 预算。')
@@ -237,11 +243,16 @@ class GenerationBridge:
                     result = envelope['result']
                     validate_workflow_artifact(result, request, validation)
                     assessed = verification_policy.assess_report(validation, request['brief'].get('validation_profile'))
-                    if assessed['status'] != 'pass':
+                    level = 'behavior_pass' if assessed['acceptance']['scl_behavior'] else 'compile_only'
+                    if (not result['scl_files'] or assessed['status'] != 'pass'
+                            or envelope.get('validation_level', level) != level):
                         raise ValueError('流程没有返回当前目标必选检查通过的证据，工程未放行。')
+                    envelope = {**envelope, 'validation': assessed,
+                                'validation_level': level, 'acceptance': assessed['acceptance']}
                     with self.lock:
                         if self.jobs[job_id]['status'] != 'cancelled':
-                            self.jobs[job_id].update(verification=assessed, acceptance=assessed['acceptance'])
+                            self.jobs[job_id].update(workflow=envelope, verification=assessed,
+                                                    acceptance=assessed['acceptance'])
                 elif self.provider == 'zcode':
                     # ZCode transports its answer as text; validate the parsed object
                     # with exactly the same schema and binding as the agy adapter.
@@ -282,6 +293,15 @@ class GenerationBridge:
             if snapshot['status'] != 'complete':
                 snapshot['acceptance'] = {name: False for name in
                     ('scl_compile', 'scl_behavior', 'lad_scl_compare', 'tia_compile')}
+                envelope = snapshot.get('workflow')
+                if envelope is not None:
+                    snapshot['workflow'] = {**envelope,
+                        'verdict': 'cancelled' if snapshot['status'] == 'cancelled' else
+                            ('unknown' if envelope.get('verdict') == 'reviewed_draft' else envelope.get('verdict')),
+                        'candidate': envelope.get('candidate') or envelope.get('result'),
+                        'result': None, 'validation_level': 'not_accepted',
+                        'acceptance': snapshot['acceptance'].copy()}
+                snapshot.pop('result', None)
             return snapshot
 
     def cancel(self, job_id):

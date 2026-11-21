@@ -144,6 +144,8 @@ async function api(path, body) {
 }
 async function generate() {
   if (!request || !ready || busy) return;
+  currentAcceptance = false;
+  if (result && !stale) renderResult();
   setBusy(true); message(`${provider} 正在整理规格与工程草稿。${generationBudget === 0 ? '本次不设生成时间限制' : `最多等待 ${generationBudget} 秒`}；可以取消。`);
   try {
     const accepted = await api('/api/generate', {request,prompt:agentPrompt(request)}); jobId = accepted.job_id;
@@ -176,7 +178,7 @@ function ladMarkdown() { return '# Main LAD 网络规格（待 TIA 实现与编�
 async function loadExample(artifact) {
   try {
     if (!example) { const response = await fetch('./data/example.json'); if (!response.ok) throw new Error('已有工程示例加载失败，请重新构建网站。'); example = await response.json(); }
-    writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; verification = undefined; workflow = undefined; request = undefined; stale = false;
+    writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; verification = undefined; workflow = undefined; request = undefined; stale = false; currentAcceptance = false;
     if (artifact) { request = structuredClone(example.request); result = validateResult(structuredClone(example.result),request); generationOrigin = 'example'; renderResult(); message(`显示仓库已有工程示例。该示例没有调用模型；修改需求后可交给 ${provider} 生成新草稿。`); }
     else { await prepare(); message(`已载入示例工艺需求。可修改后交给 ${provider}，或查看仓库已有工程。`); }
     showTab('spec'); updateActions();
@@ -221,7 +223,7 @@ $('project-file').addEventListener('change', async event => {
   } catch (error) { message(error instanceof SyntaxError ? '工程文件不是有效 JSON。' : error.message, true); }
 });
 $('import-result').addEventListener('click', () => { $('result-file').value = ''; $('result-file').click(); });
-$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; verification = undefined; workflow = undefined; generationOrigin = 'import'; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
+$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; verification = undefined; workflow = undefined; generationOrigin = 'import'; currentAcceptance = false; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
 $('download-scl').addEventListener('click', () => { if (stale || !result) return; const file = result.scl_files[Number($('scl-files').value)]; download(file.name,file.content,'text/plain;charset=utf-8'); });
 $('download-lad').addEventListener('click', () => { if (!stale && result) download('Main-LAD-networks.md',ladMarkdown(),'text/markdown;charset=utf-8'); });
 $('close-export').addEventListener('click',()=> $('export-dialog').close());

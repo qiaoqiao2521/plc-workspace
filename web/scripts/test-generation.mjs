@@ -126,3 +126,26 @@ test('same source with changed requirements cannot reuse a v2 report',async()=>{
   const changed=await makeRequest({...brief,requirement:brief.requirement+' 修改等待规则。'},[]);
   await assert.rejects(bindVerification(report,candidate(changed)),/需求不匹配/);
 });
+
+test('display rejects duplicate, relabeled, unsupported and unselected checks',()=>{
+  const profile='conveyor-12-v1';
+  const mutations=[
+    report=>{report.checks[2]=structuredClone(report.checks[1]);},
+    report=>{report.checks[2].target='scl_compile';},
+    report=>{report.checks[2].required=false;},
+    report=>{report.checks[2].detail=null;},
+    report=>{report.required_checks=['source_structure','linux_compile'];},
+    report=>{report.checks.find(c=>c.name==='tia_compile').status='pass';},
+    report=>{report.checks.find(c=>c.name==='lad_scl_compare').status='pass';},
+  ];
+  for(const mutate of mutations){
+    const report=currentReport(profile); mutate(report);
+    const summary=verificationSummary(report,{profile,current:true,approved:true});
+    assert.equal(summary.status,'unknown');
+    assert.equal(Object.values(summary.acceptance).some(Boolean),false);
+  }
+  const unselected=currentReport();
+  unselected.checks.find(c=>c.name==='scan_contract').status='pass';
+  assert.equal(verificationSummary(unselected,{current:true,approved:true}).status,'unknown');
+  assert.equal(verificationSummary(currentReport('unsupported'),{profile:'unsupported',current:true,approved:true}).status,'unknown');
+});
