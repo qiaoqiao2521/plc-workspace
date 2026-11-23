@@ -9,7 +9,7 @@ import threading
 import unittest
 from test_local_server import request, result
 
-spec = importlib.util.spec_from_file_location('workflow', Path(__file__).with_name('mcode-workflow.py'))
+spec = importlib.util.spec_from_file_location('workflow', Path(__file__).with_name('plc-workflow.py'))
 workflow = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(workflow)
 
@@ -386,7 +386,7 @@ class Gates(unittest.TestCase):
                          'Real compiler repair loop needs SIM_IEC2C and SIM_MATIEC_LIB')
     def test_real_type_error_then_fixture_repair_recompiles_current_source(self):
         # The AI response is an explicit fixture here; compilation/scan evidence
-        # is real. This does not claim an online mcode/Paperclip acceptance run.
+        # is real. This does not claim an online model API acceptance run.
         original = (workflow.HERE.parents[1] /
             'plans/plc-generation-ui/user-eval/candidates/FB_ConveyorPack.scl').read_text()
         corrected = original.replace('>= 8 THEN', '>= 12 THEN')

@@ -16,7 +16,7 @@
 | [PROJECT.md](../../PROJECT.md)、[AGENTS.md](../../AGENTS.md) | 已有 Main LAD / FB SCL 方向、规范 ST 与抽象扫描契约；模型与工具验收应分开 | 历史测试记录是本轮重新验收 |
 | [SCL_CLOSED_LOOP.md](../../docs/SCL_CLOSED_LOOP.md) | 现有路径加载知识与原程序，调用 matiec，使用固定合同，允许有限源码修复；文档明确在线 mcode/CM 与 TIA 尚未验收 | 固定夹具回归证明真实模型会按诊断修复 |
 | [candidate-validation.py](../../web/scripts/candidate-validation.py)（本轮读 1–220 行） | 命名行为合同是 `conveyor-12-v1`；真实编译之后可执行固定扫描；无 profile 时 `scan_contract=not_run`，但总 `status` 仍可为 `pass` | 所有新任务均有行为测试 |
-| [mcode-workflow.py](../../web/scripts/mcode-workflow.py)（本轮读 160–305、330–文件末尾） | 未决规格阻断生成；工具报告来源关联；工具 pass 后进入文本审阅，全部审阅通过可成为 `reviewed_draft`；修复不允许修改冻结测试与需求 | `reviewed_draft` 等同逻辑、Siemens 或机器验收 |
+| [PLC 控制器（原 mcode-workflow.py）](../../web/scripts/plc-workflow.py)（本轮读 160–305、330–文件末尾） | 未决规格阻断生成；工具报告来源关联；工具 pass 后进入文本审阅，全部审阅通过可成为 `reviewed_draft`；修复不允许修改冻结测试与需求 | `reviewed_draft` 等同逻辑、Siemens 或机器验收 |
 | [generation-model.js](../../web/generation-model.js) | LAD 结构只有串联 contacts 的 rung 与 FB call；提示词明确并联/定时器等尚不支持；现有校验说明它只是显示/传输校验 | 已有通用 LAD 图生成、导入或执行 |
 | [DECISIONS.md](../../docs/DECISIONS.md) | 输送带合同与抽象核心的 Enable/Reset 行为不得混套；历史对抗测试曾发现独立预期被实现派生值污染的问题 | 来自同一 IR 的两份产物一致就足以自证正确 |
 
@@ -74,3 +74,7 @@
 - `check-latch.py` 提供明确的手写基准和静态 IR 交接复验，未调用模型。完整测试 28 JS + 109 Python 全过，无跳过；本轮工具与命令见 progress.md。
 
 S2 真实在线 mcode/CM 演示仍开放；TIA、PLCSIM、现场设备、真实时间和掉电保持均未验收。S3/S4 未实现，规范 FB_MainSequence 和既有原输送带合同未变。
+
+## 2026-11-23 用户修正：直接 API / 外部 Agent
+
+旧 README 将 mcode、CM/Paperclip 和公司 ID 作为必需项，与用户现用方式冲突。运行入口已去掉这些要求；旧计划中的 CM 在线状态保留为历史记录，不再是后续安装目标。新的两个接入只运送模型答案，既有冻结需求、必选检查、独立合同和有限修复仍由 PLC 控制器执行。详细协议、凭据处理和实际模型未验收边界见 `docs/PLC_AGENT_WORKFLOW.md`。

@@ -3,7 +3,7 @@
 1. Read `PROJECT.md` for user intent and the current boundary.
 2. For PLC changes, read `projects/FB_MainSequence/01_specs/scan-contract.md` before source.
    Read `docs/SCL_STANDARD_BASELINE.md` as well: it supersedes the earlier request to let the user choose an arbitrary Enable/Reset convention and records the official basis and the implemented v0.3 scope.
-3. For new generation/Harness work, read `plans/plc-logic-harness-v1/task_plan.md`, then its `findings.md` and `progress.md`. This is a plan, not implemented capability; begin with its current slice and stop at the stated boundary.
+3. For new generation/Harness work, read `plans/plc-logic-harness-v1/task_plan.md`, then its `findings.md` and `progress.md`. Distinguish implemented S1/S2 and model-access changes from the unstarted S3/S4 slices; stop at the recorded boundary.
 4. Follow `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` and `plans/plc-semantics-v1/` only as needed for the existing implementation and abstract core.
 
 ## PLC-specific rules
@@ -26,6 +26,10 @@ Update the contract and decision record when behavior changes. Keep large third-
 
 ## New engineering generation
 
-The currently implemented path uses [PLC Agent execution protocol](docs/PLC_AGENT_WORKFLOW.md): analyze → supervisor review → freeze → generate → parallel scan/interface reviews → same supervisor → programmatic draft gate. The selected strict workflow runs only mcode through CM/Paperclip. Unresolved process decisions must prevent generation, not merely accompany generated actions as questions. Review approval does not grant tool, Siemens or machine acceptance.
+The currently implemented path uses [PLC Agent execution protocol](docs/PLC_AGENT_WORKFLOW.md): analyze → supervisor review → freeze → generate → parallel scan/interface reviews → same supervisor → programmatic draft gate. Direct API calls and external Agent answers enter the same `plc-workflow.py` controller. No CM/Paperclip, mcode or CLI adapter is required. Model transport cannot alter verification authority. Unresolved process decisions must prevent generation, not merely accompany generated actions as questions. Review approval does not grant tool, Siemens or machine acceptance.
 
-S1 evidence classification and the S2 synthetic latch BOOL IR/LAD slice are implemented; online mcode/CM acceptance is still open. S2 repairs only IR and regenerates both products; old SCL tasks still repair source. Until a slice is implemented and verified, describe the existing runtime truthfully; do not infer new support from these planning documents. Update the affected protocol and architecture only with the corresponding implementation.
+S1 evidence classification and the S2 synthetic latch BOOL IR/LAD slice are implemented; one actual Agent initial-generation latch run is recorded; configured remote API and actual Agent diagnostic-repair acceptance remain open. Local protocol fixtures do not close those items. S2 repairs only IR and regenerates both products; old SCL tasks still repair source. Until a slice is implemented and verified, describe the existing runtime truthfully; do not infer new support from these planning documents. Update the affected protocol and architecture only with the corresponding implementation.
+
+The 2026-11-23 user correction removes the former CM/Paperclip requirement. Keep API keys and Agent tokens out of source, runtime evidence, argv, browser storage and exports. Agent control means answering controller-issued packets, not editing expectations or writing acceptance. Current setup and protocol are in `docs/PLC_AGENT_WORKFLOW.md`; older CM/CLI plan records are historical.
+
+For external Agent takeover, read `.agents/skills/plc-workspace-control/SKILL.md` and use `web/scripts/plc-agent.py`. The Skill guides one persistent CLI session; it cannot replace the controller’s gates. Keep task credentials only in that process’s stdin/memory, not a new config file or argv.

@@ -1,63 +1,94 @@
 # PLC Agent execution protocol
 
-This protocol governs new requirement-to-engineering drafts. It does not change the abstract example's contract or grant Siemens/machine acceptance. The strict path uses **only mcode** for AI work and the existing **CM/Paperclip process adapter** for execution. One supervisor role reviews both specification and final delivery; two independent review sessions can run concurrently.
+The workbench has two model connections: **direct API configuration** and **external Agent control**. Both enter the same PLC-specific controller, `plc-workflow.py`; neither can issue verification verdicts or change the frozen contract. CM/Paperclip, mcode and the earlier CLI adapters are no longer runtime dependencies. The change concerns model access, not the supported PLC instruction set.
 
 ## Ordered gates
 
-|Stage|Role|Required output and gate|
+| Stage | Role | Required output and gate |
 |---|---|---|
-|1. Analyze request|mcode engineer|Explicit specification, observable obligations, blocking questions. No SCL/LAD. No invented valve, feedback, Stop, Reset destination or time settings.|
-|2. Review specification|mcode supervisor|Approve/reject/unknown, with evidence. Unresolved analyst questions or contradictions still block even if the supervisor approves.|
-|3. Freeze and generate|mcode engineer|Only after stages 1–2 pass. Bind specification and request hashes. New unresolved questions, fabricated proof or mismatched request identity stop delivery.|
-|4. Check current source|controller + matiec/native runner|Capture current SCL, compile the supported Linux subset, execute the user-selected fixed scan contract. Actual failures enter bounded source-only repair and fresh checks; unavailable/unsupported tools retain candidate with unknown.|
-|4a. Scan semantics review|mcode semantic reviewer|After tools pass, review persistent state, snapshot/next/commit/output timing, edges, simultaneous controls, deadlines and Done pulse against this request.|
-|4b. Interface review|mcode interface reviewer|Independently review specification/I/O/SCL/Main LAD agreement, persistent instance and unconditional call, placeholders and unsupported claims. Run concurrently with 4a on identical frozen inputs.|
-|5. Final review|same mcode supervisor role|Review original request, current candidate, real tool evidence and both reports. Worker failure becomes unknown. Any fail/unknown prevents approval. Supported source findings can enter repair, tool revalidation and fresh reviews.|
-|6. Deliver or retain candidate|program gate|Only `reviewed_draft` means checks and reviews passed. Failed/unknown candidates remain visible and exportable with their disposition and evidence. Industrial acceptance remains `not_run`.|
+| 1. Analyze request | Engineer | Explicit specification, observable obligations and blocking questions. No executable logic yet; no invented process decisions. |
+| 2. Review specification | Supervisor | Approve/reject/unknown with evidence. Unresolved questions and contradictions still block even if the supervisor approves. |
+| 3. Freeze and generate | Engineer | The controller freezes the approved request, specification, verification goal and independent contract. The answer is a source candidate or the selected bounded IR proposal. |
+| 4. Check the candidate | Controller and actual tools | Compile the captured SCL and run the selected fixed behavior contract. S2 also executes the serialized LAD graph. Tool failures remain failures; missing or unsupported checks remain unknown. |
+| 4a. Scan semantics review | Semantic reviewer | After required tools pass, review persistent state, edges, simultaneous inputs and output timing against the supplied requirements and evidence. |
+| 4b. Interface review | Interface reviewer | Concurrent separate review of I/O, SCL/LAD agreement, invocation model and unsupported claims on the same frozen candidate. |
+| 5. Final review | Same supervisor role | Review the request, current candidate, actual tool evidence and both reviews. Unsupported review claims cannot override the contract. |
+| 6. Deliver or retain | Program gate | Only required checks plus all reviews can produce a scoped `reviewed_draft`. Failed, cancelled or unknown candidates remain reviewable without current acceptance. |
 
-The controller starts each stage, validates JSON and input SHA-256, and decides whether the next stage may start. It loads project Skill content and relevant references, records their hashes, and supplies them alongside original SCL in the actual packets. A prompt asking a model to wait is not the gate. Every invocation runs in a fresh mcode session; the supervisor is one persistent Paperclip role, with the exact current packet supplied for each review. It does not rely on conversational memory.
+The controller creates each stage packet and checks the answer's schema and input SHA-256. The supervisor is the same **role**, with complete current inputs supplied on each call; there is no hidden conversation or persistent model session. Separate review calls do not establish statistically independent failure modes. Project knowledge and original SCL are supplied as stage data with recorded provenance. No prompt, approval vote or Agent instruction can replace a programmatic gate.
 
-S1 freezes a verification goal alongside the contract: `scl_compile` requires source-file structure and actual compilation; `scl_behavior` additionally requires the selected independent scan contract. Report v2 records each scope and its mandatory status. The workflow and bridge recompute the gate; any mandatory fail/unknown/not_run or incomplete/mismatched report blocks acceptance. A compile-only `reviewed_draft` is still behavior-unaccepted. `acceptance` is issued only after the selected goal and reviews pass; LAD comparison and TIA remain unrun. Old imported reports are historical records, never current gate evidence.
+S1 freezes `scl_compile` or `scl_behavior` as the goal. The explicitly selected `latch-start-stop-v1` additionally requires `lad_scl_compare`. Both controller and local bridge recompute the required-check gate. A compile-only draft remains behavior-unaccepted. Changed requirements, source, IR or LAD invalidate old evidence; imported records remain historical. There is no industrial-accepted state, automatic device download or physical I/O write.
 
-Specification/source changes invalidate prior approvals. This implementation creates a fresh workflow directory for a new request rather than reuse previous packets. Models cannot waive a failed programmatic gate. An `approve` verdict for a specification containing unresolved questions does not authorize generation.
-
-## Evidence and authority
-
-- Main owns physical I/O; FB operates on logical signals. Unknown addresses alone do not authorize inventing addresses. Missing mechanical decisions block actuation generation.
-- Process choices come from confirmed user requirements. Official SCL rules constrain implementation but do not choose a valve, stopping behavior or reset position.
-- All review findings must cite the supplied requirement or source. Reviewers can invent extra requirements too; the supervisor must distinguish those from actual violations. A model vote is not proof.
-- Actual compilation and the selected boundary scan profile bind to captured generated source and independently fixed expectations. The `conveyor-12-v1` contract is frozen before generation; repairs cannot change it. Other tasks currently get Linux compilation only. Formal checks remain separate; the repository example's 32 assertions cannot automatically cover a new FB. See [current SCL loop](SCL_CLOSED_LOOP.md).
-- TIA/CPU/firmware, PLCSIM and machine/safety acceptance remain separate, source-bound engineering steps. The current program has **no industrial-accepted state** and does not deploy/download.
-- Same-model parallel review provides separate sessions, not statistically independent failure modes. Smart permission is not a filesystem sandbox. The worker strips Paperclip runtime credentials from the mcode subprocess environment, uses disposable cwd, and instructs no tools; it does not claim protection from a malicious model accessing the host.
-
-## Running the strict frontend
-
-Build, then select the existing local company explicitly. No credentials are passed or stored in the repository:
+## Direct API connection
 
 ```sh
+npm --prefix web ci
 npm --prefix web run build
-python3 web/scripts/local-server.py --provider mcode-cm --timeout 0 \
-  --mcode /absolute/path/to/mcode \
-  --cm-company EXISTING_LOCAL_COMPANY_ID \
-  --workflow-root /absolute/runtime/root/outside/repository
+npm --prefix web run dev
 ```
 
-The existing Paperclip loopback API defaults to port 3100. It owns model processes; there is no new general scheduler or change to its upstream source. Periodic heartbeats are disabled for these task-local roles; one explicit wake starts each stage. Roles are paused after completion. Native issues/runs preserve execution history. Runtime requests, jobs, diagnostics and sessions stay outside Git.
+Open http://127.0.0.1:8766 and fill in **API 地址、模型、API Key** in the page. The base URL is the service prefix, for example `https://provider.example/v1`; the adapter appends `/chat/completions`. It implements OpenAI-compatible Chat Completions, not every vendor's native API. A local compatible model server can use loopback HTTP without a key; remote endpoints require HTTPS and a key. URL credentials, query strings and fragments are rejected.
 
-No mcode timeout/max-step cutoff or Paperclip process timeout is imposed. HTTP request timeouts handle transport failures, not model generation budgets. Frontend cancellation signals the controller; it requests native cancellation of active Paperclip runs and pauses its roles. Native cancellation/API outages can fail: inspect retained run IDs and use Paperclip's run-cancel endpoint rather than assume all remote processes stopped. Full UI-to-native cancellation has not yet been accepted.
+Each stage is a fresh non-streaming request, with the full answer schema and no tools. JSON output defaults to `json_object`; a service without that option can use the explicit `none` setting. Local schema checks still apply in either mode. Refusals, truncated output, tool calls, multiple choices, invalid JSON and redirects fail closed; there is no automatic provider switch or retry.
 
-The local validator's cancellation/worker cleanup is regression-tested separately: SIGTERM unwinds the native wait, reaps its process group, retains completed tool observations and records cancellation without acceptance. This does not establish online Paperclip/mcode cancellation acceptance.
+Configuration lives in the local server's memory. The browser receives only non-secret fields and `api_key_set`; the password input is cleared on submit. Omitted keys are retained only for the same endpoint. Changing the endpoint requires its own key, and a rejected save leaves the old configuration intact. “清除密钥” removes it. Nothing is saved in a repository config, browser draft or engineering export. A configured indicator means configuration passed local validation, not that a real provider was contacted.
 
-The previous agy/ZCode single-generation adapters remain explicit diagnostic options; they do not execute or satisfy this protocol.
+For terminal startup the optional environment variables are `PLC_API_BASE_URL`, `PLC_API_MODEL`, `PLC_API_KEY`, `PLC_API_TIMEOUT` and `PLC_API_RESPONSE_FORMAT`. The bridge passes configuration to its controller through stdin, never argv or runtime records, and removes `PLC_API_KEY` from the child environment. Use the page if shell configuration is unnecessary. Server restart requires configuration again unless it is supplied through the environment.
 
-## Read-only audit and recovery
+The request timeout defaults to 120 seconds and accepts 1–600 seconds; it is a network I/O timeout. The workflow has no wall-clock deadline by default; `--timeout SECONDS` bounds the whole task when desired. One workflow runs at a time, with its two review calls allowed concurrently. A task can make several model requests and incur the chosen provider's charges. Requirements, original source and stage evidence are sent to that provider when API generation starts.
 
-`web/scripts/mcode-workflow.py audit` takes `--request`, `--candidate`, `--runtime`, `--company`, `--mcode`. It reviews an existing structured result with two parallel reviewers and a supervisor, but **never generates or exports engineering**. It does not bypass specification approval for a new generation. `audit_complete` means handoff complete, irrespective of report verdicts.
+## External Agent control
 
-An invalid result or interrupted workflow preserves runtime evidence and the last source-bound candidate, marks the native handoff for review and does not retry unknown execution failures. Actual compiler/behavior failures and supported review findings may enter the bounded repair loop (default two repairs, CLI `--max-repairs 0..5`). Every repair checks the new source again. Unknown is not passed. Root Codex owns integration and release; worker roles cannot edit canonical PLC files or shared project notes through this workflow.
+Select **Agent 接管** without configuring an API key. The page starts one controlled task and provides task-specific connection instructions. An external Agent on the same computer can read the currently available packets and submit structured answers. No particular Agent product, scheduler or MCP server is required.
 
-Implementation: [controller](../web/scripts/mcode-workflow.py), [gate regressions](../web/scripts/test_mcode_workflow.py), [task and acceptance](../plans/plc-mcode-workflow/task_plan.md).
+### Preferred Skill and CLI entry
 
-## S2 的受限 IR 分支
+Load the repository's [plc-workspace-control Skill](../.agents/skills/plc-workspace-control/SKILL.md). It tells the Agent how to keep one CLI session open and answer each stage. The Skill is repository-scoped; agents that do not discover this folder can read its file explicitly. It is not a global personal-skill installation or a second workflow engine.
 
-仅 `brief.validation_profile=latch-start-stop-v1` 且固定合成需求/接口/约束未改写时启用。现有分析、监督、工程、语义/接口审阅角色与 CM 调度不变。工程生成回合只返回绑定请求的 IR 提议；控制器确定性生成 SCL 和实际 LAD 图。它们是同一 FB 逻辑的两种表达，无需额外 Main 调用壳。修复只能改 IR，两个出口一并重生和重验，合同与预期冻结。工具必选项 unknown 不进入自动修复；检查失败最多使用既有两轮预算。报告将两个新产物纳入来源关联，导入历史不能提升验收。实测路径及未运行的在线验收见[闭环说明](SCL_CLOSED_LOOP.md#s2启停自锁双输出)。
+```sh
+python3 web/scripts/plc-agent.py doctor
+python3 web/scripts/plc-agent.py prepare --brief /outside/repo/brief.json
+python3 web/scripts/plc-agent.py workflow --request /outside/repo/task.json
+```
+
+`prepare` accepts confirmed brief data (or `{brief,states}`) and emits the same validated, fingerprinted request used by the page. Save that JSON outside the repository before passing it to `workflow`. It does not infer process choices. To use a nondefault local address, put `--url http://127.0.0.1:PORT` before the command.
+
+For a page-created task, run `workflow --attach` and write the page's `{job_id,agent_token}` JSON to **stdin's first line**, keeping the process alive. The CLI temporarily disables terminal echo where supported and keeps the credential in process memory. Do not pipe one line and close stdin, put the token into command arguments, or save it as configuration. No private token file is introduced.
+
+The CLI emits one JSON object per line with `type`: `started`, `packets`, `answer_accepted`, `answer_rejected`, or `finished`. On `packets`, use the supplied instructions/data/schema and write one `{packet_id,input_sha256,answer}` JSON line per answer back to the same process. Rejected answers can be corrected; an acceptance event only confirms receipt of that answer. Empty waits are normal during native checks. The terminal event includes the actual job snapshot, including any retained failed candidate.
+
+Write `{"command":"cancel"}` to request cancellation, then wait for `finished`. EOF, Ctrl-C and unexpected transport failure also initiate bounded cleanup; if cleanup cannot be confirmed, the CLI reports that uncertainty rather than success. `status JOB_ID` and `cancel JOB_ID` support follow-up. No CLI command runs model shell commands or changes PLC expectations. The same Python controller remains the sole owner of stage advancement and verification verdicts.
+
+### Underlying local HTTP protocol
+
+| Request | Body / authorization | Response |
+|---|---|---|
+| `POST /api/agent/jobs` | `{ "request": ... }` | `202` with `job_id` and a one-task `agent_token` |
+| `GET /api/agent/jobs/<id>/packets` | `Authorization: Bearer <agent_token>` | `status`, `finished`, and pending `packets` |
+| `POST /api/agent/jobs/<id>/answers` | Bearer token; `{ "packet_id": "...", "input_sha256": "...", "answer": { ... } }` | `{ "accepted": true }` for a schema-valid stage answer |
+| `GET /api/jobs/<id>` | Local connection | Current outcome, candidate and actual verification evidence |
+| `POST /api/jobs/<id>/cancel` | `{}` | Cancellation requested; poll until `finished` |
+
+All POSTs require `Content-Type: application/json` and `X-PLC-Workspace: 1`. Browser requests must be same-origin. The service listens only on `127.0.0.1`. The token goes in the authorization header, never a URL. It is shown only during the active UI task, stored in server memory, and excluded from snapshots, runtime files and engineering exports. A new task gets a new token; answers after completion or cancellation are refused.
+
+Each pending item contains `packet_id`, `input_sha256`, `stage`, `role` and `packet`. The Agent must follow `packet.instructions`, use `packet.data`, and return exactly the object described by `packet.schema`. Echo the packet ID and hash unchanged. Unknown stages, altered hashes, extra answer fields, schema failures and credential echoes are rejected; malformed answers do not consume the packet. A successfully submitted packet cannot be replayed. Empty `packets` can mean the controller is checking source or preparing the next stage; only terminal status with `finished` indicates the task has ended.
+
+The controller may expose the two reviewer packets together. The Agent may process them in separate sessions; the workbench cannot prove the Agent used independent models or thought processes. It can enforce packet identity, sequencing, source provenance and its own tool verdicts. Answer submission accepts a **stage response**, not the engineering. A repair packet permits only current SCL or, for S2, IR changes. It never offers a way to edit tests, expectations or authoritative pass/fail records.
+
+Remote cloud Agents cannot reach this loopback address without an explicitly arranged local execution channel. Static hosting retains the existing task/result file handoff, but that import does not gain current verification authority. This change does not create a public remote execution service.
+
+## Cancellation, records and recovery
+
+The bridge signals the controller. Waiting Agent dispatches share a cancellation event, including both reviewer threads. Native validation cancellation reaps its worker process group. If an API network wait prevents the controller from exiting, the bridge kills that local process group after a five-second grace period. Cancellation revokes current acceptance and prevents new stages. It does not promise that a provider has stopped remote computation or billing; the workbench does not own an external Agent process either.
+
+The bridge retains the latest eight jobs in memory. Requests, loaded knowledge, stage packets, answers, candidate revisions and actual diagnostics are stored outside Git under `--runtime-root`; its default is the system temporary directory's `plc-workspace-runs`. Use a persistent external directory if records must survive system cleanup. Key/token data are not written there. The last valid candidate can be recovered after a failure; recovery never upgrades missing checks.
+
+Actual compiler/behavior failures and supported review findings may enter a bounded repair loop (default two repairs; direct controller `--max-repairs 0..5`). Unknown tool delivery stops instead of spending repair attempts. `plc-workflow.py audit --provider api --request ... --candidate ... --runtime ...` can review an existing structured candidate with API config on stdin; `audit_complete` is a read-only handoff and never establishes a new generation's acceptance.
+
+## S2: bounded IR branch
+
+Only an unchanged, explicitly selected synthetic `latch-start-stop-v1` brief enters this branch. The model returns a bound BOOL IR proposal; the controller deterministically produces both SCL and actual LAD graph logic. Repairs can change only IR, after which both outputs are regenerated and rechecked against fixed expectations. A tool `unknown` cannot enter automatic repair or become a pass. The graph is an internal review/execution format, not Siemens project serialization. State/count instructions, another dual-output benchmark and TIA integration remain later slices.
+
+Implementation: [controller](../web/scripts/plc-workflow.py), [API adapter](../web/scripts/model-api.py), [Agent dispatcher](../web/scripts/agent-dispatch.py), [gate regressions](../web/scripts/test_plc_workflow.py), [Agent protocol tests](../web/scripts/test_agent_control.py). The current source/behavior and evidence limits remain in [the SCL loop](SCL_CLOSED_LOOP.md). Local HTTP and Agent-answer fixtures test the connection and gates; they do not substitute for a real configured model's generation/repair acceptance.
+
+A separate 2026-11-23 actual Agent run followed the repository Skill and CLI for `latch-start-stop-v1`: all six stage answers were accepted, the first candidate passed actual native and graph checks, and the CLI exited successfully. No repair or cancellation was triggered in that run. This supports the observed first-generation path only; remote API services, actual Agent diagnostic repair, and Siemens/machine acceptance remain separate. Exact scope and identities are recorded in [progress](../plans/plc-logic-harness-v1/progress.md).

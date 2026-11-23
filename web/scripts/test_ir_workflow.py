@@ -23,7 +23,7 @@ def load(name, path):
     return module
 
 
-workflow = load('ir_workflow', HERE / 'mcode-workflow.py')
+workflow = load('ir_workflow', HERE / 'plc-workflow.py')
 logic = load('workflow_logic_ir', HERE / 'logic-ir.py')
 checker = load('workflow_candidate_checker', HERE / 'candidate-validation.py')
 COMPILER = os.environ.get('SIM_IEC2C')

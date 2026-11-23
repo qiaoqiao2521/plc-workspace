@@ -4,15 +4,14 @@ Requirements → state/I/O review → local AI generation → current SCL checks
 
 ## Run
 
-Node 18+ and Python 3.10+; install the pinned Three.js dependency with `npm --prefix web ci`. The selected local CLI must already be configured.
+Node 24 and Python 3.10+; install the pinned Three.js dependency with `npm --prefix web ci`. Configure a model API in the page or give the task to an external Agent.
 
 ```sh
 npm --prefix web run build
-npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
-  --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime
+npm --prefix web run dev
 ```
 
-Open http://127.0.0.1:8766. The Python bridge listens only on 127.0.0.1 and starts the strict mcode/CM workflow only after clicking **AI 生成工程**. `npm run dev` selects that workflow without a generation deadline; specify the existing local Paperclip company and a runtime directory outside Git. One engineering workflow is active at a time; its two review roles may run concurrently. Explicit `--provider agy` or `--provider zcode` retains the earlier diagnostic adapters, with the standalone CLI's 180-second default budget. Local CLI execution does not imply local/offline inference.
+Open http://127.0.0.1:8766. The Python bridge listens only on loopback. **API 生成** calls the configured OpenAI-compatible Chat Completions service; **Agent 接管** exposes constrained stage packets to a local external Agent. Neither needs CM/Paperclip or a model CLI. Both use the same PLC controller, tools, repair limits and evidence gate. One workflow runs at a time, with two reviewer calls allowed concurrently. Configuration readiness is not a live provider test.
 
 For a static preview without generation:
 
@@ -20,19 +19,23 @@ For a static preview without generation:
 python3 -m http.server 8768 --bind 127.0.0.1 --directory web/dist
 ```
 
-The UI detects missing `/api/capabilities`, explains how to start the local bridge and keeps Agent task/result handoff available. A static public website cannot execute agy on the server or visitor computer. No model credentials or local server code are included in the static asset output.
+The UI detects missing `/api/capabilities`, explains how to start the local bridge and keeps Agent task/result handoff available. A static public website cannot run the controller or contact the visitor’s local service. No model credentials or local server code are included in the static asset output.
 
 ## Generation protocol
 
-- `POST /api/generate`: `{request, prompt}`; returns a job identifier. Requires JSON content type, same origin and `X-PLC-Workspace: 1`.
-- `GET /api/jobs/<id>`: running/complete/failed/cancelled; complete includes structured result. Strict workflow responses include `verification` and `workflow`; failures may include `candidate_result` for review/save without approval.
-- `POST /api/jobs/<id>/cancel`: cancel the current model process.
-- `request` freezes brief and state draft, with a SHA-256 content fingerprint and request ID.
-- [generation-result.schema.json](data/generation-result.schema.json) defines SCL files, states, I/O, LAD networks, questions and Agent-reported checks.
-- Edited requirements invalidate the prepared request and disable old-result exports. Imported results must echo the current request ID/fingerprint. No model report becomes verification evidence.
-- The default agy adapter uses plan + sandbox and a temporary working directory, receiving no checkout path. Do not add `--disable-slash-commands`: the installed agy warns that it disables plan mode. This is a bounded engineering adapter, not a security boundary for running untrusted programs.
+- `GET /api/config`: redacted API config; `POST /api/config`: update Base URL, model, optional key, request timeout and JSON mode. Omitted key is retained only for the same endpoint; `clear_key: true` clears it. A failed save preserves the previous valid config.
+- `POST /api/generate`: `{request}`; returns a job identifier. The controller builds prompts from the request; a legacy `prompt` field cannot change its instructions.
+- `POST /api/agent/jobs`: `{request}`; returns a task ID and task token. With the Bearer token, read `/api/agent/jobs/<id>/packets` and post `{packet_id,input_sha256,answer}` to `/answers`. The controller validates and consumes each packet once.
+- `GET /api/jobs/<id>`: running/complete/failed/cancelled, with `finished` after cleanup. Completed jobs include a result and scoped evidence; failed jobs may retain `candidate_result` without acceptance.
+- `POST /api/jobs/<id>/cancel`: cancel the current task and poll until `finished`.
+- All POSTs require JSON, same-origin browser requests and `X-PLC-Workspace: 1`. No secrets are placed in URLs, exported engineering or browser draft storage.
+- `request` binds brief and state draft with a SHA-256 fingerprint and request ID. Edited requirements invalidate old results. Imported records never confer current acceptance.
 
-Requirement drafts are saved in browser storage only when the user clicks save. The bridge retains the last eight jobs in memory; strict mcode/CM tasks also preserve their request, loaded knowledge, candidate revisions, diagnostics and outcome under the configured external workflow root. Engineering export saves the source and associated evidence for reopening. Runtime evidence is not committed to Git; model CLIs may retain their normal local session history.
+For Agent control, load [plc-workspace-control](../.agents/skills/plc-workspace-control/SKILL.md) and use `python3 web/scripts/plc-agent.py workflow --request task.json`, or `workflow --attach` for an existing page task. Keep its stdin session open; it emits current packets and consumes structured answer lines. `doctor`, `prepare --brief`, `status` and `cancel` cover setup and recovery without a token file or another scheduler.
+
+Full API/Agent setup, answer format, provider limits and cancellation semantics: [execution protocol](../docs/PLC_AGENT_WORKFLOW.md).
+
+Requirements are saved in browser storage only on explicit save. API settings and Agent tokens are separate in-memory configuration. The bridge retains the last eight jobs in memory; `--runtime-root /outside/repo/runtime` keeps request, knowledge, stage answers, candidate revisions and tool evidence outside Git. Its default is the system temporary directory, which is subject to cleanup. API credentials travel only through the controller's stdin and the provider authorization header. Server restart requires configuration again unless supplied through `PLC_API_*` environment variables.
 
 ## Engineering output
 
@@ -59,27 +62,15 @@ Pages build: `npm --prefix web run build`; output: `web/dist`. Pure static hosti
 
 Official limits checked 2026-09-30 remain in the [earlier hosting findings](../plans/plc-frontend/findings.md). No account change or Cloudflare deployment was performed.
 
-## ZCode and engineering recovery
-
-To select an existing ZCode CLI (the desktop `zcode` launcher is not the CLI):
-
-```sh
-python3 web/scripts/local-server.py --provider zcode --zcode-cli /stable/path/resources/glm/zcode.cjs
-```
-
-`--node /path/to/node` can select the runtime. ZCode uses explicit edit mode, denied engineering/file/command tools, a disposable directory, and the same result schema/binding checks and time budget. Its text response must be a single JSON object; prose or malformed results are rejected. This adapter is not filesystem isolation. Selecting ZCode does not change CM's global provider or establish a native TaskHub slot.
+## Engineering recovery
 
 **打开工程草稿** restores the request and result from an exported engineering JSON, including the original request identity. It recalculates the fingerprint and validates both assets before changing the displayed engineering. **导入 Agent 结果** remains restricted to the currently prepared request. Neither import path inherits verification from a file. Editing a restored requirement still invalidates its exports. Save-draft continues to preserve requirements only; export the engineering before reload to preserve generated results.
 
 LAD numbering is supplied once by the viewer/exporter; redundant model title prefixes are stripped for presentation only, without rewriting original candidates.
 
-### Explicit unlimited generation
+### Task timeout and cancellation
 
-Use `--timeout 0` when choosing to wait for delivery without a generation deadline. This passes no timeout to the child-process wait (and omits agy's own print-timeout argument). The default remains 180 seconds. Cancellation, single-active-job exclusion, result schema and request binding still apply. The CLI/provider may independently fail; no deadline does not guarantee a result. Polling HTTP requests are separate from the model process lifetime.
-
-### Strict mcode workflow
-
-For the selected industrial draft workflow, use `--provider mcode-cm --timeout 0 --mcode /path/to/mcode --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime` and configure the compiler variables described above. The existing local Paperclip runtime must be available. Specification approval precedes generation; current-source tool failures enter bounded repair before two concurrent text reviews and supervisor review. Failed/unknown candidates remain reviewable and exportable with their status. See [execution protocol](../docs/PLC_AGENT_WORKFLOW.md). Linux checks and text approval do not confer Siemens or machine acceptance.
+The default `--timeout 0` imposes no whole-task deadline. Set a positive number of seconds to bound the task. The API request I/O timeout is separately configurable (default 120, range 1–600). Cancellation revokes acceptance, unwinds native checks and wakes all waiting Agent stages; an API wait that cannot exit receives a local process-group kill after five seconds. This does not cancel remote provider billing or stop an independently owned Agent process. A disconnected page keeps its task/cancel controls and can retry polling without starting a second job.
 
 ## Visible conveyor simulation
 

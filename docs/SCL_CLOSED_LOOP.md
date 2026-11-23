@@ -1,18 +1,17 @@
 # 当前 LAD / SCL 的检查与修复
 
-默认 mcode/CM 路径现在把专业资料、原程序、生成结果和工具反馈接到同一次任务。规格审阅仍先于生成；没有新增审阅角色。模型不直接操作工程工具，由控制器捕获当前源码并运行检查。
+直接模型 API 和外部 Agent 共用的控制器现在把专业资料、原程序、生成结果和工具反馈接到同一次任务。规格审阅仍先于生成；没有新增审阅角色。模型不直接操作工程工具，由控制器捕获当前源码并运行检查。
 
 ## 运行
 
-沿用已配置的 mcode、现有 CM/Paperclip 公司和仓库外运行目录，再提供 matiec 编译器与标准库：
+启动工作台后在页面配置 API，或选择外部 Agent 接管。真实检查另外需要 matiec 编译器与标准库：
 
 ```sh
 npm --prefix web ci
 npm --prefix web run build
 SIM_IEC2C=/absolute/path/to/iec2c \
 SIM_MATIEC_LIB=/absolute/path/to/matiec/lib \
-npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
-  --cm-company EXISTING_COMPANY_ID --workflow-root /outside/repo/runtime
+npm --prefix web run dev -- --runtime-root /outside/repo/runtime
 ```
 
 `iec2c` 和 GCC 必须在运行桥接的 Linux 环境可执行；标准库目录应含 `ieclib.txt` 与 `C/`。本次验证使用 [beremiz/matiec](https://github.com/beremiz/matiec) commit `3a41303bcb4e50403417bc39c63f88981d7d961e`。构建 matiec 需要 C/C++ 编译器、make、autoconf、automake、bison、flex 和 m4；在仓库外检出该版本后运行 `autoreconf -i`、`./configure`、`make`。第三方工具不加入本项目 Git。
@@ -49,7 +48,7 @@ npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
 
 旧版报告仍可导入、查看和导出。导入不认证来源、不恢复当前会话验收，也不会把旧总 pass 补成新等级。当前控制器不接受旧版或不完整报告作为新任务门禁。
 
-运行目录按任务保存 `request.json`、`knowledge.json`、`outcome.json`、原有模型调度记录以及 `attempt-N/`。每轮包含 `candidate.json`、`changes.diff`、`validation.json`、检查器捕获的 `sources/`、编译日志和扫描记录；完成审阅/修复时还保存对应结果。运行证据不写回规范 PLC 源码，也不自动提交 Git。
+运行目录按任务保存 `request.json`、`knowledge.json`、`outcome.json`、`stages/` 内的阶段包与回答以及 `attempt-N/`。每轮包含 `candidate.json`、`changes.diff`、`validation.json`、检查器捕获的 `sources/`、编译日志和扫描记录；完成审阅/修复时还保存对应结果。运行证据不写回规范 PLC 源码，也不自动提交 Git。
 
 **导出工程草稿**包含需求、最终或未通过的候选、检查报告和循环记录。**打开工程草稿**重新计算需求指纹和每份源码 SHA-256；不匹配时拒绝旧记录。匹配只说明记录与文件相连，不能认证外部文件的来源；导入明确显示“本次未重跑”。以当前代码继续修改会准备新任务，旧结果过期。
 
@@ -63,7 +62,7 @@ npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
 | `behavior_pass` | 本次需求、每份源码、冻结 `conveyor-12-v1` 合同均匹配，且编译及扫描均通过 | 只证明该 Linux 合同的固定扫描用例；`reviewed_draft` 仍是草稿 |
 | `not_accepted` | 缺失、冲突、过期、取消或工具失败 | 可保留诊断和候选，不接受历史记录或审阅意见替代检查 |
 
-`validation_level` 仅是共享策略重算结果的兼容标签，不是另一套门禁。控制器冻结必选检查，工作流与本机桥接独立用同一判定核对报告。需要同时匹配需求指纹与源码指纹：即使文件字节未变，旧需求的报告也不能放行新任务。取消时保留已完成的编译观察，不提升验收等级；页面区分已请求取消与本地清理完成。未验证在线 CM 取消链路。LAD/SCL 对照、TIA、PLCSIM 和现场检查均不在 S1 范围内。
+`validation_level` 仅是共享策略重算结果的兼容标签，不是另一套门禁。控制器冻结必选检查，工作流与本机桥接独立用同一判定核对报告。需要同时匹配需求指纹与源码指纹：即使文件字节未变，旧需求的报告也不能放行新任务。取消时保留已完成的编译观察，不提升验收等级；页面区分已请求取消与本地清理完成。本机 API / Agent 取消及工具清理由协议测试覆盖；不承诺停止服务商的远端计算或计费。LAD/SCL 对照、TIA、PLCSIM 和现场检查均不在 S1 范围内。
 
 本次合流复验、原始分支的已复现缺陷及未验收范围见 [S1 进度记录](../plans/plc-logic-harness-v1/progress.md)。
 
@@ -104,7 +103,7 @@ python3 web/scripts/check-latch.py --request task.json --proposal proposal.json 
 
 `proposal.json` 包含 `schema_version=1`、原 `request_id` / `request_fingerprint`、`summary`、`questions` 与 `logic_ir`。未决问题、身份不符或额外字段均拒绝。该工具不替代在线规格/文本审阅；输出 `engineering.json` 用“打开工程草稿”重开，按历史记录展示。运行目录保留原 IR、真实图、源码、编译日志、`latch-traces.jsonl` 完整观察、命名场景与首个反例摘要，不把大量枚举轨迹塞进模型输入。
 
-本次完成确定性闭环和显式模型夹具回归；真实在线 mcode/CM 的规格→IR→生成→修复演示仍未运行。S3 的状态/计数及第二个双输出示例没有展开。可选 TIA 后置。
+本次完成确定性闭环和显式模型夹具回归；另有一次实际 Agent 按仓库 Skill/CLI 完成规格→IR→双输出→实际检查→交付，首轮通过、修复 0 次。远端模型 API 与实际 Agent 诊断修复尚未验收，本机协议夹具不替代它们。S3 的状态/计数及第二个双输出示例没有展开。可选 TIA 后置。
 
 ## 回归
 
@@ -114,4 +113,4 @@ SIM_MATIEC_LIB=/absolute/path/to/matiec/lib \
 npm --prefix web test
 ```
 
-原生回归明确检查：旧八次程序编译通过但违反十二次合同；十二次候选通过固定扫描；故意的 BOOL 类型错误由真实编译器拒绝；修复回调交付新源码后重新编译和扫描通过。测试中的模型应答是显式夹具，不能当作在线 mcode/CM 验收。未配置编译器的测试会明确跳过原生部分。
+原生回归明确检查：旧八次程序编译通过但违反十二次合同；十二次候选通过固定扫描；故意的 BOOL 类型错误由真实编译器拒绝；修复回调交付新源码后重新编译和扫描通过。测试中的模型应答是显式夹具，不能当作真实模型 API / Agent 验收。未配置编译器的测试会明确跳过原生部分。

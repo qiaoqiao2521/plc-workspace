@@ -1,7 +1,7 @@
 """Independent S2 acceptance probes: real compiler/graph, no model responses.
 
 These tests exercise a worked IR and deliberately wrong variants. They do not
-stand in for a real online mcode/CM generation or repair run. Native tests need
+stand in for a real model API/Agent generation or repair run. Native tests need
 SIM_IEC2C and SIM_MATIEC_LIB; absence is an explicit unittest skip, not a pass.
 """
 import copy

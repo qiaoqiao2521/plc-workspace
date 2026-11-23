@@ -6,6 +6,36 @@ export const LATCH_PROFILE = 'latch-start-stop-v1';
 const latchFields = ['block_name','requirement','flow','io_text','constraints'];
 export function latchAcceptanceBrief() { return structuredClone(latchTemplate); }
 
+// Transport configuration is deliberately separate from a PLC request or saved engineering file.
+export function apiConfigPayload(input) {
+  const base_url = String(input.base_url || '').trim().replace(/\/+$/, '');
+  const model = String(input.model || '').trim();
+  let url;
+  try { url = new URL(base_url); } catch { throw new Error('填写完整的 API Base URL。'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new Error('API Base URL 只填写 HTTP(S) 地址与路径，不放密钥或查询参数。');
+  }
+  if (!model || model.length > 200) throw new Error('填写服务商提供的模型名称。');
+  const timeout_seconds = Number(input.timeout_seconds);
+  if (!Number.isInteger(timeout_seconds) || timeout_seconds < 1 || timeout_seconds > 600) throw new Error('单次请求超时须为 1～600 秒的整数。');
+  if (!['json_object', 'none'].includes(input.response_format)) throw new Error('选择支持的返回格式。');
+  const payload = {base_url, model, timeout_seconds, response_format:input.response_format};
+  const key = typeof input.api_key === 'string' ? input.api_key.trim() : '';
+  if (key) payload.api_key = key;
+  return payload;
+}
+
+export function agentHandoffInstructions(origin, accepted) {
+  if (!accepted || !/^[A-Za-z0-9_-]{1,128}$/.test(accepted.job_id) ||
+      typeof accepted.agent_token !== 'string' || !/^[A-Za-z0-9_-]{20,256}$/.test(accepted.agent_token)) {
+    throw new Error('本机服务没有返回有效的 Agent 任务凭据。');
+  }
+  const base = new URL(origin);
+  if (base.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname) || base.username || base.password) throw new Error('Agent 接管需要本机 HTTP 服务。');
+  const credential = JSON.stringify({job_id:accepted.job_id,agent_token:accepted.agent_token});
+  return `用仓库 Skill 和 CLI 接管 PLC 工作台任务：${accepted.job_id}\n\n1. 在本机 plc-workspace 仓库根目录，先读取 .agents/skills/plc-workspace-control/SKILL.md。\n2. 启动一个可持续读写 stdin/stdout 的会话，并保持会话打开：\npython3 web/scripts/plc-agent.py --url ${base.origin} workflow --attach\n3. 仅把下面这一行 JSON 送入该会话的 stdin 首行，不回显，不写入命令参数、文件或日志：\n${credential}\n\n4. 继续读取 CLI 的逐行 JSON 事件。type="packets" 时，逐一处理 packets 中的当前包，遵守 stage、role、packet 和 Schema。将每个回答作为一行 JSON 写入同一会话的 stdin：\n{"packet_id":"原样复制当前包的 packet_id","input_sha256":"原样复制当前包的 input_sha256","answer":{}}\n将 answer 填为符合当前包要求的结构化回答。保持会话不中断，直到 type="finished"；根据终态中的任务快照报告结果。取消时写入 {"command":"cancel"}，继续等候 finished。\n\n步骤由控制器推进；编译、扫描检查和验收由本机工具决定。令牌仅用于首次接管，不写入源码、需求、回答、报告或工程导出。底层 HTTP 协议见上述 Skill，正常接管由 CLI 处理。`;
+}
+
 // Flow text is a draft supplied by the engineer, not a process parser or PLC runtime.
 export function flowDraft(text) {
   const names = text.split(/\s*(?:→|->|\n)\s*/).map(s => s.trim()).filter(Boolean);
@@ -166,7 +196,7 @@ export function validateResult(result, request) {
 export function agentPrompt(request) {
   if (request.brief.validation_profile === LATCH_PROFILE) return `本次仅为 latch-start-stop-v1 启停自锁合成基准。遵守固定合同，不把它套到现场设备。\n`+
     `AI 只提出 logic-ir.schema.json 定义的 Logic IR，返回完整 proposal JSON：{schema_version:1,request_id,request_fingerprint,summary,questions:[],logic_ir}。身份字段必须原样返回；有未决问题写入 questions，由控制器阻断生成。不要另写 SCL、LAD、测试或检查结论。\n`+
-    `现有 mcode/CM 严格工作流先审阅规格，再由程序生成完整 SCL 和包含实际串并联逻辑的 LAD 图，分别执行产物检查。修复只改 IR，不改需求、合同、测试或判定。\n`+
+    `控制器先审阅规格，再由程序生成完整 SCL 和包含实际串并联逻辑的 LAD 图，分别执行产物检查。修复只改 IR，不改需求、合同、测试或判定。\n`+
     `静态交接时，把 proposal 交给本机 check-latch.py 检查，然后在页面“打开工程草稿”载入 engineering.json；直接导入模型 proposal 不会构建双输出，也不构成验收。没有工具证据的 checks.status 只能 not_run/unknown。TIA、PLCSIM、实机和无限状态等价均未验收。\n`+
     `以下是本次冻结需求数据：\n${JSON.stringify(request,null,2)}`;
   return `你正在为 PLC Workspace 生成工程草稿。只返回 generation-result.schema.json 定义的 JSON，不执行命令、不读写工程文件。\n` +

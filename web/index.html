@@ -9,7 +9,7 @@
 </head>
 <body class="generation-page">
 <a class="skip" href="#requirement">跳到工艺需求</a>
-<header class="site-header"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▥</span><span>PLC <b>Workspace</b></span></a><nav aria-label="主导航"><a class="active" href="./">需求生成</a><a href="./validation.html">验证与回放</a><a href="./simulation.html">本机输送仿真</a><a href="https://github.com/qiaoqiao2521/plc-workspace" target="_blank" rel="noreferrer">项目文档</a></nav><span id="connection" class="connection">正在检查本机 agy…</span></header>
+<header class="site-header"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▥</span><span>PLC <b>Workspace</b></span></a><nav aria-label="主导航"><a class="active" href="./">需求生成</a><a href="./validation.html">验证与回放</a><a href="./simulation.html">本机输送仿真</a><a href="https://github.com/qiaoqiao2521/plc-workspace" target="_blank" rel="noreferrer">项目文档</a></nav><span id="connection" class="connection">正在检查本机服务…</span></header>
 <main>
 <section class="generation-intro"><div><h1>从工艺需求，写出 PLC 工程。</h1><p>你描述机器如何工作，AI 整理状态、信号和约束，生成 SCL 与 LAD 网络草稿。</p></div><a class="mobile-validation" href="./validation.html">验证与回放</a></section>
 <ol class="workflow" aria-label="工程生成流程"><li class="current" id="step-input"><span>1</span>描述工艺</li><li id="step-spec"><span>2</span>审阅规格</li><li id="step-code"><span>3</span>生成工程</li><li><span>4</span>验证与交付</li></ol>
@@ -31,7 +31,17 @@
 <p id="validation-profile-note" class="form-hint" hidden>此目标只接受上方“启停自锁”入口的固定合同。若要改变工艺，请切回 SCL 编译目标；不把基准规则自动套用到真实设备。</p>
 <div class="draft-actions"><button id="prepare" type="submit" class="secondary-button">整理步骤与生成任务</button><button id="save-draft" type="button" class="text-button">保存本机草稿</button></div>
 </form>
-<div class="generate-action"><div><strong id="generate-title">交给本机 agy</strong><p id="generate-help">使用本机已配置的模型。结果先作为工程草稿审阅。</p></div><button id="generate" class="primary-button" disabled>AI 生成工程</button><button id="cancel" class="secondary-button" hidden>取消生成</button></div>
+<details id="model-settings" class="model-settings"><summary>模型 API 配置</summary>
+<p id="api-config-note" class="form-hint">配置兼容 Chat Completions 的 API。密钥保留于本机服务进程内存。留空仅保留同地址密钥；更换有认证的 API 地址需重新填写。</p>
+<form id="api-config-form" autocomplete="off">
+<label>API Base URL<input id="api-base-url" type="url" maxlength="2000" placeholder="https://api.example.com/v1" required spellcheck="false"></label>
+<label>模型名称<input id="api-model" maxlength="200" placeholder="填写服务商提供的模型 ID" required spellcheck="false"></label>
+<label>API Key<input id="api-key" type="password" maxlength="8192" placeholder="填写密钥；提交后清空输入框" autocomplete="new-password" spellcheck="false"></label>
+<div class="form-pair"><label>单次请求超时（秒）<input id="api-timeout" type="number" min="1" max="600" value="120" required></label><label>返回格式<select id="api-response-format"><option value="json_object">JSON 输出模式</option><option value="none">普通文本（仍严格检查 JSON）</option></select></label></div>
+<div class="config-actions"><button id="save-api-config" class="secondary-button" type="submit" disabled>应用 API 配置</button><button id="clear-api-key" class="text-button" type="button" disabled>清除已存密钥</button><span id="api-config-status" role="status">等待本机服务</span></div>
+</form></details>
+<div class="generate-action"><div><strong id="generate-title">生成、检查与修复</strong><p id="generate-help">配置模型 API，或让 Agent 按仓库 Skill 通过 CLI 接管。</p></div><div class="generation-controls"><button id="generate" class="primary-button" disabled>API 生成</button><button id="agent-start" class="secondary-button" type="button" disabled>Agent 接管</button><button id="refresh-job" class="text-button" type="button" hidden>重新读取进度</button><button id="cancel" class="secondary-button" hidden>取消任务</button></div></div>
+<details id="agent-handoff" class="agent-handoff" hidden><summary>Agent 接管 · Skill + CLI</summary><p class="form-hint">把说明交给同机 Agent：先读取仓库 Skill，再启动 CLI 工作流。凭据仅送入 CLI 的首次输入，任务结束后不能再提交回答，不保存到工程。</p><textarea id="agent-instructions" rows="12" readonly aria-label="Agent 接管说明" spellcheck="false"></textarea><button id="copy-agent-instructions" type="button" class="text-button">复制接管说明</button><span id="agent-copy-status" role="status"></span></details>
 <div class="handoff-actions"><button id="open-project" class="text-button" type="button">打开工程草稿</button><input id="project-file" type="file" accept=".json,application/json" hidden><button id="export-task" class="text-button" disabled>导出 Agent 任务</button><button id="import-result" class="text-button" disabled>导入 Agent 结果</button><input id="result-file" type="file" accept=".json,application/json" hidden></div>
 </section>
 <section class="artifact-panel" aria-labelledby="artifact-title">

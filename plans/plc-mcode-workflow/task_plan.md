@@ -1,5 +1,7 @@
 # Strict mcode workflow through CM/Paperclip
 
+> 历史计划：2026-11-23 用户停用 CM/Paperclip。当前入口已改为直接 API / 外部 Agent；运行与接续以 [现行执行协议](../../docs/PLC_AGENT_WORKFLOW.md) 和 [Harness 进度](../plc-logic-harness-v1/progress.md) 为准，不再安装本文旧编排。
+
 User intent (2026-10-01): enforce ordered industrial-engineering steps, use only local mcode, allow parallel workers and one supervisor.
 
 1. Reuse the live local Paperclip process adapter, per CM's confirmed direction; do not extend the legacy Python scheduler. Adopt CapMesh capabilities/index.md agent-control and CM plans/paperclip-based-cm/task_plan.md.

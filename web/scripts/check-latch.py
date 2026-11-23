@@ -14,7 +14,7 @@ import sys
 import uuid
 
 HERE = Path(__file__).resolve().parent
-_spec = importlib.util.spec_from_file_location('latch_workflow', HERE / 'mcode-workflow.py')
+_spec = importlib.util.spec_from_file_location('latch_workflow', HERE / 'plc-workflow.py')
 workflow = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(workflow)
 

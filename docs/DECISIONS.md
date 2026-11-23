@@ -76,3 +76,11 @@ No product behavior changed. The "coverage completed" claim is scoped to what th
 ## 2026-11-23 — S2 只实现显式启停基准
 
 用户授权落实并推送 LAD/SCL 下一步。选定 `latch-start-stop-v1` 合成合同，以小型 BOOL IR 生成两个实际逻辑产物。调用模型的流程保持现状；生成器不得修改固定预期，修复只能改 IR。合成需求文字固定，避免把行为 profile 套在任意机器工艺上。内部 LAD 图及其执行器只承担受限验证；不承诺 Siemens 导入。独立预期能够拒绝两个出口共同产生的错误，四拍枚举仍只作为有限测试。在线 mcode/CM 缺失不会阻断确定性实现，但在线验收保持开放，S3/S4 不展开。
+
+## 2026-11-23 — 模型接入与 PLC 判定分离
+
+用户明确停用 CM/Paperclip，要求直接 API 配置及 Agent 控制。删除旧 mcode/CM、agy/ZCode 运行适配，控制器更名为 `plc-workflow.py`；现有角色、合同、真实检查和修复边界保持一致。API 使用标准库的 OpenAI 兼容 Chat Completions 传输；Agent 通过一次性阶段包答复，不引入新调度平台。凭据仅在内存，API 配置走子进程 stdin；Agent 不能越阶段或直接提交验收记录。
+
+新接入的本机 HTTP/子进程回归使用显式模型答案夹具，并在标明的路径运行真实 matiec/GCC 和 LAD 图。它们不证明实际模型必然生成正确逻辑；S1/S2 的真实模型验收继续开放，以 API 或 Agent 完成，旧编排不再列为前提。PLC 子集和 TIA 边界未扩展。
+
+同日用户要求 Agent 接管优先接入 Skill / CLI / workflow。采用仓库技能加持续 stdio CLI：技能说明操作顺序，CLI 处理阶段传输与取消，原 PLC 控制器保持唯一阶段与裁决权。任务令牌仅进程内保管，避免为多次命令创建凭据文件；CLI 退出/EOF 会请求取消并确认清理。

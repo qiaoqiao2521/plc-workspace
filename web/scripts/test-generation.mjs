@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {flowDraft, makeRequest, validateBrief, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, latchAcceptanceBrief, LATCH_PROFILE, canonicalJson, bindVerification, sourceHash, verificationSummary} from '../generation-model.js';
+import {flowDraft, makeRequest, validateBrief, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, latchAcceptanceBrief, LATCH_PROFILE, canonicalJson, bindVerification, sourceHash, verificationSummary, apiConfigPayload, agentHandoffInstructions} from '../generation-model.js';
 import {validateLadGraph,layoutLadNetwork} from '../lad-graph.js';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 const brief = {name:'测试输送线',block_name:'FB_Test',requirement:'启动后输送，到位停止。停止撤销动作。',flow:'输送 → 到位 → 输送',io_text:'',constraints:'',target:{cpu:'unknown',tia_version:'unknown'}};
@@ -13,6 +13,40 @@ test('request freezes input values; changed process has a different fingerprint'
 test('old result or other request cannot bind to current requirements',async()=>{const first=await makeRequest(brief,[]),second=await makeRequest({...brief,requirement:brief.requirement+'附加夹紧联锁'},[]);assert.throws(()=>validateResult(candidate(first),second),/不匹配/);assert.throws(()=>validateResult(candidate(first),undefined),/先准备/);});
 test('result validator rejects path traversal, duplicate code files and malformed networks',async()=>{const req=await makeRequest(brief,[]),result=candidate(req);result.scl_files[0].name='../outside.scl';assert.throws(()=>validateResult(result,req),/文件名/);result.scl_files=[{name:'FB_Test.scl',content:''},{name:'FB_Test.scl',content:''}];assert.throws(()=>validateResult(result,req),/重复/);result.scl_files=[];result.lad_networks=[{title:'network',kind:'rung',contacts:null,bindings:[],coil:'q',block:'',instance:'',note:''}];assert.throws(()=>validateResult(result,req),/LAD/);});
 test('model claims are transported as reports, not a proof flag',async()=>{const req=await makeRequest(brief,[]),result=candidate(req);result.checks=[{name:'scan',status:'pass',detail:'model claim'}];const accepted=validateResult(result,req);assert.equal(accepted.verified,undefined);assert.match(agentPrompt(req),/not_run\/unknown/);assert.equal(validateBrief({...brief,block_name:'../invalid'}).length,1);});
+
+test('API settings preserve an existing key by omitting empty replacements',()=>{
+  const settings={base_url:' https://api.example.test/v1/ ',model:' test-model ',timeout_seconds:'120',response_format:'json_object',api_key:'fixture-secret'};
+  const payload=apiConfigPayload(settings);
+  assert.equal(payload.api_key,'fixture-secret');assert.equal(payload.base_url,'https://api.example.test/v1');
+  assert.equal(payload.model,'test-model');assert.equal(payload.timeout_seconds,120);
+  assert.equal(Object.hasOwn(apiConfigPayload({...settings,api_key:''}),'api_key'),false);
+  assert.equal(settings.api_key,'fixture-secret');
+});
+test('API configuration rejects credentials in URLs and malformed transport settings',()=>{
+  const settings={base_url:'https://api.example.test/v1',model:'test',timeout_seconds:120,response_format:'json_object'};
+  for(const base_url of ['file:///api','https://user:password@api.example.test/v1','https://api.example.test/v1?api_key=secret','https://api.example.test/v1#secret']) {
+    assert.throws(()=>apiConfigPayload({...settings,base_url}),/Base URL/);
+  }
+  for(const timeout_seconds of [0,601,1.5,'no timeout']) assert.throws(()=>apiConfigPayload({...settings,timeout_seconds}),/超时/);
+  assert.throws(()=>apiConfigPayload({...settings,response_format:'unvalidated'}),/返回格式/);
+});
+test('Agent handoff uses the repository Skill and a persistent CLI without credentials in argv',()=>{
+  const token='fixture_token_is_not_a_live_secret';
+  const instructions=agentHandoffInstructions('http://127.0.0.1:8877',{job_id:'job_fixture_1',agent_token:token});
+  assert.match(instructions,/\.agents\/skills\/plc-workspace-control\/SKILL\.md/);
+  const command=instructions.split('\n').find(line=>line.startsWith('python3 '));
+  assert.equal(command,'python3 web/scripts/plc-agent.py --url http://127.0.0.1:8877 workflow --attach');
+  assert.equal(command.includes(token),false);assert.equal(instructions.split(token).length,2);
+  const credential=JSON.parse(instructions.split('\n').find(line=>line.startsWith('{"job_id":')));
+  assert.deepEqual(credential,{job_id:'job_fixture_1',agent_token:token});
+  assert.match(instructions,/stdin 首行/);assert.match(instructions,/type="packets"/);
+  assert.match(instructions,/input_sha256/);assert.match(instructions,/同一会话/);
+  assert.match(instructions,/type="finished"/);assert.match(instructions,/{"command":"cancel"}/);
+  assert.doesNotMatch(instructions,/mcode|Paperclip/);
+  assert.throws(()=>agentHandoffInstructions('http://127.0.0.1:8766',{job_id:'../wrong',agent_token:token}),/任务凭据/);
+  assert.throws(()=>agentHandoffInstructions('http://127.0.0.1:8766',{job_id:'ok',agent_token:'bad\nheader'}),/任务凭据/);
+  assert.throws(()=>agentHandoffInstructions('https://outside.example',{job_id:'ok',agent_token:token}),/本机 HTTP/);
+});
 
 test('engineering reopen restores original binding without weakening result import',async()=>{
   const req=await makeRequest(brief,flowDraft(brief.flow)),res=candidate(req);

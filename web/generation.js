@@ -1,9 +1,10 @@
-import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, latchAcceptanceBrief, LATCH_PROFILE, bindVerification, verificationSummary} from './generation-model.js';
+import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, latchAcceptanceBrief, LATCH_PROFILE, bindVerification, verificationSummary, apiConfigPayload, agentHandoffInstructions} from './generation-model.js';
 import {layoutLadNetwork} from './lad-graph.js';
 const $ = id => document.getElementById(id);
 const fieldIds = {name:'project-name', block_name:'block-name', requirement:'requirement', flow:'flow', io_text:'io-text', constraints:'constraints'};
-let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 180, provider = 'agy';
+let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 0;
 let sourceFiles = [], verification, workflow, currentAcceptance = false;
+let serverConnected = false, agentReady = false, configBusy = false, monitoring = false, jobMode = 'api', publicConfig;
 const text = (id, value) => { $(id).textContent = value; };
 const node = (tag, value, className) => { const el = document.createElement(tag); if (value !== undefined) el.textContent = value; if (className) el.className = className; return el; };
 function message(value, error = false) { $('message').hidden = !value; text('message', value || ''); $('message').classList.toggle('error', error); }
@@ -17,7 +18,11 @@ function renderSources() {
 }
 function showSource() { $('source-content').value = sourceFiles[Number($('source-files').value)]?.content || ''; $('source-content').disabled = busy || !sourceFiles.length; }
 function updateActions() {
-  $('generate').disabled = !ready || !request || busy || (request.brief.validation_profile === LATCH_PROFILE && provider !== 'mcode-cm');
+  $('generate').disabled = !ready || !request || busy || configBusy;
+  $('agent-start').disabled = !agentReady || !request || busy || configBusy;
+  $('cancel').disabled = !jobId;
+  document.querySelectorAll('#api-config-form input,#api-config-form select,#api-config-form button').forEach(el => { el.disabled = busy || configBusy || !serverConnected; });
+  $('clear-api-key').disabled = busy || configBusy || !serverConnected || !publicConfig?.api_key_set;
   $('export-task').disabled = !request || busy;
   $('import-result').disabled = !request || busy;
   $('open-project').disabled = busy;
@@ -185,23 +190,86 @@ async function prepare() {
 function setBusy(value) {
   busy = value;
   document.querySelectorAll('#brief-form input,#brief-form textarea,#brief-form select,#brief-form button,#state-editor input').forEach(el => { el.disabled = value; });
-  $('load-brief').disabled = value; $('view-example').disabled = value; $('cancel').hidden = !value; $('generate').hidden = value;
+  $('load-brief').disabled = value; $('view-example').disabled = value; $('cancel').hidden = !value; $('generate').hidden = value; $('agent-start').hidden = value;
   updateActions();
 }
 async function api(path, body) {
   const response = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json','X-PLC-Workspace':'1'},body:JSON.stringify(body)} : {});
   const value = await response.json(); if (!response.ok) throw new Error(value.error || `本机接口返回 HTTP ${response.status}`); return value;
 }
-async function generate() {
-  if (!request || !ready || busy) return;
+function applyPublicConfig(value) {
+  publicConfig = {base_url:value.base_url || '',model:value.model || '',api_key_set:value.api_key_set === true,
+    timeout_seconds:value.timeout_seconds ?? 120,response_format:value.response_format || 'json_object'};
+  $('api-base-url').value = publicConfig.base_url; $('api-model').value = publicConfig.model;
+  $('api-timeout').value = publicConfig.timeout_seconds; $('api-response-format').value = publicConfig.response_format;
+  $('api-key').value = '';
+  $('api-key').placeholder = publicConfig.api_key_set ? '密钥已设置；留空保留，填写则替换' : '填写密钥；提交后清空输入框';
+  text('api-config-status',publicConfig.api_key_set ? '密钥已设置 · 仅本机服务内存' : '未设置密钥 · 仅无认证的本机 API 可省略');
+}
+async function refreshConnection() {
+  try {
+    const capability = await api('/api/capabilities');
+    serverConnected = capability.provider === 'api'; ready = serverConnected && capability.ready === true;
+    agentReady = capability.agent_control === true; generationBudget = capability.timeout_seconds ?? 0;
+  } catch { serverConnected = false; ready = false; agentReady = false; }
+  text('connection',ready ? '本机服务 · API 已配置' : agentReady ? '本机服务 · Agent 可接管' : '本机服务未连接');
+  $('connection').classList.toggle('ready',serverConnected || agentReady);
+  text('generate-title','生成、检查与修复');
+  text('generate-help',serverConnected ? (ready ? '选择 API 生成，或让 Agent 按仓库 Skill 通过 CLI 接管；两种方式使用同一控制器与工程检查。' : '先填写上方模型 API 配置，或让 Agent 按仓库 Skill 通过 CLI 接管。') : '使用 npm --prefix web run dev 启动本机服务。静态页面仍可审阅工程、导出任务和导入结果。');
+  updateActions();
+}
+async function saveApiConfig(event) {
+  event.preventDefault();
+  if (busy || configBusy || !serverConnected) return;
+  let payload;
+  try { payload = apiConfigPayload({base_url:$('api-base-url').value,model:$('api-model').value,api_key:$('api-key').value,
+    timeout_seconds:$('api-timeout').value,response_format:$('api-response-format').value}); }
+  catch (error) { $('api-key').value = ''; message(error.message,true); return; }
+  $('api-key').value = ''; configBusy = true; updateActions();
+  try {
+    applyPublicConfig(await api('/api/config',payload)); await refreshConnection();
+    message('API 配置已应用，密钥输入框已清空。尚未调用模型；整理任务后可开始生成。');
+  } catch (error) {
+    try { applyPublicConfig(await api('/api/config')); await refreshConnection(); }
+    catch { ready = false; text('api-config-status','配置状态未确认，请重新应用配置。'); }
+    message(`本次 API 配置未确认：${error.message} 请核对页面当前配置后重试。`,true);
+  }
+  finally { if (payload.api_key) delete payload.api_key; configBusy = false; updateActions(); }
+}
+function clearHandoff() {
+  $('agent-instructions').value = ''; $('agent-handoff').hidden = true; $('agent-handoff').open = false; text('agent-copy-status','');
+}
+async function startJob(mode = 'api') {
+  if (!request || !(mode === 'agent' ? agentReady : ready) || busy || configBusy) return;
   currentAcceptance = false;
   if (result && !stale) renderResult();
-  setBusy(true); message(`${provider} 正在整理规格与工程草稿。${generationBudget === 0 ? '本次不设生成时间限制' : `最多等待 ${generationBudget} 秒`}；可以取消。`);
+  jobMode = mode; clearHandoff(); $('refresh-job').hidden = true;
+  setBusy(true); message(mode === 'agent' ? '正在建立 Agent 接管任务；任务仍受同一规格与工程检查约束。' : `模型 API 正在整理规格与工程草稿。${generationBudget === 0 ? '可以随时取消' : `任务最多等待 ${generationBudget} 秒，可以取消`}。`);
   try {
-    const accepted = await api('/api/generate', {request,prompt:agentPrompt(request)}); jobId = accepted.job_id;
+    const accepted = await api(mode === 'agent' ? '/api/agent/jobs' : '/api/generate', {request});
+    if (typeof accepted.job_id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(accepted.job_id)) throw new Error('本机服务没有返回有效的任务标识。');
+    jobId = accepted.job_id; updateActions();
+    if (mode === 'agent') {
+      $('agent-instructions').value = agentHandoffInstructions(location.origin,accepted);
+      $('agent-handoff').hidden = false; $('agent-handoff').open = true;
+      message('任务已等待 Agent。复制下方说明，Agent 按仓库 Skill 启动 CLI 接管；本页会继续显示检查与修复结果。');
+    }
+    await monitorJob();
+  } catch (error) {
+    message(error.message,true);
+    if (jobId) $('refresh-job').hidden = false;
+    else { clearHandoff(); setBusy(false); }
+  }
+}
+async function monitorJob() {
+  if (!jobId || monitoring) return;
+  monitoring = true; $('refresh-job').hidden = true;
+  let terminal = false;
+  try {
     let response;
     do { await new Promise(resolve => setTimeout(resolve,1200)); response = await api(`/api/jobs/${jobId}`); }
-    while (response.status === 'running' || (response.status === 'cancelled' && response.finished === false));
+    while (response.status === 'running' || response.finished === false);
+    terminal = true;
     const returned = response.result || response.candidate_result;
     if (returned) {
       const acceptedResult = validateResult(returned,request), acceptedVerification = await bindVerification(response.verification,acceptedResult);
@@ -210,10 +278,16 @@ async function generate() {
       generationOrigin = 'agent'; renderResult(); showTab(verification ? 'checks' : 'spec');
     }
     if (response.status === 'cancelled') { currentAcceptance = false; message('生成已取消，未授予本次验收；需求和已有候选仍保留。'); return; }
-    if (response.status !== 'complete') throw new Error((response.error || `生成未完成，请检查本机 ${provider} 后重试。`) + (returned ? ' 当前候选及检查记录已保留，可以审阅和导出。' : ''));
-    message(`${provider} 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。${verification ? '请审阅本次检查、修复记录和代码；TIA 编译未执行。' : '请审阅规格、待确认项和代码，再运行工程检查。'}`);
-  } catch (error) { message(error.message,true); }
-  finally { jobId = undefined; setBusy(false); }
+    if (response.status !== 'complete') throw new Error((response.error || '生成未完成，请查看本次记录后重试。') + (returned ? ' 当前候选及检查记录已保留，可以审阅和导出。' : ''));
+    message(`${jobMode === 'agent' ? 'Agent' : '模型 API'} 已返回工程草稿（${response.duration_seconds ?? '—'} 秒）。${verification ? '请审阅本次检查、修复记录和代码；TIA 编译未执行。' : '请审阅规格、待确认项和代码，再运行工程检查。'}`);
+  } catch (error) {
+    currentAcceptance = false;
+    message(terminal ? error.message : `${error.message} 尚未确认任务结束，请重新读取进度或取消任务。`,true);
+    if (!terminal) $('refresh-job').hidden = false;
+  } finally {
+    monitoring = false;
+    if (terminal) { jobId = undefined; clearHandoff(); $('refresh-job').hidden = true; setBusy(false); }
+  }
 }
 function download(name, value, type = 'application/json') {
   const content = typeof value === 'string' ? value : JSON.stringify(value,null,2);
@@ -229,8 +303,8 @@ async function loadExample(artifact) {
   try {
     if (!example) { const response = await fetch('./data/example.json'); if (!response.ok) throw new Error('已有工程示例加载失败，请重新构建网站。'); example = await response.json(); }
     writeBrief(example.request.brief); states = structuredClone(example.request.states); result = undefined; verification = undefined; workflow = undefined; request = undefined; stale = false; currentAcceptance = false;
-    if (artifact) { request = structuredClone(example.request); result = validateResult(structuredClone(example.result),request); generationOrigin = 'example'; renderResult(); message(`显示仓库已有工程示例。该示例没有调用模型；修改需求后可交给 ${provider} 生成新草稿。`); }
-    else { await prepare(); message(`已载入示例工艺需求。可修改后交给 ${provider}，或查看仓库已有工程。`); }
+    if (artifact) { request = structuredClone(example.request); result = validateResult(structuredClone(example.result),request); generationOrigin = 'example'; renderResult(); message('显示仓库已有工程示例。该示例没有调用模型；修改需求后可用 API 或 Agent 生成新草稿。'); }
+    else { await prepare(); message('已载入示例工艺需求。可修改后用 API 或 Agent 生成，或查看仓库已有工程。'); }
     showTab('spec'); updateActions();
   } catch (error) { message(error.message,true); }
 }
@@ -249,14 +323,14 @@ async function loadLatchAcceptance() {
   try {
     writeBrief(latchAcceptanceBrief()); states=[]; result=undefined; verification=undefined; workflow=undefined; request=undefined; stale=false;
     await prepare();
-    message('已载入固定启停合成基准。规格通过后只让 AI 提出 IR；SCL 和 LAD 由程序生成并分别执行检查。在线生成需要现有 mcode/CM 本机运行时。');
+    message('已载入固定启停合成基准。规格通过后只让 AI 提出 IR；SCL 和 LAD 由程序生成并分别执行检查。可以选择 API 生成或 Agent 接管。');
   } catch (error) { message(error.message,true); }
 }
 document.querySelectorAll('[data-tab]').forEach((b,i,buttons) => {
   b.addEventListener('click', () => showTab(b.dataset.tab));
   b.addEventListener('keydown',event => { let target; if (event.key === 'ArrowRight') target = (i+1)%buttons.length; if (event.key === 'ArrowLeft') target = (i+buttons.length-1)%buttons.length; if (event.key === 'Home') target = 0; if (event.key === 'End') target = buttons.length-1; if (target !== undefined) { event.preventDefault(); showTab(buttons[target].dataset.tab,true); } });
 });
-$('brief-form').addEventListener('submit', async event => { event.preventDefault(); try { await prepare(); message(`生成任务已准备。审阅步骤后，可以交给 ${provider}。`); } catch (error) { message(error.message,true); } });
+$('brief-form').addEventListener('submit', async event => { event.preventDefault(); try { await prepare(); message('生成任务已准备。审阅步骤后，可以用 API 生成或让 Agent 接管。'); } catch (error) { message(error.message,true); } });
 $('brief-form').addEventListener('input', event => { if (event.target.id === 'flow') states = []; if (event.target.id === 'validation-profile') profileNote(); dirty(); });
 $('source-content').addEventListener('input', () => { const file = sourceFiles[Number($('source-files').value)]; if (file) file.content = $('source-content').value; });
 $('source-files').addEventListener('change',showSource);
@@ -264,8 +338,27 @@ $('clear-source').addEventListener('click',() => { sourceFiles = []; renderSourc
 $('load-conveyor-acceptance').addEventListener('click',loadConveyorAcceptance);
 $('load-latch-acceptance').addEventListener('click',loadLatchAcceptance);
 $('modify-current').addEventListener('click',() => { if (stale || !result) return; const wasDual=$('validation-profile').value === LATCH_PROFILE; if (wasDual) { $('validation-profile').value=''; profileNote(); } sourceFiles = structuredClone(result.scl_files); renderSources(); dirty(); message(wasDual ? '已切换到 SCL 源码修改。该路径不生成等价 LAD，也不沿用启停双输出验收；请修改需求后重新整理任务。' : '当前结果已作为原程序。修改左侧需求并整理任务后，AI 会基于这份代码继续修改。'); $('source-details').scrollIntoView({behavior:'smooth',block:'nearest'}); });
-$('generate').addEventListener('click',generate);
-$('cancel').addEventListener('click', async () => { if (jobId) { try { await api(`/api/jobs/${jobId}/cancel`,{}); message(`正在取消 ${provider}，需求草稿会保留。`); } catch (error) { message(error.message,true); } } });
+$('api-config-form').addEventListener('submit',saveApiConfig);
+$('clear-api-key').addEventListener('click',async () => {
+  if (busy || configBusy || !serverConnected || !publicConfig?.api_key_set) return;
+  $('api-key').value = ''; configBusy = true; updateActions();
+  try { applyPublicConfig(await api('/api/config',{clear_key:true})); await refreshConnection(); message('本机服务中的 API 密钥已清除。Agent 接管仍可使用。'); }
+  catch (error) { message(error.message,true); }
+  finally { configBusy = false; updateActions(); }
+});
+$('generate').addEventListener('click',() => startJob('api'));
+$('agent-start').addEventListener('click',() => startJob('agent'));
+$('refresh-job').addEventListener('click',monitorJob);
+$('copy-agent-instructions').addEventListener('click',async () => {
+  if (!jobId || !$('agent-instructions').value) return;
+  try { await navigator.clipboard.writeText($('agent-instructions').value); text('agent-copy-status','已复制本次任务的接管说明。'); }
+  catch { text('agent-copy-status','请选中上方说明并手动复制。'); }
+});
+$('cancel').addEventListener('click', async () => {
+  if (!jobId) return;
+  try { await api(`/api/jobs/${jobId}/cancel`,{}); message('正在取消任务；本页会等待进程清理完成，需求草稿会保留。'); await monitorJob(); }
+  catch (error) { message(`${error.message} 尚未确认取消，请重试或重新读取进度。`,true); }
+});
 $('load-brief').addEventListener('click', () => loadExample(false)); $('view-example').addEventListener('click', () => loadExample(true)); $('scl-files').addEventListener('change',showCode);
 $('save-draft').addEventListener('click', () => { try { localStorage.setItem('plc-workspace-brief-v1',JSON.stringify({brief:readBrief(),states})); message('需求与状态草稿已保存在此浏览器。不会保存模型凭据或生成进程。'); } catch { message('浏览器未允许本地保存，可导出 Agent 任务保留需求。',true); } });
 $('export-task').addEventListener('click', async () => {
@@ -302,11 +395,11 @@ $('copy-export').addEventListener('click',async()=> { try { await navigator.clip
 $('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification,workflow,verification_status:'saved_record_requires_rerun',industrial_acceptance:'not_run',lad_format:result.lad_graph ? 'plc-lad-bool-v1_not_tia_project' : 'review_networks_not_tia_project'}); });
 async function init() {
   try { const saved = JSON.parse(localStorage.getItem('plc-workspace-brief-v1')); if (saved?.brief && Array.isArray(saved.states)) { writeBrief(saved.brief); states = saved.states; message('已恢复此浏览器保存的需求草稿。请整理任务后重新生成。'); } } catch { /* Invalid/blocked local storage leaves a clean editable form. */ }
-  try { const capability = await api('/api/capabilities'); ready = capability.ready === true && ['agy','zcode','mcode-cm'].includes(capability.provider); provider = capability.provider; generationBudget = capability.timeout_seconds ?? 180; } catch { ready = false; }
-  text('connection',ready ? `本机 ${provider} CLI 可用` : '本机生成未连接'); $('connection').classList.toggle('ready',ready);
-  if (!ready) { text('generate-title','本机生成未连接'); text('generate-help','使用 npm --prefix web run dev 启动本机桥接；也可导出任务、导入 Agent 结果。'); }
-  if (ready) { text('generate-title', `交给本机 ${provider} 生成`); text('generate-help', generationBudget === 0 ? '本次生成不设时间限制，可以取消；结果仍需独立检查。' : '生成结果是待审阅草稿，编译与逐扫描检查需单独执行。'); }
-  if (ready && provider === 'mcode-cm') { text('generate-title','生成、检查与修复'); text('generate-help','加载专业资料与原程序，审阅规格，再检查本次代码；错误反馈给 AI 修复并重验。未决需求会阻断，可以取消。'); }
+  await refreshConnection();
+  if (serverConnected) {
+    try { applyPublicConfig(await api('/api/config')); }
+    catch { text('api-config-status','配置读取失败，可以重新填写；密钥不会从服务返回。'); }
+  } else text('api-config-status','启动本机服务后可设置 API；静态审阅仍可使用。');
   updateActions();
 }
 init();
