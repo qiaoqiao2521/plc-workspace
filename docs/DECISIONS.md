@@ -72,3 +72,7 @@ An independent review of the uncommitted fixes accepted the caught cases and fou
 Re-review the same day confirmed both fixes and corrected the overflow rationale: a busy step can never enter a scan with prior timer 65535 (with N = 0 the timer is held at zero; with N > 0 the deadline expires at prior timer N-1 <= 65534 at the latest), so the P29-P31 exclusion at prev = 65535 is vacuous on contract-obeying execution and does not prove behavior for test-only injected timer values or cross-tool overflow equivalence. The 2026-09-26 documentation correction removes that unsupported claim from the assertion comments and property description.
 
 No product behavior changed. The "coverage completed" claim is scoped to what the variant regression actually demonstrates: each known wrong-implementation class is caught by a named check, not that the verification is exhaustive.
+
+## 2026-11-23 — S2 只实现显式启停基准
+
+用户授权落实并推送 LAD/SCL 下一步。选定 `latch-start-stop-v1` 合成合同，以小型 BOOL IR 生成两个实际逻辑产物。调用模型的流程保持现状；生成器不得修改固定预期，修复只能改 IR。合成需求文字固定，避免把行为 profile 套在任意机器工艺上。内部 LAD 图及其执行器只承担受限验证；不承诺 Siemens 导入。独立预期能够拒绝两个出口共同产生的错误，四拍枚举仍只作为有限测试。在线 mcode/CM 缺失不会阻断确定性实现，但在线验收保持开放，S3/S4 不展开。

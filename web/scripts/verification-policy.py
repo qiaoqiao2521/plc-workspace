@@ -1,7 +1,15 @@
 """Deterministic verdicts for the currently supported checks, independent of AI."""
 import copy
 import hashlib
+import importlib.util
 import json
+from pathlib import Path
+import re
+
+_latch_spec = importlib.util.spec_from_file_location('latch_contract', Path(__file__).with_name('latch-contract.py'))
+latch = importlib.util.module_from_spec(_latch_spec)
+_latch_spec.loader.exec_module(latch)
+LATCH_PROFILE = latch.PROFILE
 
 PROFILE = 'conveyor-12-v1'
 CONTRACT = {
@@ -22,21 +30,64 @@ CHECK_TARGETS = {
 }
 
 
+def contract_for(profile=None):
+    return copy.deepcopy(CONTRACT if profile == PROFILE else latch.CONTRACT if profile == LATCH_PROFILE else None)
+
+
+def contract_digest(profile=None):
+    contract = contract_for(profile)
+    return hashlib.sha256(json.dumps(contract, ensure_ascii=False, sort_keys=True,
+                                     separators=(',', ':')).encode()).hexdigest() if contract else None
+
+
+def artifact_bindings(result):
+    """Associate both serialized products with the candidate, without trusting AI claims."""
+    return {key + '_sha256': hashlib.sha256(json.dumps(result[key], ensure_ascii=False,
+                sort_keys=True, separators=(',', ':')).encode()).hexdigest() if key in result else None
+            for key in ('logic_ir', 'lad_graph')}
+
+
+def artifacts_match(report, result, profile=None):
+    # Legacy paths cannot acquire LAD acceptance by attaching unverified artifacts.
+    if profile != LATCH_PROFILE:
+        return 'logic_ir' not in result and 'lad_graph' not in result
+    if not isinstance(report, dict):
+        return False
+    rows = report.get('checks', [])
+    if not isinstance(result.get('logic_ir'), dict):
+        return False
+    if not isinstance(result.get('lad_graph'), dict):
+        # Retain an invalid IR for diagnosis/repair, never a passing product.
+        if not (report.get('reason') == 'source_invalid' and 'lad_graph' not in result
+                and any(isinstance(row, dict) and row.get('name') == 'source_structure'
+                        and row.get('status') == 'fail' for row in rows)):
+            return False
+    return all(report.get(key) == value for key, value in artifact_bindings(result).items())
+
+
+def validation_level(acceptance):
+    return ('lad_scl_pass' if acceptance.get('lad_scl_compare') else
+            'behavior_pass' if acceptance.get('scl_behavior') else
+            'compile_only' if acceptance.get('scl_compile') else 'not_accepted')
+
+
 def goal(profile=None):
     required = ['source_structure', 'linux_compile']
     if profile:
         required.append('scan_contract')
-    return {'target': 'scl_behavior' if profile else 'scl_compile',
+    if profile == LATCH_PROFILE:
+        required.append('lad_scl_compare')
+    return {'target': 'lad_scl_compare' if profile == LATCH_PROFILE else 'scl_behavior' if profile else 'scl_compile',
             'required_checks': required}
 
 
 def report_matches_profile(report, profile=None):
-    if (not isinstance(report, dict) or profile not in (None, '', PROFILE)
+    if (not isinstance(report, dict) or profile not in (None, '', PROFILE, LATCH_PROFILE)
             or report.get('profile') != (profile or None)):
         return False
     if not profile:
         return report.get('contract') is None and report.get('contract_sha256') is None
-    return report.get('contract') == CONTRACT and report.get('contract_sha256') == CONTRACT_SHA256
+    return report.get('contract') == contract_for(profile) and report.get('contract_sha256') == contract_digest(profile)
 
 
 def invalid_report(report):
@@ -83,15 +134,22 @@ def complete_report(report, profile=None):
     if report.get('reason') in ('cancelled', 'worker_failed', 'tool_timeout', 'tool_missing', 'invalid_report'):
         status = 'unknown'
     by_name = {item['name']: item['status'] for item in rows}
-    if (any(by_name[name] != 'not_run' for name in ('lad_scl_compare', 'tia_compile'))
+    if (by_name['tia_compile'] != 'not_run'
+            or (profile != LATCH_PROFILE and by_name['lad_scl_compare'] != 'not_run')
             or (not profile and by_name['scan_contract'] != 'not_run')):
+        report['reason'] = 'invalid_report'
+        status = 'unknown'
+    if profile == LATCH_PROFILE and status == 'pass' and any(
+            not isinstance(report.get(key), str) or not re.fullmatch(r'[a-f0-9]{64}', report[key])
+            for key in ('logic_ir_sha256', 'lad_graph_sha256')):
         report['reason'] = 'invalid_report'
         status = 'unknown'
     compiled = status == 'pass' and all(by_name[name] == 'pass' for name in ('source_structure', 'linux_compile'))
     report.update(schema_version=2, profile=profile or None, **policy, checks=rows, status=status,
                   acceptance={'scl_compile': compiled,
-                              'scl_behavior': compiled and profile == PROFILE and by_name['scan_contract'] == 'pass',
-                              'lad_scl_compare': False, 'tia_compile': False})
+                              'scl_behavior': compiled and profile in (PROFILE, LATCH_PROFILE) and by_name['scan_contract'] == 'pass',
+                              'lad_scl_compare': compiled and profile == LATCH_PROFILE and by_name['lad_scl_compare'] == 'pass',
+                              'tia_compile': False})
     return report
 
 
@@ -116,9 +174,10 @@ def assess_report(report, profile=None):
                     and row['required'] == (row['name'] in policy['required_checks'])
                     and row.get('status') in STATUSES and isinstance(row.get('detail'), str)
                     for row in rows)
-        # S1 has no LAD comparison or TIA executor. A forged row cannot add one.
+        # Only the explicit S2 profile has a LAD executor. TIA remains unavailable.
         valid = valid and all(row['status'] == 'not_run' for row in rows
-                              if row['name'] in ('lad_scl_compare', 'tia_compile'))
+                              if row['name'] == 'tia_compile' or
+                              (row['name'] == 'lad_scl_compare' and profile != LATCH_PROFILE))
         valid = valid and (bool(profile) or all(row['status'] == 'not_run' for row in rows
                                                if row['name'] == 'scan_contract'))
     if not valid:

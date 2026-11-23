@@ -1,0 +1,63 @@
+name: PLC logic checks
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plc-logic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  native-and-graph:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.3'
+          package-manager-cache: false
+      - name: Build pinned external matiec
+        env:
+          MATIEC_COMMIT: 3a41303bcb4e50403417bc39c63f88981d7d961e
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential autoconf automake bison flex m4
+          git init "$RUNNER_TEMP/matiec"
+          git -C "$RUNNER_TEMP/matiec" fetch --depth=1 https://github.com/beremiz/matiec.git "$MATIEC_COMMIT"
+          git -C "$RUNNER_TEMP/matiec" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/matiec" rev-parse HEAD)" = "$MATIEC_COMMIT"
+          cd "$RUNNER_TEMP/matiec"
+          autoreconf -i
+          ./configure
+          make -j2
+          printf 'SIM_IEC2C=%s/matiec/iec2c\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'SIM_MATIEC_LIB=%s/matiec/lib\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Install locked web dependency
+        run: npm --prefix web ci --ignore-scripts
+      - name: Check frontend models and product graph rendering
+        working-directory: web
+        run: node --test scripts/test-*.mjs
+      - name: Check native SCL, serialized LAD and fail-closed gates
+        run: |
+          python3 - <<'PY'
+          import sys
+          import unittest
+          suite = unittest.defaultTestLoader.discover('web/scripts', pattern='test_*.py')
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if result.skipped:
+              print('Required native tests were skipped:', result.skipped, file=sys.stderr)
+          sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)
+          PY
+      - name: Verify canonical projections and build static app
+        run: |
+          python3 validation/scripts/sync-semantics.py --project projects/FB_MainSequence --check
+          npm --prefix web run build

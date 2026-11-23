@@ -1,4 +1,10 @@
+import latchTemplate from './data/latch-start-stop-brief.json' with {type:'json'};
+import {validateLadGraph} from './lad-graph.js';
+
 export const MAX_TEXT = 20000;
+export const LATCH_PROFILE = 'latch-start-stop-v1';
+const latchFields = ['block_name','requirement','flow','io_text','constraints'];
+export function latchAcceptanceBrief() { return structuredClone(latchTemplate); }
 
 // Flow text is a draft supplied by the engineer, not a process parser or PLC runtime.
 export function flowDraft(text) {
@@ -20,7 +26,10 @@ export function validateBrief(brief) {
   if (brief.source_files !== undefined && (!Array.isArray(brief.source_files) || brief.source_files.length > 10 || brief.source_files.some(f =>
       !f || typeof f.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_.-]*\.(scl|st)$/.test(f.name) || typeof f.content !== 'string' || f.content.length > 200000) ||
       new Set(brief.source_files.map(f => f.name.toLowerCase())).size !== brief.source_files.length)) issues.push('原程序文件格式错误或过大。');
-  if (brief.validation_profile !== undefined && !['', 'conveyor-12-v1'].includes(brief.validation_profile)) issues.push('检查方案不受支持。');
+  if (brief.validation_profile !== undefined && !['', 'conveyor-12-v1', LATCH_PROFILE].includes(brief.validation_profile)) issues.push('检查方案不受支持。');
+  if (brief.validation_profile === LATCH_PROFILE && (latchFields.some(k=>brief[k] !== latchTemplate[k]) || brief.source_files?.length)) {
+    issues.push('启停双输出只接受固定合成基准。请载入启停基准；若要修改工艺，请切换到 SCL 编译检查。');
+  }
   return issues;
 }
 
@@ -38,6 +47,12 @@ export async function sourceHash(content) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content)))].map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
+export function canonicalJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '['+value.map(canonicalJson).join(',')+']';
+  return '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonicalJson(value[key])).join(',')+'}';
+}
+
 // This checks source association, not the authenticity of a saved report.
 export async function bindVerification(report, result) {
   if (report == null) return undefined;
@@ -51,26 +66,37 @@ export async function bindVerification(report, result) {
   }
   for (const f of result.scl_files) if (hashes.get(f.name) !== await sourceHash(f.content)) throw new Error('检查记录与当前源码不匹配，记录已过期。');
   if (report.schema_version === 2 && report.request_fingerprint !== result.request_fingerprint) throw new Error('检查记录与当前需求不匹配，记录已过期。');
+  if (result.logic_ir !== undefined || result.lad_graph !== undefined || report.profile === LATCH_PROFILE) {
+    const irOnly = result.logic_ir && !result.lad_graph && result.scl_files.length === 0;
+    const structureFailure = irOnly && report.reason === 'source_invalid' && report.status === 'fail' &&
+      report.checks.some(c=>c.name === 'source_structure' && c.status === 'fail') && report.lad_graph_sha256 == null;
+    if (!result.logic_ir || report.profile !== LATCH_PROFILE ||
+        report.logic_ir_sha256 !== await sourceHash(canonicalJson(result.logic_ir)) ||
+        (irOnly ? !structureFailure : !result.lad_graph || report.lad_graph_sha256 !== await sourceHash(canonicalJson(result.lad_graph)))) {
+      throw new Error('检查记录与当前 IR/LAD 产物不匹配，记录已过期。');
+    }
+  }
   return structuredClone(report);
 }
 
 const checkTargets = {source_structure:'candidate',linux_compile:'scl_compile',scan_contract:'scl_behavior',lad_scl_compare:'lad_scl_compare',tia_compile:'tia_compile'};
 // Display only: current comes from a completed local workflow, never a saved file.
 export function verificationSummary(report, {profile, current = false, approved = false} = {}) {
-  const target = profile ? 'scl_behavior' : 'scl_compile';
-  const required = ['source_structure','linux_compile',...(profile ? ['scan_contract'] : [])];
+  const dual = profile === LATCH_PROFILE;
+  const target = dual ? 'lad_scl_compare' : profile ? 'scl_behavior' : 'scl_compile';
+  const required = ['source_structure','linux_compile',...(profile ? ['scan_contract'] : []),...(dual ? ['lad_scl_compare'] : [])];
   const acceptance = {scl_compile:false,scl_behavior:false,lad_scl_compare:false,tia_compile:false};
   if (!report) return {title:'新工程尚未验证',target,status:'not_run',acceptance};
   const rows = Array.isArray(report.checks) ? report.checks : [];
   const byName = new Map(rows.map(c=>[c?.name,c]));
-  const valid = [undefined,null,'','conveyor-12-v1'].includes(profile) &&
+  const valid = [undefined,null,'','conveyor-12-v1',LATCH_PROFILE].includes(profile) &&
     report.schema_version === 2 && report.profile === (profile || null) && report.target === target &&
     JSON.stringify(report.required_checks) === JSON.stringify(required) && rows.length === Object.keys(checkTargets).length &&
     byName.size === rows.length && Object.entries(checkTargets).every(([name,scope])=>{
       const c = byName.get(name);
       return c?.target === scope && c.required === required.includes(name) && typeof c.detail === 'string' &&
         ['pass','fail','unknown','not_run'].includes(c.status) &&
-        (!['lad_scl_compare','tia_compile'].includes(name) || c.status === 'not_run') &&
+        (!(name === 'tia_compile' || (name === 'lad_scl_compare' && !dual)) || c.status === 'not_run') &&
         (name !== 'scan_contract' || profile || c.status === 'not_run');
     });
   if (!current) return {title:'已保存检查记录 · 本次未验收',target,status:'not_run',acceptance};
@@ -78,11 +104,12 @@ export function verificationSummary(report, {profile, current = false, approved 
   const statuses = required.map(name=>byName.get(name).status);
   const interrupted = ['cancelled','worker_failed','tool_timeout','tool_missing','invalid_report'].includes(report.reason);
   const status = interrupted ? 'unknown' : ['fail','unknown','not_run'].find(s=>statuses.includes(s)) || 'pass';
-  if (status !== 'pass') return {title:target === 'scl_behavior' ? '行为尚未验收' : '编译尚未通过',target,status,acceptance};
+  if (status !== 'pass') return {title:dual ? 'LAD/SCL 对照尚未验收' : target === 'scl_behavior' ? '行为尚未验收' : '编译尚未通过',target,status,acceptance};
   if (!approved) return {title:'工具检查已完成 · 候选尚未批准',target,status,acceptance};
   acceptance.scl_compile = true;
-  acceptance.scl_behavior = profile === 'conveyor-12-v1' && byName.get('scan_contract').status === 'pass';
-  return {title:acceptance.scl_behavior ? '受限 SCL 行为检查通过' : '编译通过，行为未验收',target,status,acceptance};
+  acceptance.scl_behavior = ['conveyor-12-v1',LATCH_PROFILE].includes(profile) && byName.get('scan_contract').status === 'pass';
+  acceptance.lad_scl_compare = dual && byName.get('lad_scl_compare').status === 'pass';
+  return {title:acceptance.lad_scl_compare ? '启停基准 · LAD/SCL 有界对照通过' : acceptance.scl_behavior ? '受限 SCL 行为检查通过' : '编译通过，行为未验收',target,status,acceptance};
 }
 
 export async function fingerprint(brief, states) {
@@ -93,6 +120,7 @@ export async function fingerprint(brief, states) {
 
 export async function makeRequest(brief, states) {
   const issues = validateBrief(brief);
+  if (brief.validation_profile === LATCH_PROFILE && (!Array.isArray(states) || states.length)) issues.push('启停合成基准不接受附加状态草稿。');
   if (issues.length) throw new Error(issues.join(' '));
   return {schema_version: 1, request_id: crypto.randomUUID(), request_fingerprint: await fingerprint(brief, states), brief: structuredClone(brief), states: structuredClone(states)};
 }
@@ -118,10 +146,29 @@ export function validateResult(result, request) {
     if (n.contacts.some(c => !strings(c, ['symbol']) || typeof c.negated !== 'boolean') || n.bindings.some(b => !strings(b, ['parameter', 'symbol']))) throw new Error('LAD 符号格式错误。');
   }
   if (result.checks.some(c => !strings(c, ['name', 'detail']) || !['not_run', 'unknown', 'pass', 'fail'].includes(c.status))) throw new Error('检查记录格式错误。');
+  if (request.brief.validation_profile === LATCH_PROFILE || result.logic_ir !== undefined || result.lad_graph !== undefined) {
+    if (request.brief.validation_profile !== LATCH_PROFILE || !result.logic_ir || typeof result.logic_ir !== 'object' ||
+        Array.isArray(result.logic_ir) || JSON.stringify(result.logic_ir).length > 524288 || result.lad_networks.length) throw new Error('启停双输出的 IR/LAD 产物缺失或格式错误。');
+    // A structurally rejected proposal may have no products. Keep its IR for
+    // diagnosis/export; bindVerification requires a source_invalid failure.
+    if (!result.lad_graph && result.scl_files.length === 0) return result;
+    if (!result.lad_graph ||
+        result.logic_ir.schema_version !== 1 || result.logic_ir.contract_id !== LATCH_PROFILE || result.logic_ir.block !== 'FB_StartStop' ||
+        !Array.isArray(result.logic_ir.networks) || !result.logic_ir.networks.length || result.logic_ir.networks.length > 28 ||
+        !Array.isArray(result.logic_ir.unresolved) || result.logic_ir.unresolved.length ||
+        JSON.stringify(result.logic_ir).length > 524288 || !result.scl_files.length) throw new Error('启停双输出的 IR/LAD 产物缺失或格式错误。');
+    validateLadGraph(result.lad_graph);
+    if (canonicalJson(result.logic_ir.symbols) !== canonicalJson(result.lad_graph.symbols)) throw new Error('IR/LAD 的符号声明不一致。');
+  }
   return result;
 }
 
 export function agentPrompt(request) {
+  if (request.brief.validation_profile === LATCH_PROFILE) return `本次仅为 latch-start-stop-v1 启停自锁合成基准。遵守固定合同，不把它套到现场设备。\n`+
+    `AI 只提出 logic-ir.schema.json 定义的 Logic IR，返回完整 proposal JSON：{schema_version:1,request_id,request_fingerprint,summary,questions:[],logic_ir}。身份字段必须原样返回；有未决问题写入 questions，由控制器阻断生成。不要另写 SCL、LAD、测试或检查结论。\n`+
+    `现有 mcode/CM 严格工作流先审阅规格，再由程序生成完整 SCL 和包含实际串并联逻辑的 LAD 图，分别执行产物检查。修复只改 IR，不改需求、合同、测试或判定。\n`+
+    `静态交接时，把 proposal 交给本机 check-latch.py 检查，然后在页面“打开工程草稿”载入 engineering.json；直接导入模型 proposal 不会构建双输出，也不构成验收。没有工具证据的 checks.status 只能 not_run/unknown。TIA、PLCSIM、实机和无限状态等价均未验收。\n`+
+    `以下是本次冻结需求数据：\n${JSON.stringify(request,null,2)}`;
   return `你正在为 PLC Workspace 生成工程草稿。只返回 generation-result.schema.json 定义的 JSON，不执行命令、不读写工程文件。\n` +
     `先依据需求完善规格，再生成 Main LAD 网络与 FB SCL。信息不足时列入 questions；不得猜测物理 I/O、CPU、固件或安全功能。\n` +
     `每个 FB 调用遵循扫描语义：持久内部状态 -> 前值快照 -> 本拍条件 -> 下一状态 -> 提交 -> 输出。每次调用最多迁移一个正常步骤；输入边沿在禁用/停止调用仍消费。Main 必须周期调用 FB，xEnable 是参数，不能使 FB 跳过禁用扫描。\n` +
@@ -143,6 +190,7 @@ export async function openEngineering(value) {
   if (!target || !['cpu', 'tia_version'].every(k => typeof target[k] === 'string' && target[k].length <= 100)) throw new Error('工程目标格式错误。');
   if (!Array.isArray(request.states) || request.states.length > 24 || request.states.some(s =>
       !s || !Number.isInteger(s.id) || !['name','actions','completion','next_state'].every(k => typeof s[k] === 'string' && s[k].length <= MAX_TEXT))) throw new Error('工程状态草稿格式错误。');
+  if (request.brief.validation_profile === LATCH_PROFILE && request.states.length) throw new Error('启停合成基准不接受附加状态草稿。');
   if (await fingerprint(request.brief, request.states) !== request.request_fingerprint) throw new Error('工程需求指纹不匹配，文件可能已被改写。');
   validateResult(value.result, request);
   const verification = await bindVerification(value.verification, value.result);

@@ -1,4 +1,5 @@
-import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification, verificationSummary} from './generation-model.js';
+import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, latchAcceptanceBrief, LATCH_PROFILE, bindVerification, verificationSummary} from './generation-model.js';
+import {layoutLadNetwork} from './lad-graph.js';
 const $ = id => document.getElementById(id);
 const fieldIds = {name:'project-name', block_name:'block-name', requirement:'requirement', flow:'flow', io_text:'io-text', constraints:'constraints'};
 let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 180, provider = 'agy';
@@ -6,16 +7,17 @@ let sourceFiles = [], verification, workflow, currentAcceptance = false;
 const text = (id, value) => { $(id).textContent = value; };
 const node = (tag, value, className) => { const el = document.createElement(tag); if (value !== undefined) el.textContent = value; if (className) el.className = className; return el; };
 function message(value, error = false) { $('message').hidden = !value; text('message', value || ''); $('message').classList.toggle('error', error); }
-function readBrief() { return {...Object.fromEntries(Object.entries(fieldIds).map(([k,id]) => [k,$(id).value])), target:{cpu:$('cpu').value,tia_version:$('tia-version').value || 'unknown',architecture:'Main LAD / FB SCL'},
+function readBrief() { return {...Object.fromEntries(Object.entries(fieldIds).map(([k,id]) => [k,$(id).value])), target:{cpu:$('cpu').value,tia_version:$('tia-version').value || 'unknown',architecture:$('validation-profile').value === LATCH_PROFILE ? '同一 FB 逻辑的 LAD / SCL 两种表达' : 'Main LAD / FB SCL'},
   ...(sourceFiles.length ? {source_files:structuredClone(sourceFiles)} : {}), ...($('validation-profile').value ? {validation_profile:$('validation-profile').value} : {})}; }
-function writeBrief(brief) { for (const [k,id] of Object.entries(fieldIds)) $(id).value = brief[k] || ''; $('cpu').value = brief.target?.cpu || 'unknown'; $('tia-version').value = brief.target?.tia_version === 'unknown' ? '' : brief.target?.tia_version || ''; sourceFiles = structuredClone(brief.source_files || []); $('validation-profile').value = brief.validation_profile || ''; renderSources(); }
+function writeBrief(brief) { for (const [k,id] of Object.entries(fieldIds)) $(id).value = brief[k] || ''; $('cpu').value = brief.target?.cpu || 'unknown'; $('tia-version').value = brief.target?.tia_version === 'unknown' ? '' : brief.target?.tia_version || ''; sourceFiles = structuredClone(brief.source_files || []); $('validation-profile').value = brief.validation_profile || ''; renderSources(); profileNote(); }
+function profileNote() { $('validation-profile-note').hidden = $('validation-profile').value !== LATCH_PROFILE; }
 function renderSources() {
   $('source-files').replaceChildren(...(sourceFiles.length ? sourceFiles.map((f,i) => { const option = node('option',f.name); option.value = String(i); return option; }) : [node('option','没有原程序')]));
   showSource(); $('source-details').open = !!sourceFiles.length;
 }
 function showSource() { $('source-content').value = sourceFiles[Number($('source-files').value)]?.content || ''; $('source-content').disabled = busy || !sourceFiles.length; }
 function updateActions() {
-  $('generate').disabled = !ready || !request || busy;
+  $('generate').disabled = !ready || !request || busy || (request.brief.validation_profile === LATCH_PROFILE && provider !== 'mcode-cm');
   $('export-task').disabled = !request || busy;
   $('import-result').disabled = !request || busy;
   $('open-project').disabled = busy;
@@ -41,7 +43,16 @@ function showTab(name, focus = false) {
   document.querySelectorAll('[data-tab]').forEach(b => { const selected = b.dataset.tab === name; b.setAttribute('aria-selected', String(selected)); b.tabIndex = selected ? 0 : -1; $(`panel-${b.dataset.tab}`).hidden = !selected; if (selected && focus) b.focus(); });
 }
 function renderStates() {
+  const dual = request?.brief.validation_profile === LATCH_PROFILE;
+  text('state-review-title',dual ? '固定扫描合同' : '逐状态审阅');
+  text('state-review-note',dual ? '此合成基准用于验证生成链路。修改行为前，请切换到普通 SCL 编译目标。' : '动作与完成条件可直接补充；修改后需要重新生成。');
   $('spec-empty').hidden = false; $('spec-content').hidden = true;
+  if (dual) {
+    $('spec-empty').hidden = true; $('spec-content').hidden = false;
+    $('state-flow').replaceChildren(node('span','初始：停止'),node('span','新启动沿 → 运行自锁'),node('span','Stop / 禁用 → 本拍停止'));
+    $('state-editor').replaceChildren(node('p',request.brief.requirement,'fixed-contract'));
+    return;
+  }
   if (!states.length && !result) return;
   $('spec-empty').hidden = true; $('spec-content').hidden = false;
   $('state-flow').replaceChildren(); $('state-editor').replaceChildren();
@@ -59,7 +70,7 @@ function renderStates() {
 function renderQuestions(questions) { $('questions-box').hidden = !questions.length; $('questions').replaceChildren(...questions.map(q => node('li',q))); }
 function renderResult() {
   stale = false; $('artifact-status').classList.remove('stale');
-  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? verificationSummary(verification,{profile:request.brief.validation_profile,current:true,approved:currentAcceptance}).title : 'AI 工程草稿 · 待验证');
+  text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : result.logic_ir && !result.lad_graph ? 'IR 草稿 · 尚无双输出' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? verificationSummary(verification,{profile:request.brief.validation_profile,current:true,approved:currentAcceptance}).title : 'AI 工程草稿 · 待验证');
   text('spec-summary', result.summary); states = structuredClone(result.states); renderStates(); renderQuestions(result.questions);
   $('io-empty').hidden = !!result.io.length; $('io-table').hidden = !result.io.length;
   $('io-rows').replaceChildren();
@@ -67,8 +78,12 @@ function renderResult() {
   for (const signal of result.io) { const tr = node('tr'); for (const v of [directions[signal.direction],signal.name,signal.type,signal.description]) tr.append(node('td',v)); $('io-rows').append(tr); }
   $('scl-empty').hidden = !!result.scl_files.length; $('scl-content').hidden = !result.scl_files.length;
   $('scl-files').replaceChildren(...result.scl_files.map((f,i) => { const o = node('option',f.name); o.value = String(i); return o; })); showCode();
-  $('lad-empty').hidden = !!result.lad_networks.length; $('download-lad').hidden = !result.lad_networks.length;
+  const hasGraph = !!result.lad_graph;
+  $('lad-empty').hidden = hasGraph || !!result.lad_networks.length; $('download-lad').hidden = !hasGraph && !result.lad_networks.length;
+  text('lad-format-note',hasGraph ? '启停 BOOL 子集的实际 LAD 逻辑图。网络按顺序执行；常开/常闭触点、分支、线圈和连线均来自导出的图数据。此内部格式尚不能直接导入 TIA。' : 'Main 的 LAD 网络审阅图，包含周期 FB 调用与简单触点／线圈。导出网络规格后需在 TIA 中实现和编译。');
+  text('download-lad',hasGraph ? '下载可检查的 LAD 图数据' : '下载 LAD 网络规格');
   $('lad-networks').replaceChildren();
+  if (hasGraph) renderLadGraph(result.lad_graph);
   for (const [i,n] of result.lad_networks.entries()) {
     const article = node('article',undefined,'lad-network'); article.append(node('h3', `网络 ${i+1} · ${ladTitle(n.title)}`));
     if (n.kind === 'call') {
@@ -81,10 +96,43 @@ function renderResult() {
     }
     article.append(node('p',n.note)); $('lad-networks').append(article);
   }
+  if (result.logic_ir) {
+    const ir=node('details',undefined,'logic-ir-record');
+    ir.append(node('summary',hasGraph ? '查看生成这两种产物的 Logic IR' : '查看尚未构建产物的 IR 草稿'),node('pre',JSON.stringify(result.logic_ir,null,2)));
+    $('lad-networks').append(ir);
+    if (!hasGraph) text('lad-empty','该 IR 尚无 LAD 图或 SCL 产物。可在检查页查看已记录的诊断，并导出工程草稿。');
+  }
   renderChecks();
   const isExample = generationOrigin === 'example';
   text('request-label', `需求 ${request.request_fingerprint.slice(0,12)} · ${isExample ? '已有示例' : '工程草稿'}`);
   $('step-code').classList.add('current'); updateActions();
+}
+function renderLadGraph(graph) {
+  const svgNode = (tag,attributes = {},value) => { const el=document.createElementNS('http://www.w3.org/2000/svg',tag); for (const [k,v] of Object.entries(attributes)) el.setAttribute(k,String(v)); if (value !== undefined) el.textContent=value; return el; };
+  for (const [index,network] of graph.networks.entries()) {
+    const article=node('article',undefined,'lad-network');
+    article.append(node('h3',`网络 ${index+1} · ${network.id}`));
+    try {
+      const layout=layoutLadNetwork(network);
+      const svg=svgNode('svg',{viewBox:`0 0 ${layout.width} ${layout.height}`,width:layout.width,height:layout.height,role:'img','aria-label':`网络 ${index+1}：${network.id}，按图中连线从左向右执行。`,class:'lad-graph-svg'});
+      for (const edge of layout.edges) svg.append(svgNode('path',{d:edge.path,class:'lad-graph-wire','data-from':edge.from,'data-to':edge.to}));
+      for (const n of layout.nodes) {
+        const group=svgNode('g',{'data-node':n.id,'data-kind':n.kind,...(n.symbol ? {'data-symbol':n.symbol} : {}),...(n.kind === 'contact' ? {'data-negated':n.negated} : {})});
+        if (n.kind === 'rail') group.append(svgNode('path',{d:`M ${n.x} ${n.y-22} V ${n.y+22}`,class:'lad-graph-rail'}));
+        if (n.kind === 'junction') group.append(svgNode('circle',{cx:n.x,cy:n.y,r:3,class:'lad-graph-junction'}));
+        if (n.kind === 'contact') {
+          group.append(svgNode('path',{d:`M ${n.x-24} ${n.y} H ${n.x-8} M ${n.x-8} ${n.y-13} V ${n.y+13} M ${n.x+8} ${n.y-13} V ${n.y+13} M ${n.x+8} ${n.y} H ${n.x+24}`,class:'lad-graph-symbol'}));
+          if (n.negated) group.append(svgNode('path',{d:`M ${n.x-11} ${n.y+14} L ${n.x+11} ${n.y-14}`,class:'lad-graph-symbol'}));
+        }
+        if (n.kind === 'coil') group.append(svgNode('path',{d:`M ${n.x-24} ${n.y} H ${n.x-15} M ${n.x-7} ${n.y-14} Q ${n.x-24} ${n.y} ${n.x-7} ${n.y+14} M ${n.x+7} ${n.y-14} Q ${n.x+24} ${n.y} ${n.x+7} ${n.y+14} M ${n.x+15} ${n.y} H ${n.x+24}`,class:'lad-graph-symbol'}));
+        if (n.symbol) { group.append(svgNode('text',{x:n.x,y:n.y+33,'text-anchor':'middle',class:'lad-graph-label'},n.symbol)); group.append(svgNode('title',{},n.kind === 'coil' ? `普通线圈 ${n.symbol}` : `${n.negated ? '常闭' : '常开'}触点 ${n.symbol}`)); }
+        svg.append(group);
+      }
+      const viewport=node('div',undefined,'lad-graph-viewport'); viewport.append(svg); article.append(viewport);
+    } catch (error) { article.append(node('p',error.message,'graph-error')); }
+    const raw=node('details'); raw.append(node('summary','查看本网络的图数据'),node('pre',JSON.stringify(network,null,2))); article.append(raw);
+    $('lad-networks').append(article);
+  }
 }
 function renderChecks() {
   const isExample = generationOrigin === 'example', saved = generationOrigin === 'import';
@@ -95,12 +143,13 @@ function renderChecks() {
   $('checks-list').replaceChildren();
   for (const c of verification?.checks || result.checks) {
     const row = node('article',undefined,'check-record');
-    const labels = {source_structure:'源文件结构（不含 PLC 逻辑）',linux_compile:'SCL 编译',scan_contract:'行为合同',lad_scl_compare:'LAD/SCL 对照',tia_compile:'TIA 编译'};
+    const labels = {source_structure:result.logic_ir ? 'IR / 产物结构与来源' : '源文件结构（不含 PLC 逻辑）',linux_compile:'SCL 编译',scan_contract:'SCL 独立行为合同',lad_scl_compare:'LAD 独立行为与 SCL 对照',tia_compile:'TIA 编译'};
     row.append(node('strong',labels[c.name] || c.name),node('span',verification ? statuses[c.status] : isExample && c.status === 'pass' ? '已有记录' : ['pass','fail'].includes(c.status) ? `自报${statuses[c.status]}` : statuses[c.status]),node('p',c.detail));
     if (verification?.schema_version === 2) row.append(node('small',c.required ? '当前目标必选' : '未纳入本次目标'));
     $('checks-list').append(row);
   }
   if (verification) for (const f of verification.files) $('checks-list').append(node('p',`${f.name} · SHA-256 ${f.sha256}`,'source-binding form-hint'));
+  if (verification?.lad_graph_sha256) $('checks-list').append(node('p',`LAD 图 · SHA-256 ${verification.lad_graph_sha256}`,'source-binding form-hint'));
   if (workflow) {
     const history = node('details'), rounds = Array.isArray(workflow.attempts) ? workflow.attempts : [];
     history.append(node('summary',`检查与修复记录 · ${rounds.length} 轮 · ${workflow.verdict || 'unknown'}`));
@@ -117,11 +166,12 @@ function renderChecks() {
 function showCode() { text('scl-code',result?.scl_files[Number($('scl-files').value)]?.content || ''); }
 async function prepare() {
   currentAcceptance = false;
-  if (!states.length) states = flowDraft($('flow').value);
+  if ($('validation-profile').value === LATCH_PROFILE) states = [];
+  else if (!states.length) states = flowDraft($('flow').value);
   request = await makeRequest(readBrief(), states);
   stale = !!result; $('artifact-status').classList.toggle('stale',stale);
   text('artifact-status', '规格待审阅'); text('request-label', `需求 ${request.request_fingerprint.slice(0,12)} · 任务已准备`);
-  text('spec-summary', '步骤来自你填写的流程顺序。补充动作与完成条件后，AI 会整理完整规格和工程草稿。');
+  text('spec-summary', request.brief.validation_profile === LATCH_PROFILE ? '已选择固定启停合成基准。AI 提出受限逻辑，程序生成两种产物并分别检查；该基准不能代替现场工艺确认。' : '步骤来自你填写的流程顺序。补充动作与完成条件后，AI 会整理完整规格和工程草稿。');
   if (!result) {
     $('io-empty').hidden = false; $('io-table').hidden = true; $('io-rows').replaceChildren();
     $('scl-empty').hidden = false; $('scl-content').hidden = true; $('scl-files').replaceChildren(); text('scl-code','');
@@ -195,22 +245,42 @@ async function loadConveyorAcceptance() {
     await prepare(); message('已载入原程序与固定验收要求。生成后将检查本次新代码；修复不能改变这组预期。');
   } catch (error) { message(error.message,true); }
 }
+async function loadLatchAcceptance() {
+  try {
+    writeBrief(latchAcceptanceBrief()); states=[]; result=undefined; verification=undefined; workflow=undefined; request=undefined; stale=false;
+    await prepare();
+    message('已载入固定启停合成基准。规格通过后只让 AI 提出 IR；SCL 和 LAD 由程序生成并分别执行检查。在线生成需要现有 mcode/CM 本机运行时。');
+  } catch (error) { message(error.message,true); }
+}
 document.querySelectorAll('[data-tab]').forEach((b,i,buttons) => {
   b.addEventListener('click', () => showTab(b.dataset.tab));
   b.addEventListener('keydown',event => { let target; if (event.key === 'ArrowRight') target = (i+1)%buttons.length; if (event.key === 'ArrowLeft') target = (i+buttons.length-1)%buttons.length; if (event.key === 'Home') target = 0; if (event.key === 'End') target = buttons.length-1; if (target !== undefined) { event.preventDefault(); showTab(buttons[target].dataset.tab,true); } });
 });
 $('brief-form').addEventListener('submit', async event => { event.preventDefault(); try { await prepare(); message(`生成任务已准备。审阅步骤后，可以交给 ${provider}。`); } catch (error) { message(error.message,true); } });
-$('brief-form').addEventListener('input', event => { if (event.target.id === 'flow') states = []; dirty(); });
+$('brief-form').addEventListener('input', event => { if (event.target.id === 'flow') states = []; if (event.target.id === 'validation-profile') profileNote(); dirty(); });
 $('source-content').addEventListener('input', () => { const file = sourceFiles[Number($('source-files').value)]; if (file) file.content = $('source-content').value; });
 $('source-files').addEventListener('change',showSource);
 $('clear-source').addEventListener('click',() => { sourceFiles = []; renderSources(); dirty(); });
 $('load-conveyor-acceptance').addEventListener('click',loadConveyorAcceptance);
-$('modify-current').addEventListener('click',() => { if (stale || !result) return; sourceFiles = structuredClone(result.scl_files); renderSources(); dirty(); message('当前结果已作为原程序。修改左侧需求并整理任务后，AI 会基于这份代码继续修改。'); $('source-details').scrollIntoView({behavior:'smooth',block:'nearest'}); });
+$('load-latch-acceptance').addEventListener('click',loadLatchAcceptance);
+$('modify-current').addEventListener('click',() => { if (stale || !result) return; const wasDual=$('validation-profile').value === LATCH_PROFILE; if (wasDual) { $('validation-profile').value=''; profileNote(); } sourceFiles = structuredClone(result.scl_files); renderSources(); dirty(); message(wasDual ? '已切换到 SCL 源码修改。该路径不生成等价 LAD，也不沿用启停双输出验收；请修改需求后重新整理任务。' : '当前结果已作为原程序。修改左侧需求并整理任务后，AI 会基于这份代码继续修改。'); $('source-details').scrollIntoView({behavior:'smooth',block:'nearest'}); });
 $('generate').addEventListener('click',generate);
 $('cancel').addEventListener('click', async () => { if (jobId) { try { await api(`/api/jobs/${jobId}/cancel`,{}); message(`正在取消 ${provider}，需求草稿会保留。`); } catch (error) { message(error.message,true); } } });
 $('load-brief').addEventListener('click', () => loadExample(false)); $('view-example').addEventListener('click', () => loadExample(true)); $('scl-files').addEventListener('change',showCode);
 $('save-draft').addEventListener('click', () => { try { localStorage.setItem('plc-workspace-brief-v1',JSON.stringify({brief:readBrief(),states})); message('需求与状态草稿已保存在此浏览器。不会保存模型凭据或生成进程。'); } catch { message('浏览器未允许本地保存，可导出 Agent 任务保留需求。',true); } });
-$('export-task').addEventListener('click', async () => { try { const response = await fetch('./data/generation-result.schema.json'); if (!response.ok) throw new Error('结果格式加载失败。'); download('plc-agent-task.json',{request,prompt:agentPrompt(request),result_schema:await response.json()}); } catch (error) { message(error.message,true); } });
+$('export-task').addEventListener('click', async () => {
+  try {
+    const response = await fetch('./data/generation-result.schema.json'); if (!response.ok) throw new Error('结果格式加载失败。');
+    const task={request,prompt:agentPrompt(request),result_schema:await response.json()};
+    if (request.brief.validation_profile === LATCH_PROFILE) {
+      const irResponse=await fetch('./data/logic-ir.schema.json'); if (!irResponse.ok) throw new Error('IR 格式加载失败。');
+      const irSchema=await irResponse.json();
+      task.proposal_schema={type:'object',properties:{schema_version:{type:'integer',enum:[1]},request_id:{type:'string'},request_fingerprint:{type:'string'},summary:{type:'string'},questions:{type:'array',items:{type:'string'}},logic_ir:irSchema},required:['schema_version','request_id','request_fingerprint','summary','questions','logic_ir'],additionalProperties:false,...(irSchema.$defs ? {$defs:irSchema.$defs} : {})};
+      task.handoff='保存 AI 返回的 proposal.json，在已配置 matiec 的本机运行 python3 web/scripts/check-latch.py --request plc-agent-task.json --proposal proposal.json --output /outside/repo/fresh-run，然后在本页“打开工程草稿”载入该目录的 engineering.json。导入只显示保存记录，不授予本次验收。';
+    }
+    download('plc-agent-task.json',task);
+  } catch (error) { message(error.message,true); }
+});
 $('open-project').addEventListener('click', () => { $('project-file').value = ''; $('project-file').click(); });
 $('project-file').addEventListener('change', async event => {
   try {
@@ -223,13 +293,13 @@ $('project-file').addEventListener('change', async event => {
   } catch (error) { message(error instanceof SyntaxError ? '工程文件不是有效 JSON。' : error.message, true); }
 });
 $('import-result').addEventListener('click', () => { $('result-file').value = ''; $('result-file').click(); });
-$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); const imported = validateResult(value.result || value,request); result = imported; verification = undefined; workflow = undefined; generationOrigin = 'import'; currentAcceptance = false; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
+$('result-file').addEventListener('change', async event => { try { const file = event.target.files[0]; if (!file) return; if (file.size > 1000000) throw new Error('结果文件超过 1 MB，请拆分工程。'); const value = JSON.parse(await file.text()); if (request?.brief.validation_profile === LATCH_PROFILE && value.logic_ir && !value.scl_files) throw new Error('这是 AI 的 IR 提案。请先用本机 check-latch.py 构建并检查，再打开输出的 engineering.json。'); const imported = validateResult(value.result || value,request); result = imported; verification = undefined; workflow = undefined; generationOrigin = 'import'; currentAcceptance = false; renderResult(); message('Agent 结果已导入。本机尚未执行工程检查。'); } catch (error) { message(error instanceof SyntaxError ? '结果文件不是有效 JSON。' : error.message,true); } });
 $('download-scl').addEventListener('click', () => { if (stale || !result) return; const file = result.scl_files[Number($('scl-files').value)]; download(file.name,file.content,'text/plain;charset=utf-8'); });
-$('download-lad').addEventListener('click', () => { if (!stale && result) download('Main-LAD-networks.md',ladMarkdown(),'text/markdown;charset=utf-8'); });
+$('download-lad').addEventListener('click', () => { if (!stale && result) { if (result.lad_graph) download('FB_StartStop.lad.json',result.lad_graph); else download('Main-LAD-networks.md',ladMarkdown(),'text/markdown;charset=utf-8'); } });
 $('close-export').addEventListener('click',()=> $('export-dialog').close());
 $('save-export').addEventListener('click',saveExport);
 $('copy-export').addEventListener('click',async()=> { try { await navigator.clipboard.writeText(exportFile.content); text('export-feedback','文本已复制。'); } catch { text('export-feedback','浏览器不允许自动复制，请选中上方文本复制。'); } });
-$('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification,workflow,verification_status:'saved_record_requires_rerun',industrial_acceptance:'not_run',lad_format:'review_networks_not_tia_project'}); });
+$('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification,workflow,verification_status:'saved_record_requires_rerun',industrial_acceptance:'not_run',lad_format:result.lad_graph ? 'plc-lad-bool-v1_not_tia_project' : 'review_networks_not_tia_project'}); });
 async function init() {
   try { const saved = JSON.parse(localStorage.getItem('plc-workspace-brief-v1')); if (saved?.brief && Array.isArray(saved.states)) { writeBrief(saved.brief); states = saved.states; message('已恢复此浏览器保存的需求草稿。请整理任务后重新生成。'); } } catch { /* Invalid/blocked local storage leaves a clean editable form. */ }
   try { const capability = await api('/api/capabilities'); ready = capability.ready === true && ['agy','zcode','mcode-cm'].includes(capability.provider); provider = capability.provider; generationBudget = capability.timeout_seconds ?? 180; } catch { ready = false; }

@@ -106,3 +106,7 @@ SIM_IEC2C=/absolute/path/to/iec2c SIM_MATIEC_LIB=/absolute/path/to/matiec/lib np
 ```
 
 Without these variables native simulation tests are explicitly skipped, not passed. Build products and compiler logs/libraries remain outside tracked source. Research and acceptance details: [simulation plan](../plans/plc-simulation/task_plan.md).
+
+## 启停双输出基准（S2）
+
+页面可显式载入固定 `latch-start-stop-v1`，展示同一 FB 逻辑的 SCL 与实际串并联 LAD 图。只支持此 BOOL 合成合同；已有自由需求和原程序修改继续保留 SCL 路径。新图不是 Siemens 导入格式。完整运行、静态 IR 交接、真实工具范围与在线未验收边界见[闭环说明](../docs/SCL_CLOSED_LOOP.md#s2启停自锁双输出)。导出工程保留 IR、图和证据；重开只恢复历史，修改撤销旧验收。无产物的结构失败 IR 仍可诊断与导出。

@@ -1,4 +1,4 @@
-# 当前 SCL 的检查与修复
+# 当前 LAD / SCL 的检查与修复
 
 默认 mcode/CM 路径现在把专业资料、原程序、生成结果和工具反馈接到同一次任务。规格审阅仍先于生成；没有新增审阅角色。模型不直接操作工程工具，由控制器捕获当前源码并运行检查。
 
@@ -53,7 +53,7 @@ npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
 
 **导出工程草稿**包含需求、最终或未通过的候选、检查报告和循环记录。**打开工程草稿**重新计算需求指纹和每份源码 SHA-256；不匹配时拒绝旧记录。匹配只说明记录与文件相连，不能认证外部文件的来源；导入明确显示“本次未重跑”。以当前代码继续修改会准备新任务，旧结果过期。
 
-工具缺失、适配不支持、本机运行超时或崩溃属于 unknown，不能伪报源码正确或错误。Linux 适配支持有限的 FB/ST 语法，通用编译通过也不说明行为已检查。LAD 仍是审阅网络；TIA 编译、PLCSIM、形式验证、实机及安全验收均未接入本循环。本次没有下载程序或连接现场 PLC。
+工具缺失、适配不支持、本机运行超时或崩溃属于 unknown，不能伪报源码正确或错误。Linux 适配支持有限的 FB/ST 语法，通用编译通过也不说明行为已检查。普通任务的 LAD 仍是审阅网络；S2 合成基准见下节。TIA 编译、PLCSIM、形式验证、实机及安全验收均未接入本循环。本次没有下载程序或连接现场 PLC。
 
 ## S1 兼容结果字段
 
@@ -66,6 +66,45 @@ npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
 `validation_level` 仅是共享策略重算结果的兼容标签，不是另一套门禁。控制器冻结必选检查，工作流与本机桥接独立用同一判定核对报告。需要同时匹配需求指纹与源码指纹：即使文件字节未变，旧需求的报告也不能放行新任务。取消时保留已完成的编译观察，不提升验收等级；页面区分已请求取消与本地清理完成。未验证在线 CM 取消链路。LAD/SCL 对照、TIA、PLCSIM 和现场检查均不在 S1 范围内。
 
 本次合流复验、原始分支的已复现缺陷及未验收范围见 [S1 进度记录](../plans/plc-logic-harness-v1/progress.md)。
+
+## S2：启停自锁双输出
+
+点击 **启停自锁双输出基准**，显式载入 `latch-start-stop-v1`。这是独立的合成合同：输入 Enable/Start/Stop，输出 Motor，初始静止、Start 前值为 FALSE；每拍调用同一实例，包括失能期间。有效新 Start 边沿启动并自锁；Stop 或失能当拍清除运行；被抑制的 Start 边沿也消费，保持 Start 穿过停止/失能不能重启。首次调用 Start 为 TRUE 按新边沿处理，只是本基准的约定。普通停止不是安全功能。
+
+合同文字、接口、约束和空状态草稿固定，不能把该基准勾选到另一台设备的自由文本上。需要另一种工艺时回到普通 SCL 草稿路径。本次没有增加 Reset、计时器、扫描计数、掉电保持或物理 I/O。
+
+模型只交付 `logic_ir` 提议，控制器检查版本、BOOL 类型、声明、初值、单写、临时变量先写后读与执行顺序。表达式只包含常开/常闭触点、串联、并联；不允许把任意代码藏在字符串里。SCL 和 LAD 由程序确定性生成。LAD 是同一块控制逻辑的另一种表达，含真实触点、分支、线圈与连线，没有用调用 SCL FB 的外壳代替逻辑。
+
+| 检查 | S2 证据与范围 |
+|---|---|
+| `source_structure` | IR 子集、符号、单写、图拓扑、两个产物与 IR 对应；不证明行为 |
+| `linux_compile` | 当前生成 SCL 经有限声明适配后真实 matiec 编译 |
+| `scan_contract` | 编译后的持久实例对独立预期：14 个手写场景 / 64 次调用，加全部 4,096 条四拍输入序列 / 16,384 次调用 |
+| `lad_scl_compare` | 读取实际序列化图执行，与同样独立预期核对，再与原生 SCL 逐拍对照；不能只凭双方一致通过 |
+| `tia_compile` | `not_run`，未接入 TIA；不阻塞上述离线目标 |
+
+五个共同错误变体（并联改串联、反转 Stop、漏停止、Start 电平误重启、提前更新边沿记忆）即使两种输出相互一致，也会被预期拒绝；重复写入在结构阶段拒绝。这些是具体反例，不是通用 AI 准确率。每条执行路径共 16,448 次调用，只证明这些有限输入和观察；不声称无界等价或现场正确性。
+
+S2 的修复返回值只能是 IR 与说明。控制器重生两个出口、重跑原合同，默认最多两轮。必选工具结果 unknown 时停止自动修复，保留原因。报告同时绑定需求、源码、IR 和 LAD；修改任一产物或需求，旧证据不能沿用。`lad_scl_pass` 只是该受限目标与文本审阅通过后的标签，TIA 仍未验收。结构坏 IR 可保留为没有 SCL/LAD 的诊断草稿，不能获得验收。
+
+### 离线复验与静态交接
+
+```sh
+# 确定性手写基准：没有模型调用
+SIM_IEC2C=/absolute/path/to/iec2c \
+SIM_MATIEC_LIB=/absolute/path/to/matiec/lib \
+python3 web/scripts/check-latch.py --example --output /outside/repo/fresh-latch-run
+
+# 静态页面导出 task.json；模型只回同一请求的 proposal.json
+SIM_IEC2C=/absolute/path/to/iec2c \
+SIM_MATIEC_LIB=/absolute/path/to/matiec/lib \
+python3 web/scripts/check-latch.py --request task.json --proposal proposal.json \
+  --output /outside/repo/fresh-proposal-run
+```
+
+`proposal.json` 包含 `schema_version=1`、原 `request_id` / `request_fingerprint`、`summary`、`questions` 与 `logic_ir`。未决问题、身份不符或额外字段均拒绝。该工具不替代在线规格/文本审阅；输出 `engineering.json` 用“打开工程草稿”重开，按历史记录展示。运行目录保留原 IR、真实图、源码、编译日志、`latch-traces.jsonl` 完整观察、命名场景与首个反例摘要，不把大量枚举轨迹塞进模型输入。
+
+本次完成确定性闭环和显式模型夹具回归；真实在线 mcode/CM 的规格→IR→生成→修复演示仍未运行。S3 的状态/计数及第二个双输出示例没有展开。可选 TIA 后置。
 
 ## 回归
 

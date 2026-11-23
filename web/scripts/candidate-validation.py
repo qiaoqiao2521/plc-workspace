@@ -8,6 +8,7 @@ This is a local engineering tool, not a hostile-code sandbox or Siemens compiler
 import argparse
 import hashlib
 import importlib.util
+from itertools import chain
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,14 @@ OUTPUTS = ('Motor', 'Busy', 'Done', 'Error', 'TimeoutFault')
 SCOPE = ('Linux matiec IEC ST subset after syntax-only Siemens adaptation; '
          'not TIA compilation, PLCSIM, formal verification or machine acceptance')
 CONTRACT = policy.CONTRACT
+LATCH_PROFILE = policy.LATCH_PROFILE
+
+
+def logic_module():
+    spec = importlib.util.spec_from_file_location('logic_ir', HERE / 'logic-ir.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def sha(value):
@@ -69,11 +78,8 @@ def validation_level(report, profile, request_fingerprint):
             or report.get('request_fingerprint') != request_fingerprint):
         return None
     assessed = policy.assess_report(report, profile)
-    if assessed['acceptance']['scl_behavior']:
-        return 'behavior_pass'
-    if assessed['acceptance']['scl_compile']:
-        return 'compile_only'
-    return None
+    level = policy.validation_level(assessed['acceptance'])
+    return level if level != 'not_accepted' else None
 
 
 def normalize(source):
@@ -172,6 +178,61 @@ def run_scans(runtime, folder):
     return cases
 
 
+def run_latch_scans(runtime, folder, serialized_graph):
+    """Execute both delivered artifacts against a separate fixed contract oracle.
+
+    Persist every observed sequence, but include only named traces and the first
+    counterexamples in model packets. No test expectations come from either
+    generator or executor. Four-call enumeration is bounded test evidence.
+    """
+    ladder = logic_module().LadRuntime(serialized_graph)
+    contract = policy.latch
+    named = contract.fixed_scenarios()
+    summary = {'named_scenarios': 0, 'named_calls': 0, 'bounded_scenarios': 0, 'bounded_calls': 0,
+               'scl_passed': True, 'lad_passed': True, 'agreement_passed': True,
+               'counterexamples': {}}
+    retained = []
+    trace_path = folder / 'latch-traces.jsonl'
+    with trace_path.open('w') as traces:
+        for index, case in enumerate(chain(named, contract.bounded_scenarios())):
+            native_handle, lad_handle = runtime.create(), ladder.create()
+            rows = []
+            try:
+                for number, (inputs, expected) in enumerate(case['steps'], 1):
+                    scl = runtime.scan(native_handle, inputs)
+                    lad = ladder.scan(lad_handle, inputs)
+                    row = {'call': number, 'inputs': inputs, 'expected': expected, 'scl': scl, 'lad': lad}
+                    for key, passed in (('scl', scl == expected), ('lad', lad == expected), ('agreement', scl == lad)):
+                        summary[key + '_passed'] &= passed
+                        if not passed and key not in summary['counterexamples']:
+                            summary['counterexamples'][key] = {'scenario': case['name'], **row,
+                                'prefix': rows + [row]}
+                    rows.append(row)
+            finally:
+                runtime.destroy(native_handle)
+                ladder.destroy(lad_handle)
+            observed = {'name': case['name'], 'calls': rows,
+                        'passed': bool(rows) and all(row['scl'] == row['expected'] == row['lad'] for row in rows)}
+            traces.write(json.dumps(observed, ensure_ascii=False, separators=(',', ':')) + '\n')
+            bucket = 'named' if index < len(named) else 'bounded'
+            summary[bucket + '_scenarios'] += 1
+            summary[bucket + '_calls'] += len(rows)
+            if bucket == 'named':
+                retained.append(observed)
+        traces.flush()
+    # Empty or incomplete enumeration is a failed check, never an all([]) pass.
+    complete = (summary['named_scenarios'] == 14 and summary['named_calls'] == 64
+                and summary['bounded_scenarios'] == 8 ** contract.BOUNDED_CALLS
+                and summary['bounded_calls'] == contract.BOUNDED_CALLS * 8 ** contract.BOUNDED_CALLS)
+    if not complete:
+        summary.update(scl_passed=False, lad_passed=False, agreement_passed=False,
+                       incomplete_evidence=True)
+    summary.update(trace_file=trace_path.name, trace_sha256=sha(trace_path.read_bytes()),
+                   scope='14 named scenarios and all 4096 four-call BOOL input sequences from fresh instances; finite tests only')
+    write_json(folder / 'latch-summary.json', summary)
+    return retained, summary
+
+
 def _worker(folder):
     job = json.loads((folder / 'job.json').read_text())
     def captured_source(item):
@@ -211,6 +272,44 @@ def _worker(folder):
     write_json(folder / 'worker-progress.json', outcome)
     if not job['profile']:
         checks.append(check('scan_contract', 'not_run', 'No independently fixed behavior profile selected'))
+    elif job['profile'] == LATCH_PROFILE:
+        graph_bytes = (folder / 'lad_graph.json').read_bytes()
+        if sha(graph_bytes) != job['lad_graph_file_sha256']:
+            raise ValueError('Captured LAD graph changed before execution')
+        native_spec = importlib.util.spec_from_file_location('candidate_native', HERE / 'conveyor-runtime.py')
+        native = importlib.util.module_from_spec(native_spec)
+        native_spec.loader.exec_module(native)
+        try:
+            runtime = native.NativeRuntime(folder / 'native', job['compiler'], job['library'],
+                source_bytes=adapted.encode(), block_name=policy.latch.BLOCK,
+                inputs=policy.latch.INPUTS, outputs=policy.latch.OUTPUTS, normalized=True)
+            if os.name == 'posix':
+                signal.alarm(15)
+            try:
+                cases, comparison = run_latch_scans(runtime, folder, graph_bytes)
+            finally:
+                if os.name == 'posix':
+                    signal.alarm(0)
+        except (RuntimeError, OSError, ValueError, subprocess.TimeoutExpired) as error:
+            outcome.update(status='unknown', diagnostics=str(error))
+            checks.extend([check(name, 'unknown', 'Native or LAD adapter failed: ' + str(error))
+                           for name in ('scan_contract', 'lad_scl_compare')])
+        else:
+            scl_pass = comparison['scl_passed']
+            both_pass = scl_pass and comparison['lad_passed'] and comparison['agreement_passed']
+            detail = (f"{LATCH_PROFILE}: {comparison['named_scenarios']} named scenarios / "
+                      f"{comparison['named_calls']} calls; {comparison['bounded_scenarios']} four-call "
+                      f"sequences / {comparison['bounded_calls']} calls; finite tests, not equivalence proof")
+            failures = json.dumps(comparison['counterexamples'], ensure_ascii=False)
+            if comparison.get('incomplete_evidence'):
+                failures = 'Incomplete/empty fixed contract observations'
+            outcome.update(status='pass' if both_pass else 'fail', scenarios=cases,
+                           comparison=comparison, diagnostics='' if both_pass else failures)
+            checks.append(check('scan_contract', 'pass' if scl_pass else 'fail',
+                                detail + ('; native SCL matches independent expectations' if scl_pass else '; ' + failures)))
+            checks.append(check('lad_scl_compare', 'pass' if both_pass else 'fail',
+                                detail + ('; serialized LAD and native SCL each match expectations and each other'
+                                          if both_pass else '; ' + failures)))
     elif job['profile'] != PROFILE:
         outcome.update(status='unknown', diagnostics='Unsupported behavior profile: ' + job['profile'])
         checks.append(check('scan_contract', 'unknown', outcome['diagnostics']))
@@ -279,13 +378,19 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
         complete = policy.complete_report(report, profile)
         write_json(folder / 'report.json', complete)
         return complete
-    if profile == PROFILE:
-        report['contract'] = dict(CONTRACT)
-        report['contract_sha256'] = sha(json.dumps(CONTRACT, sort_keys=True, separators=(',', ':')).encode())
-        write_json(folder / 'contract.json', CONTRACT)
+    contract = policy.contract_for(profile)
+    if contract:
+        report['contract'] = contract
+        report['contract_sha256'] = policy.contract_digest(profile)
+        write_json(folder / 'contract.json', contract)
+    if profile == LATCH_PROFILE:
+        report.update(policy.artifact_bindings(result))
+        for name in ('logic_ir', 'lad_graph'):
+            if name in result:
+                write_json(folder / (name + '.json'), result[name])
     try:
         supplied = result['scl_files']
-        if not isinstance(supplied, list) or not supplied or len(supplied) > 100:
+        if not isinstance(supplied, list) or len(supplied) > 100:
             raise ValueError('Candidate requires 1..100 source files')
         names = set()
         for item in supplied:
@@ -297,12 +402,27 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
             captured = content.encode('utf-8')
             (source_folder / name).write_bytes(captured)
             files.append({'name': name, 'sha256': sha(captured)})
+        if profile == LATCH_PROFILE:
+            logic = logic_module()
+            generated = logic.generate(result.get('logic_ir'))
+            logic.validate_lad(result.get('lad_graph'))
+            if (result.get('scl_files') != generated['scl_files']
+                    or result.get('lad_graph') != generated['lad_graph'] or result.get('lad_networks') != []):
+                raise ValueError('SCL and serialized LAD must be the deterministic products of this exact IR')
+            report['generator'] = {'version': logic.GENERATOR_VERSION,
+                                   'sha256': sha((HERE / 'logic-ir.py').read_bytes())}
+        elif 'logic_ir' in result or 'lad_graph' in result:
+            raise ValueError('IR/LAD artifacts require the explicit latch-start-stop-v1 contract')
+        if not files:
+            raise ValueError('Candidate requires 1..100 source files')
     except (KeyError, TypeError, ValueError) as error:
         report.update(reason='source_invalid', diagnostics=str(error),
                       checks=[check('source_structure', 'fail', str(error))])
         return finish_report()
     captured_check = check('source_structure', 'pass',
-                           'Source file names, UTF-8 content, uniqueness and size checked; not PLC behavior')
+                           ('Bounded BOOL IR, symbols, single writers, graph topology and deterministic product association checked; not PLC behavior'
+                            if profile == LATCH_PROFILE else
+                            'Source file names, UTF-8 content, uniqueness and size checked; not PLC behavior'))
     report['checks'] = [captured_check]
     report['source_sha256'] = sha(json.dumps(files, sort_keys=True, separators=(',', ':')).encode())
     compiler = compiler or os.getenv('SIM_IEC2C')
@@ -317,7 +437,10 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
     library = str(Path(library).resolve())
     report['tools'] = {'iec2c': {'path': compiler, 'binary_sha256': sha(Path(compiler).read_bytes())},
                        'matiec_library': library}
-    write_json(folder / 'job.json', {'files': files, 'compiler': compiler, 'library': library, 'profile': profile})
+    job = {'files': files, 'compiler': compiler, 'library': library, 'profile': profile}
+    if profile == LATCH_PROFILE:
+        job['lad_graph_file_sha256'] = sha((folder / 'lad_graph.json').read_bytes())
+    write_json(folder / 'job.json', job)
     process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), '--worker', str(folder)],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                start_new_session=(os.name == 'posix'))
@@ -339,7 +462,8 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
         except (OSError, ValueError):
             pass
         return [captured_check, compiled,
-                check('scan_contract', 'unknown' if profile else 'not_run', detail)]
+                check('scan_contract', 'unknown' if profile else 'not_run', detail)] + (
+                    [check('lad_scl_compare', 'unknown', detail)] if profile == LATCH_PROFILE else [])
 
     try:
         stdout, stderr = process.communicate(timeout=90)
@@ -366,14 +490,15 @@ def validate_candidate(result, runtime_path, *, profile=None, compiler=None, lib
                 report.update(status=outcome['status'], diagnostics=outcome['diagnostics'],
                               checks=[captured_check, *outcome['checks']])
                 # Workers supply observations, never source/request/contract identity.
-                for key in ('normalized_sha256', 'scenarios'):
+                for key in ('normalized_sha256', 'scenarios', 'comparison'):
                     if key in outcome:
                         report[key] = outcome[key]
             except (OSError, ValueError):
                 report.update(reason='invalid_report', diagnostics='Invalid validation worker delivery',
                               checks=interrupted_checks('Worker result could not be validated'))
         else:
-            explanation = ('Native scan exceeded the 5 second execution budget'
+            explanation = (('Native/LAD scan exceeded the 15 second execution budget' if profile == LATCH_PROFILE
+                            else 'Native scan exceeded the 5 second execution budget')
                            if process.returncode == -signal.SIGALRM else f'Validation worker exited {process.returncode}')
             report.update(reason='tool_timeout' if process.returncode == -signal.SIGALRM else 'worker_failed',
                           diagnostics=stderr[-40000:] or explanation,

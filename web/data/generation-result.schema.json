@@ -208,6 +208,14 @@
         ],
         "additionalProperties": false
       }
+    },
+    "logic_ir": {
+      "type": "object",
+      "description": "Only the latch-start-stop-v1 path. Validated by the deterministic Logic IR checker."
+    },
+    "lad_graph": {
+      "type": "object",
+      "description": "Serialized plc-lad-bool-v1 product; topology and semantics checked outside the model."
     }
   },
   "required": [

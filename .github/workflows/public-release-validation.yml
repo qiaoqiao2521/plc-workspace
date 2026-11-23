@@ -37,11 +37,11 @@ jobs:
           test -f scripts/export-runtime-assets.ps1
           test -f container/docker-compose.release.yml
 
-      - name: Verify README references public workflow
+      - name: Verify maintained publishing instructions
         run: |
-          grep -q 'runtime-assets.zip' README.md
-          grep -q 'docker-compose.release.yml' README.md
-          grep -q 'docs/ops/publishing.md' README.md
+          grep -q 'runtime-assets.zip' docs/ops/publishing.md
+          grep -q 'docker-compose.release.yml' docs/ops/publishing.md
+          grep -q 'docs/validation-setup.md' README.md
 
       - name: Parse release compose YAML
         run: |

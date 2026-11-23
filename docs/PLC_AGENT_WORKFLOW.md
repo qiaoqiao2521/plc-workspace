@@ -57,3 +57,7 @@ The previous agy/ZCode single-generation adapters remain explicit diagnostic opt
 An invalid result or interrupted workflow preserves runtime evidence and the last source-bound candidate, marks the native handoff for review and does not retry unknown execution failures. Actual compiler/behavior failures and supported review findings may enter the bounded repair loop (default two repairs, CLI `--max-repairs 0..5`). Every repair checks the new source again. Unknown is not passed. Root Codex owns integration and release; worker roles cannot edit canonical PLC files or shared project notes through this workflow.
 
 Implementation: [controller](../web/scripts/mcode-workflow.py), [gate regressions](../web/scripts/test_mcode_workflow.py), [task and acceptance](../plans/plc-mcode-workflow/task_plan.md).
+
+## S2 的受限 IR 分支
+
+仅 `brief.validation_profile=latch-start-stop-v1` 且固定合成需求/接口/约束未改写时启用。现有分析、监督、工程、语义/接口审阅角色与 CM 调度不变。工程生成回合只返回绑定请求的 IR 提议；控制器确定性生成 SCL 和实际 LAD 图。它们是同一 FB 逻辑的两种表达，无需额外 Main 调用壳。修复只能改 IR，两个出口一并重生和重验，合同与预期冻结。工具必选项 unknown 不进入自动修复；检查失败最多使用既有两轮预算。报告将两个新产物纳入来源关联，导入历史不能提升验收。实测路径及未运行的在线验收见[闭环说明](SCL_CLOSED_LOOP.md#s2启停自锁双输出)。

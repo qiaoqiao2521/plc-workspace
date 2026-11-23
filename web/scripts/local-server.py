@@ -26,23 +26,56 @@ verification_policy = importlib.util.module_from_spec(_policy_spec)
 _policy_spec.loader.exec_module(verification_policy)
 
 
-def validate_schema(value, schema):
+def validate_schema(value, schema, root=None, depth=0):
+    """The bounded JSON Schema features used by this project's model packets."""
+    root = schema if root is None else root
+    if depth > 64:
+        raise ValueError('模型结果嵌套过深。')
+    if '$ref' in schema:
+        if not schema['$ref'].startswith('#/'):
+            raise ValueError('不支持外部 Schema 引用。')
+        target = root
+        for part in schema['$ref'][2:].split('/'):
+            target = target[part.replace('~1', '/').replace('~0', '~')]
+        return validate_schema(value, target, root, depth + 1)
+    if 'oneOf' in schema:
+        accepted = 0
+        for option in schema['oneOf']:
+            try:
+                validate_schema(value, option, root, depth + 1)
+                accepted += 1
+            except ValueError:
+                pass
+        if accepted != 1:
+            raise ValueError('模型结果不符合唯一受支持的节点格式。')
+        return
     kind = schema.get('type')
     valid = {'object': lambda: isinstance(value, dict), 'array': lambda: isinstance(value, list),
              'string': lambda: isinstance(value, str), 'integer': lambda: type(value) is int,
              'boolean': lambda: type(value) is bool}[kind]()
-    if not valid or ('enum' in schema and value not in schema['enum']):
+    if (not valid or ('enum' in schema and value not in schema['enum'])
+            or ('const' in schema and value != schema['const'])):
         raise ValueError('模型结果不符合结构化格式。')
     if kind == 'object':
-        if set(value) != set(schema['required']):
+        properties = schema.get('properties', {})
+        if (not set(schema.get('required', [])).issubset(value)
+                or (schema.get('additionalProperties') is False and not set(value).issubset(properties))):
             raise ValueError('模型结果字段不完整。')
-        for key, child in schema['properties'].items():
-            validate_schema(value[key], child)
+        for key, child in properties.items():
+            if key in value:
+                validate_schema(value[key], child, root, depth + 1)
     elif kind == 'array':
-        if len(value) > 100:
+        if not schema.get('minItems', 0) <= len(value) <= schema.get('maxItems', 100):
             raise ValueError('模型结果条目过多。')
         for item in value:
-            validate_schema(item, schema['items'])
+            validate_schema(item, schema['items'], root, depth + 1)
+    elif kind == 'string':
+        if (not schema.get('minLength', 0) <= len(value) <= schema.get('maxLength', 200000)
+                or ('pattern' in schema and not re.search(schema['pattern'], value))):
+            raise ValueError('模型结果字符串不符合限制。')
+    elif kind == 'integer':
+        if not schema.get('minimum', value) <= value <= schema.get('maximum', value):
+            raise ValueError('模型结果整数超出范围。')
 
 
 def validate_request(request):
@@ -72,8 +105,13 @@ def validate_request(request):
     if len(set(names)) != len(names):
         raise ValueError('原程序文件名重复。')
     profile = brief.get('validation_profile')
-    if profile not in (None, '', 'conveyor-12-v1'):
+    if profile not in (None, '', verification_policy.PROFILE, verification_policy.LATCH_PROFILE):
         raise ValueError('不支持的行为验收合同。')
+    if profile == verification_policy.LATCH_PROFILE:
+        baseline = json.loads((ROOT / 'data/latch-start-stop-brief.json').read_text())
+        if (any(brief[key] != baseline[key] for key in
+                ('block_name', 'requirement', 'flow', 'io_text', 'constraints')) or sources or states):
+            raise ValueError('启停双输出目前只支持明确选择的固定合成基准；请重新载入基准，勿将其套用到其他工艺。')
     content = json.dumps({'brief': brief, 'states': states}, ensure_ascii=False, separators=(',', ':'))
     expected = hashlib.sha256(content.encode()).hexdigest()
     if request.get('request_fingerprint') != expected:
@@ -93,6 +131,8 @@ def validate_workflow_artifact(result, request, validation=None):
             raise ValueError('检查记录与当前程序文件不匹配。')
         if validation.get('request_fingerprint') != request['request_fingerprint']:
             raise ValueError('检查记录与当前需求不匹配。')
+        if not verification_policy.artifacts_match(validation, result, request['brief'].get('validation_profile')):
+            raise ValueError('检查记录与当前逻辑 IR / LAD 图不匹配。')
 
 
 def stop_process(proc):
@@ -243,7 +283,7 @@ class GenerationBridge:
                     result = envelope['result']
                     validate_workflow_artifact(result, request, validation)
                     assessed = verification_policy.assess_report(validation, request['brief'].get('validation_profile'))
-                    level = 'behavior_pass' if assessed['acceptance']['scl_behavior'] else 'compile_only'
+                    level = verification_policy.validation_level(assessed['acceptance'])
                     if (not result['scl_files'] or assessed['status'] != 'pass'
                             or envelope.get('validation_level', level) != level):
                         raise ValueError('流程没有返回当前目标必选检查通过的证据，工程未放行。')

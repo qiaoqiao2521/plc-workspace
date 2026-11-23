@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PLC bounded BOOL Logic IR v1",
+  "description": "Only the explicitly selected latch-start-stop-v1 synthetic contract. Python validation additionally enforces symbols, single writers, read-before-write, depth/node budgets and reserved identifiers. Schema validity is not behavior acceptance.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "contract_id": {
+      "type": "string",
+      "const": "latch-start-stop-v1"
+    },
+    "block": {
+      "type": "string",
+      "const": "FB_StartStop"
+    },
+    "symbols": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,47}$",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "type": {
+            "type": "string",
+            "const": "BOOL"
+          },
+          "storage": {
+            "type": "string",
+            "enum": [
+              "input",
+              "output",
+              "static",
+              "temp"
+            ]
+          },
+          "initial": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "storage",
+          "initial"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "networks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 28,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,47}$",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,47}$",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "expression": {
+            "$ref": "#/$defs/expression"
+          }
+        },
+        "required": [
+          "id",
+          "target",
+          "expression"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "maxItems": 0,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "contract_id",
+    "block",
+    "symbols",
+    "networks",
+    "unresolved"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "contact"
+            },
+            "symbol": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]{0,47}$",
+              "minLength": 1,
+              "maxLength": 48
+            },
+            "negated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "symbol",
+            "negated"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "series",
+                "parallel"
+              ]
+            },
+            "children": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/expression"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "children"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

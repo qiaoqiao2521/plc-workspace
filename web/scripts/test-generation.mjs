@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
-import {flowDraft, makeRequest, validateBrief, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, bindVerification, sourceHash, verificationSummary} from '../generation-model.js';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {flowDraft, makeRequest, validateBrief, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, latchAcceptanceBrief, LATCH_PROFILE, canonicalJson, bindVerification, sourceHash, verificationSummary} from '../generation-model.js';
+import {validateLadGraph,layoutLadNetwork} from '../lad-graph.js';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 const brief = {name:'测试输送线',block_name:'FB_Test',requirement:'启动后输送，到位停止。停止撤销动作。',flow:'输送 → 到位 → 输送',io_text:'',constraints:'',target:{cpu:'unknown',tia_version:'unknown'}};
 const candidate = req => ({schema_version:1,request_id:req.request_id,request_fingerprint:req.request_fingerprint,summary:'未验证草稿',questions:[],states:[],io:[],scl_files:[{name:'FB_Test.scl',content:'FUNCTION_BLOCK FB_Test\nEND_FUNCTION_BLOCK'}],lad_networks:[],checks:[]});
@@ -72,8 +75,8 @@ test('verification binding rejects partial, duplicate and wrong-name evidence',a
 
 function currentReport(profile) {
   const targets={source_structure:'candidate',linux_compile:'scl_compile',scan_contract:'scl_behavior',lad_scl_compare:'lad_scl_compare',tia_compile:'tia_compile'};
-  const required=['source_structure','linux_compile',...(profile?['scan_contract']:[])];
-  return {schema_version:2,profile:profile || null,target:profile?'scl_behavior':'scl_compile',status:'pass',required_checks:required,
+  const required=['source_structure','linux_compile',...(profile?['scan_contract']:[]),...(profile===LATCH_PROFILE?['lad_scl_compare']:[])];
+  return {schema_version:2,profile:profile || null,target:profile===LATCH_PROFILE?'lad_scl_compare':profile?'scl_behavior':'scl_compile',status:'pass',required_checks:required,
     acceptance:{scl_behavior:true,tia_compile:true},
     checks:Object.entries(targets).map(([name,target])=>({name,target,required:required.includes(name),status:required.includes(name)?'pass':'not_run',detail:'Synthetic evidence'}))};
 }
@@ -148,4 +151,121 @@ test('display rejects duplicate, relabeled, unsupported and unselected checks',(
   unselected.checks.find(c=>c.name==='scan_contract').status='pass';
   assert.equal(verificationSummary(unselected,{current:true,approved:true}).status,'unknown');
   assert.equal(verificationSummary(currentReport('unsupported'),{profile:'unsupported',current:true,approved:true}).status,'unknown');
+});
+
+// Use the real deterministic product serializer for frontend format compatibility.
+// The behavior of this example is tested separately by the native/graph checks.
+const products=JSON.parse(execFileSync('python3',['-c',`
+import importlib.util,json,sys
+spec=importlib.util.spec_from_file_location('logic',sys.argv[1]);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+ir=m.example_ir()
+print(json.dumps({'logic_ir':ir,'lad_graph':m.emit_lad(ir),'scl':m.emit_scl(ir)}))
+`,fileURLToPath(new URL('./logic-ir.py',import.meta.url))],{encoding:'utf8'}));
+const dualCandidate = req => ({...candidate(req),scl_files:[{name:'FB_StartStop.scl',content:products.scl}],
+  logic_ir:structuredClone(products.logic_ir),lad_graph:structuredClone(products.lad_graph)});
+
+test('synthetic latch contract is explicit and cannot silently accept edited process or source',async()=>{
+  const input=latchAcceptanceBrief();
+  const req=await makeRequest(input,[]);
+  assert.equal(req.brief.validation_profile,LATCH_PROFILE);
+  assert.match(req.brief.requirement,/不是现场设备默认工艺/);
+  for(const key of ['block_name','requirement','flow','io_text','constraints']) {
+    assert.notEqual(validateBrief({...input,[key]:input[key]+'changed'}).length,0);
+  }
+  assert.notEqual(validateBrief({...input,source_files:[{name:'Old.scl',content:'old'}]}).length,0);
+  await assert.rejects(makeRequest(input,[{id:1,name:'extra'}]),/附加状态/);
+  assert.equal(validateBrief({...input,name:'My demo',target:{cpu:'S7-1500',tia_version:'V21'}}).length,0);
+  assert.match(agentPrompt(req),/只提出/);
+  assert.equal(input.requirement,latchAcceptanceBrief().requirement);
+});
+
+test('S2 result requires both serialized products with matching symbols and no legacy shell',async()=>{
+  const req=await makeRequest(latchAcceptanceBrief(),[]),res=dualCandidate(req);
+  assert.equal(validateResult(res,req),res);
+  const noGraph=structuredClone(res);delete noGraph.lad_graph;
+  assert.throws(()=>validateResult(noGraph,req),/IR\/LAD/);
+  const symbols=structuredClone(res);symbols.logic_ir.symbols[0].initial=true;
+  assert.throws(()=>validateResult(symbols,req),/符号声明不一致/);
+  const oldRequest=await makeRequest(brief,[]);
+  assert.throws(()=>validateResult({...res,request_id:oldRequest.request_id,request_fingerprint:oldRequest.request_fingerprint},oldRequest),/IR\/LAD/);
+});
+
+test('S2 scoped pass needs independent behavior and graph comparison; failures never inherit aggregate pass',()=>{
+  const profile=LATCH_PROFILE,report=currentReport(profile);
+  const passed=verificationSummary(report,{profile,current:true,approved:true});
+  assert.equal(passed.acceptance.scl_behavior,true);
+  assert.equal(passed.acceptance.lad_scl_compare,true);
+  assert.equal(passed.acceptance.tia_compile,false);
+  for(const name of report.required_checks) for(const status of ['fail','unknown','not_run']) {
+    const broken=structuredClone(report);broken.checks.find(c=>c.name===name).status=status;
+    const summary=verificationSummary(broken,{profile,current:true,approved:true});
+    assert.equal(summary.status,status);assert.equal(Object.values(summary.acceptance).some(Boolean),false);
+  }
+  for(const reason of ['cancelled','worker_failed','invalid_report']) {
+    assert.equal(verificationSummary({...report,reason},{profile,current:true,approved:true}).status,'unknown');
+  }
+  const forged=structuredClone(report);forged.checks.find(c=>c.name==='tia_compile').status='pass';
+  assert.equal(verificationSummary(forged,{profile,current:true,approved:true}).status,'unknown');
+});
+
+test('IR and LAD hashes bind current products and imported passes remain history',async()=>{
+  const req=await makeRequest(latchAcceptanceBrief(),[]),res=dualCandidate(req),verification=currentReport(LATCH_PROFILE);
+  verification.request_fingerprint=req.request_fingerprint;
+  verification.files=[{name:res.scl_files[0].name,sha256:await sourceHash(res.scl_files[0].content)}];
+  verification.logic_ir_sha256=await sourceHash(canonicalJson(res.logic_ir));
+  verification.lad_graph_sha256=await sourceHash(canonicalJson(res.lad_graph));
+  const value={kind:'agent_candidate',request:req,result:res,verification,workflow:{verdict:'reviewed_draft'}};
+  const restored=await openEngineering(value);
+  assert.deepEqual(restored.result.lad_graph,res.lad_graph);
+  assert.equal(verificationSummary(restored.verification,{profile:LATCH_PROFILE}).acceptance.lad_scl_compare,false);
+  const changedIr=structuredClone(res);changedIr.logic_ir.networks[0].expression.children[0].negated=true;
+  await assert.rejects(bindVerification(verification,changedIr),/IR\/LAD/);
+  const changedGraph=structuredClone(res);changedGraph.lad_graph.networks[0].nodes.find(n=>n.kind==='contact').negated=true;
+  await assert.rejects(bindVerification(verification,changedGraph),/IR\/LAD/);
+  const missingHash={...verification};delete missingHash.lad_graph_sha256;
+  await assert.rejects(bindVerification(missingHash,res),/IR\/LAD/);
+  assert.equal(canonicalJson({z:[{b:2,a:1}],a:false}),'{"a":false,"z":[{"a":1,"b":2}]}');
+});
+
+test('structurally rejected IR stays reviewable without fabricating missing products',async()=>{
+  const req=await makeRequest(latchAcceptanceBrief(),[]),res=dualCandidate(req),verification=currentReport(LATCH_PROFILE);
+  res.logic_ir.networks.push(structuredClone(res.logic_ir.networks.at(-1)));
+  res.scl_files=[];delete res.lad_graph;
+  assert.equal(validateResult(res,req),res);
+  Object.assign(verification,{status:'fail',reason:'source_invalid',files:[],request_fingerprint:req.request_fingerprint,
+    logic_ir_sha256:await sourceHash(canonicalJson(res.logic_ir)),lad_graph_sha256:null});
+  verification.checks.forEach(c=>{c.status=c.name==='source_structure'?'fail':'not_run';});
+  const restored=await openEngineering({kind:'agent_candidate',request:req,result:res,verification});
+  assert.deepEqual(restored.result.logic_ir,res.logic_ir);
+  assert.equal(restored.result.lad_graph,undefined);
+  assert.equal(verificationSummary(verification,{profile:LATCH_PROFILE,current:true,approved:true}).acceptance.lad_scl_compare,false);
+  for (const forged of [{...verification,status:'pass'},{...verification,reason:null},{...verification,checks:[]}]) {
+    await assert.rejects(bindVerification(forged,res),/IR\/LAD/);
+  }
+});
+
+test('graph preview keeps every generated wire, branch, symbol and contact polarity',()=>{
+  validateLadGraph(products.lad_graph);
+  for(const network of products.lad_graph.networks) {
+    const layout=layoutLadNetwork(network);
+    assert.deepEqual(layout.nodes.map(({x,y,...n})=>n),network.nodes);
+    assert.deepEqual(layout.edges.map(({path,...edge})=>edge),network.edges);
+    assert.ok(layout.nodes.every(n=>Number.isFinite(n.x)&&Number.isFinite(n.y)));
+    assert.deepEqual(layoutLadNetwork(network),layout);
+    if(network.nodes.some(n=>n.kind==='junction')) {
+      assert.ok(new Set(layout.nodes.filter(n=>n.kind==='contact').map(n=>n.y)).size>1,'Parallel contacts need distinct branches');
+      assert.ok(layout.edges.some(e=>/ V /.test(e.path)),'Parallel wires must connect different branch heights');
+    }
+  }
+});
+
+test('graph display refuses broken connections, duplicate writers and changed polarity types',()=>{
+  const mutate=[
+    graph=>{graph.networks[0].edges[0].to='missing';},
+    graph=>{graph.networks[0].nodes.find(n=>n.kind==='contact').negated='false';},
+    graph=>{graph.networks[1].nodes.find(n=>n.kind==='coil').symbol='StartRise';},
+    graph=>{graph.networks[0].nodes.push({id:'orphan',kind:'junction'});},
+    graph=>{graph.networks[0].edges.push({...graph.networks[0].edges[0]});},
+  ];
+  for(const change of mutate) { const graph=structuredClone(products.lad_graph);change(graph);assert.throws(()=>validateLadGraph(graph),/LAD 图格式错误/); }
 });

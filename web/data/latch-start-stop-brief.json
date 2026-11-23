@@ -1,0 +1,15 @@
+{
+  "name": "启停自锁 · LAD/SCL 合成基准",
+  "block_name": "FB_StartStop",
+  "requirement": "这是启停自锁合成基准，不是现场设备默认工艺。BOOL 输入 Enable、Start、Stop，BOOL 输出 Motor。每个逻辑扫描周期调用同一持久 FB 实例一次，包括 Enable=FALSE 的调用。初始运行记忆和 Start 前值均为 FALSE；首次调用 Start=TRUE 视为新上升沿。Enable=TRUE 且 Stop=FALSE 时，Start 新上升沿启动并自锁；松开 Start 后继续运行。Stop=TRUE 或 Enable=FALSE 当拍清除运行状态并使 Motor=FALSE，停止与启动同拍时停止优先。每次调用都消费 Start 边沿，包括停止和禁用期间；释放 Stop 或恢复 Enable 后，持续按住的 Start 不得自动重启，必须释放后再次按下。输出在本次调用返回时反映本拍状态，无额外一拍延迟。",
+  "flow": "",
+  "io_text": "BOOL 输入 Enable（持续使能）、Start（启动按钮电平）、Stop（普通停止请求）；BOOL 输出 Motor（运行命令）。内部记忆属于该 FB 实例；Motor 只在本块内写入，不作为状态存储。",
+  "constraints": "仅验证 latch-start-stop-v1 合成合同。仅 BOOL、常开/常闭触点、串并联、普通线圈及内部记忆；不增加 Reset、定时器、计数器、物理地址或 F 安全功能。初值不是掉电保持承诺。AI 只提出受限 Logic IR，程序确定性生成 SCL 与 LAD 图。SCL 真实编译执行与序列化 LAD 图分别对照独立预期；有限扫描结果不代表无限状态等价、TIA、PLCSIM 或实机验收。",
+  "target": {
+    "cpu": "unknown",
+    "tia_version": "unknown",
+    "architecture": "同一 FB 逻辑的 LAD / SCL 两种表达"
+  },
+  "source_files": [],
+  "validation_profile": "latch-start-stop-v1"
+}

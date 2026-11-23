@@ -6,7 +6,7 @@
 
 ## 本机运行
 
-需要 Node 18+、Python 3.10+、已配置的 `mcode` 和运行中的本机 CM/Paperclip。使用已有本机公司 ID，先安装锁定的 Three.js 依赖。
+需要 Node 24、Python 3.10+、已配置的 `mcode` 和运行中的本机 CM/Paperclip。使用已有本机公司 ID，先安装锁定的 Three.js 依赖。
 
 ```sh
 npm --prefix web ci
@@ -29,9 +29,22 @@ npm --prefix web run dev -- --mcode /absolute/path/to/mcode \
 - 本机 mcode 按分阶段门禁生成、审阅结构化规格、I/O、SCL 和 LAD 网络草稿。
 - 请求与结果绑定需求指纹；需求变化后旧结果过期。
 - SCL 文件、LAD 网络规格与工程草稿导出。
+- **启停自锁合成基准**：AI 提议受限 BOOL IR，程序生成包含真实串并联逻辑的 LAD 图和 SCL；分别执行后对照固定预期。该路径只支持明确选择的基准，不将它套用到任意工艺。
 - [验证与回放](web/README.md)：仓库已有 FB_MainSequence 的 6 个实际 ST 场景。
 
-LAD 当前为简单串联触点/线圈与周期 FB 调用网络的审阅表示，尚不是 TIA 可导入工程。默认流程对当前 SCL 运行支持范围内的 Linux 编译，选择输送带合同后执行其固定扫描；仓库示例的 27 项扫描测试、32 条断言不适用于任意新工程。TIA、PLCSIM 和实机验收由 Windows 工程侧完成。
+普通任务的 LAD 仍为简单串联触点/线圈与周期 FB 调用网络的审阅表示。启停基准新增内部 LAD 图及其独立执行入口，仍不是 TIA 可导入工程。默认流程对当前 SCL 运行支持范围内的 Linux 编译，选择输送带合同后执行其固定扫描；仓库示例的 27 项扫描测试、32 条断言不适用于任意新工程。TIA、PLCSIM 和实机验收由 Windows 工程侧完成。
+
+## 复验启停双输出
+
+不依赖在线模型即可运行明确标注的确定性基准，检查本机生成与验证链：
+
+```sh
+SIM_IEC2C=/absolute/path/to/iec2c \
+SIM_MATIEC_LIB=/absolute/path/to/matiec/lib \
+python3 web/scripts/check-latch.py --example --output /outside/repo/fresh-latch-run
+```
+
+检查后在页面“打开工程草稿”载入输出目录的 `engineering.json`，可审阅 SCL、LAD 图、逐项结果并导出。`--example` 是手写 IR 夹具，不调用 AI；重开记录只显示历史证据，不恢复本次会话验收。真实在线 mcode/CM 的生成与修复仍待单独验收。静态任务的 IR 交接和完整边界见[双输出说明](docs/SCL_CLOSED_LOOP.md#s2启停自锁双输出)。
 
 ## 接续入口
 
