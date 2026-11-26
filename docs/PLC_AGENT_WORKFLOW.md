@@ -43,6 +43,8 @@ Select **Agent 接管** without configuring an API key. The page starts one cont
 
 ### Preferred Skill and CLI entry
 
+The same project Skill also supports finite `plc-agent.py simulate` requests for scene assembly, captured-source execution, faults, cases and trace export through the 8766 bridge. This simulation path does not answer generation-stage packets or confer generation acceptance. See the [simulation action protocol](PLC_SIMULATION.md) for exact payloads and the optional OIP bridge.
+
 Load the repository's [plc-workspace-control Skill](../.agents/skills/plc-workspace-control/SKILL.md). It tells the Agent how to keep one CLI session open and answer each stage. The Skill is repository-scoped; agents that do not discover this folder can read its file explicitly. It is not a global personal-skill installation or a second workflow engine.
 
 ```sh

@@ -1,0 +1,146 @@
+{
+  "schema_version": "plc-scene.v1",
+  "id": "conveyor-pusher",
+  "label": "输送到位后推料",
+  "components": [
+    {
+      "id": "enable",
+      "type": "switch",
+      "position": [
+        -2.5,
+        0,
+        1.9
+      ],
+      "parameters": {
+        "initial": true
+      }
+    },
+    {
+      "id": "start",
+      "type": "switch",
+      "position": [
+        -1.8,
+        0,
+        1.9
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "stop",
+      "type": "switch",
+      "position": [
+        -1.1,
+        0,
+        1.9
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "reset",
+      "type": "switch",
+      "position": [
+        -0.4,
+        0,
+        1.9
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "drive",
+      "type": "motor",
+      "position": [
+        -1.6,
+        0,
+        0.8
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "belt",
+      "type": "conveyor",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "eye",
+      "type": "photoeye",
+      "position": [
+        1.8,
+        0,
+        -0.75
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "part",
+      "type": "workpiece",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "runlamp",
+      "type": "lamp",
+      "position": [
+        2.6,
+        0,
+        1.0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "pusher",
+      "type": "cylinder",
+      "position": [
+        1.8,
+        0,
+        -0.95
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": [
+    {
+      "from": "drive.running",
+      "to": "belt.run"
+    },
+    {
+      "from": "belt.position",
+      "to": "eye.position"
+    },
+    {
+      "from": "belt.position",
+      "to": "part.position"
+    }
+  ],
+  "bindings": {
+    "inputs": {
+      "Enable": "enable.value",
+      "Start": "start.value",
+      "Stop": "stop.value",
+      "Reset": "reset.value",
+      "AtEnd": "eye.detected",
+      "Extended": "pusher.extended",
+      "Retracted": "pusher.retracted"
+    },
+    "outputs": {
+      "Motor": [
+        "drive.command",
+        "runlamp.value"
+      ],
+      "Extend": [
+        "pusher.extend"
+      ],
+      "Retract": [
+        "pusher.retract"
+      ]
+    }
+  }
+}

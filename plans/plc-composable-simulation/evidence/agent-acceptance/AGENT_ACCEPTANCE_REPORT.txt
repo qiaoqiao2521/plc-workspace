@@ -1,0 +1,58 @@
+PLC 仿真工作台实际 Agent 验收报告
+
+结论
+本次通过项目 Skill 和公开 plc-agent.py CLI 完成了真实操作：从默认输送推料模板增加电机反馈灯，观察完整循环，运行正常与卡料独立用例，故意错接停止旁路并获得首个设备反例，仅恢复场景接线后通过同一用例；OIP 查询、组装、当前显式输送源码闭环和上游自测也均已实际执行。执行范围内没有发现意外产品接口缺陷。预期错误和失败原样保留。
+
+独立性与环境
+只读取 AGENTS.md、PROJECT.md、项目 Skill、docs/PLC_SIMULATION.md、集成 README，以及公开 CLI 帮助、目录、模板与本次返回报告。没有读取实现代码、测试文件或已有验收答案，没有修改产品代码、原 PLC 程序、合同期望或裁决字段，没有 commit/push。cli_driver.py 仅使本机服务和 CLI 位于同一网络命名空间，并逐条执行 Agent 从 stdin 发送的决定；它没有预填案例、源码答案或期待结果。全部操作在云端 8776 端口完成。
+
+实际场景选择
+保留 conveyor-pusher-v1 的 program。新增 motor_status 灯，位置 [2.6,0,2.0]，接 drive.running -> motor_status.value；原 runlamp 继续接 PLC Motor。这样原灯代表 PLC 命令，新增灯代表模拟电机实际状态。正确场景共 11 个组件。
+
+交互观察
+Start 在第一拍置 true，第二次请求置 false 并按返回状态继续推进。scan 1 启动输送；scan 5 拍末光电到位而本拍 PLC 仍采样旧输入；scan 6 采到 AtEnd 后撤销 Motor 并伸缸；scan 9 拍末伸出到位；scan 10 转缩缸；scan 13 拍末缩回到位；scan 14 Done=1，scan 15 Done=0。新增灯在全部 15 张快照中与 drive.running 一致。
+正常与卡料独立用例采用新会话，不推进观察会话，随后 inspect 仍显示 scan=15、trace_length=15。observation.trace.json 的状态为 not_run，export_trace 返回 0 只表示成功导出，不把观察当成独立验证。
+
+独立用例与故意错误
+首轮 normal：pass，64 项检查，15 拍；jam：pass，41 项检查，13 拍。卡料在第十二次等待即 scan 13 锁存 Error=1、TimeoutFault=1，全部动作撤销。
+故意错误只删除 Motor -> drive.command，并添加 enable.value -> drive.command。BOOL 连接、单写入者、无循环，因此 create 合法通过；但 Stop 不能撤销电机的旁路命令。
+stop-restart：fail，14 项检查中 2 项失败，首个反例 scan 2，simultaneous_stop_revokes_actions，expected=true、actual=false。该拍 Stop=true、Motor=0，drive.running=true、belt.running=true，输送位置已经从 0.2 增至 0.4；runlamp=false，motor_status=true。说明故障位于设备接线，PLC 已正确撤销输出。原始 first_failure 完整快照保存在 stop-bypass.report.json 与 final-stop-bypass.report.json。
+恢复同一正确场景接线后，原 stop-restart 用例 pass，14 项检查全部通过。源码和验证期望未改。
+另实际调用 inject_fault 对 belt 注入 jam，观察到 scan 13 超时；解除 jam 后 scan 14 设备故障集合清空，但 Error/TimeoutFault 继续锁存，Motor 保持 0。该段导出也忠实保留 not_run。
+
+OIP 实际复核
+integrations 显示固定提交 3d888156f38974c8e2105e5e657a9f428fda3cb5、工具 ready、源目录 clean。查询 oip.belt-conveyor、oip.diffuse-sensor、oip.box 三类零件，组装出的真实输送项目经 strict 校验通过。
+明确把 conveyor-pusher-v1 传给 oip_test 得到预期 HTTP 400，错误明确只支持两个 conveyor profile；错误保存在 24-oip-pusher-boundary.stdout.json，CLI 对拒绝请求没有生成指定 --output 文件。这是已声明的接口边界，不是推料物理验收。
+随后从公开 templates 返回数据选择原样 conveyor-12-v1，显式传 program 和新 project_id。oip_test：pass，3 个案例、14 个断言，0 个失败；正常到位在 scan 5 产生唯一 Done，真实货箱已移动；物理卡料与传感器卡低均在 scan 13 超时并停机锁存。内建的独立源副本 Done 抑制负控被相同断言检出。该负控由公开工具创建，原输入程序保持不变。
+物理步进 60Hz，每次 PLC 调用推进 15 步即 250ms，起始稳定 30 步，超时仍按 FB 调用次数计数。oip_plc_execution=not_used，实际控制来自本仓库 matiec/GCC 的冻结源程序。
+oip_self_test 另为 pass，4 个测试、24 个断言；它验证上游自身示例与 IEC 子集，不能合并为当前推料或输送源码的验证。
+
+最终版本复验
+主代理随后报告增加了 step 整批 30 秒预算并更新合同文字，单拍 2 秒预算不变。本 Agent 关闭原会话及服务后，重启当前服务，原样使用已保存的正确场景与错误场景，各重跑一次。final-normal-case.report.json：pass 64/64；final-stop-bypass.report.json：fail 2/14，首反例仍为 scan 2。没有重写早期报告中的旧合同哈希。最终 doctor 公布 scan_timeout_seconds=2、batch_timeout_seconds=30、max_step_count=500；本次只读取这些限制，未追加超时压力测试。
+
+身份
+source_sha256 = db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db
+original_template_scene_sha256 = 2ea356971728ad15f37e9d2ffdd913e9c63286ee9fbbc315a564c6eb44147767
+correct_scene_sha256 = 6f9f97a258d7270477a9e39392649f677af922331986a4dd167ecc9826c5b527
+wrong_scene_sha256 = d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356
+original_contract_sha256 = 413ec49249443a67bc376eb1b8dd6bc84b885f6d57cd62b3d49b67560a6906f6
+final_contract_sha256 = d4365f61686f31aed2b8ffae0748519e849ce55735f7e5342289fb0806e81215
+source_string_sha256_independently_computed = db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db
+
+OIP source_sha256 = a3fbac0a1d84baeb0cf3116c664067671f48d5f4acfd3605c27888d893a708ef
+OIP scene_sha256 = 3d592adfd274a9d2456f7f6b29173b3662ec744253fde74b7e52dcaf09224b63
+OIP project_sha256 = 154c339fde928e9c84ee50d21ce9566f1111c19f0b6a55cfb1d99774cee953d3
+
+复现
+所有原始 CLI 命令见 commands.sh，带时间、退出码、原始 stdout/stderr 的逐次操作见 operations.jsonl。原始请求以 *.request.json 保存，公开 CLI --output 的完整响应、用例报告和轨迹未改写。
+从仓库根启动 local-server.py --port 8776，并配置 server.command.json 所列工具环境；运行：
+python3 web/scripts/plc-agent.py --url http://127.0.0.1:8776 simulate run_case --input /workspace/scratch/e3ad139ce787/agent-simulation-acceptance/final-normal-case.request.json --output /tmp/repro-normal.json
+python3 web/scripts/plc-agent.py --url http://127.0.0.1:8776 simulate run_case --input /workspace/scratch/e3ad139ce787/agent-simulation-acceptance/final-stop-bypass.request.json --output /tmp/repro-stop-bypass.json
+前者应 pass/退出 0，后者应保留预期 fail/退出 1，不应将失败改写为通过。
+要重放交互观察，用 create-status.request.json 创建新会话，按 commands.sh 的已记录输入次序执行，但替换为新返回的 session。要重放 OIP，先 integrations、oip_catalog、oip_assemble，使用新 project_id 和 oip-frozen-program.json 构造 program 请求再 oip_test。原报告中的临时绝对路径、已关闭 session 和旧 project_id 仅作实际操作来源记录，不应在新服务中直接重用。
+
+未覆盖
+本 Agent 没有进行浏览器三维视觉验收、当前工程导入、生成工作流、其他原生 profile 或原生 sensor-failed/fault-reset 用例，没有运行超时预算压力验证。OIP 不支持推料气缸桥，物理输送复核只覆盖其三种有限场景，没有独立覆盖 Stop/Reset/竞态。以上均不授予任意工艺正确性、LAD 执行、Siemens 编译、TIA、PLCSIM、实时时钟、掉电保持、安全或实机验收。
+
+清理与证据
+全部显式创建的会话已通过 close 清理，两个服务进程均已停止。handoff-evidence 是精简可复制证据集合，只含本次操作文件与摘要，不含编译产物、依赖目录或第三方项目副本。原始全部工作产物仍在其父目录。

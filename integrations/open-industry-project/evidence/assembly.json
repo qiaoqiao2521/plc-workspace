@@ -1,0 +1,39 @@
+{
+  "schema": "plc-oip-result/v1",
+  "check": "oip-assembly",
+  "scope": "OIP assembly and strict project loading only",
+  "status": "passed",
+  "upstream_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+  "siemens_acceptance": "not_run",
+  "hardware_acceptance": "not_run",
+  "identity": {
+    "repository": "https://github.com/Open-Industry-Project/Open-Industry-Project.git",
+    "commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+    "package_lock_sha256": "d40c13994ed6bd557e9ff21de6df7745d917adaa3ff25047d7dc165f62e135b5",
+    "node": "v24.22.3",
+    "source_clean": true
+  },
+  "project": "/workspace/scratch/e3ad139ce787/tools/oip-fixtures/conveyor-native",
+  "project_identity": {
+    "sha256": "67bb875129ee80029b83373bd601faa64263d9aaa3d8bc41c979b947d64b4ff6",
+    "files": {
+      "parts/oip.belt-conveyor/behavior.js": "ee3070e13d956117b1bb602cdf74fdeb1866b358e94f4e2cdac9a159ebc0806b",
+      "parts/oip.belt-conveyor/manifest.json": "bc130c56d3f21fa8735915c35632d5b3bede37ea0ba112c2d8d5df46e9042a62",
+      "parts/oip.box/behavior.js": "1c61d1ac0199e95bd327edc848a37881214652394537827a3ac72a53e247d257",
+      "parts/oip.box/manifest.json": "e68f9b16737d43af5df9ec23757300001b488a6393fa52f79648538df816dda9",
+      "parts/oip.diffuse-sensor/behavior.js": "a79469a24ec94bd2d0b2f7529b3bbca4962ab185aa25079db3362b5f6a9cf642",
+      "parts/oip.diffuse-sensor/manifest.json": "9a41f94fd4bdcaf43f33e23caf83584d87dde966e150c097e277a5ed94d707a3",
+      "project.json": "71a59a7f89433d1b1d00315dcaf93f32b7e2f126189f09e736939bab962cbd09",
+      "scene.json": "3d592adfd274a9d2456f7f6b29173b3662ec744253fde74b7e52dcaf09224b63"
+    }
+  },
+  "parts": [
+    "belt",
+    "eye",
+    "cargo"
+  ],
+  "assembly_log": "oip.belt-conveyor --params: fpmUnits=false is what a placed part has already, not stored\n+ created project \"conveyor-native\" with an empty scene (/workspace/scratch/e3ad139ce787/tools/oip-fixtures/conveyor-native)\n+ oip.belt-conveyor: built-in part \u2192 parts/oip.belt-conveyor/ (this project's own copy, listed in project.json \"packages\")\n+ oip.diffuse-sensor: built-in part \u2192 parts/oip.diffuse-sensor/ (this project's own copy, listed in project.json \"packages\")\n+ oip.box: built-in part \u2192 parts/oip.box/ (this project's own copy, listed in project.json \"packages\")\n+ placed belt at [0, 0.8, 0]\n+ placed eye at [1.4, 0.78, -0.45]\n+ placed cargo at [0.4, 0.96, 0]\n\nnext: npm run validate-project -- /workspace/scratch/e3ad139ce787/tools/oip-fixtures/conveyor-native   then   npm run test-project -- /workspace/scratch/e3ad139ce787/tools/oip-fixtures/conveyor-native",
+  "validation_log": "\u2713 valid project \"conveyor-native\" - 3 part(s), 3 built-in part copies, 0 authored part(s)\n  built-in copies:\n    - oip.belt-conveyor (version v2:76705:1nyvgybmjy8, same as this app ships)\n    - oip.diffuse-sensor (version v2:15091:2gcldqnxyjn, same as this app ships)\n    - oip.box (version v2:1832:21dkyd0dzdk, same as this app ships)",
+  "native_execution": "not_run",
+  "visual_render": "not_run"
+}

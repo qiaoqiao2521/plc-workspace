@@ -1,0 +1,172 @@
+{
+  "schema": "plc-simulation-integration-validation.v1",
+  "date": "2026-11-26",
+  "timezone": "Asia/Shanghai",
+  "status": "pass",
+  "basis_commit": "95a79cce91db70b24d4d42b7221b483ae49af7c4",
+  "environment": {
+    "python": "3.12.14",
+    "node": "v24.22.3",
+    "gcc": "14.2.0",
+    "matiec_commit": "3a41303bcb4e50403417bc39c63f88981d7d961e",
+    "oip_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+    "browser": "158.0.8127.0"
+  },
+  "checks": {
+    "javascript": {
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0
+    },
+    "python": {
+      "passed": 171,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 98.399,
+      "includes_simulation_core": 18,
+      "includes_http_cli_handoff": 7
+    },
+    "browser": {
+      "passed": 13,
+      "failed": 0,
+      "uncaught_errors": 0
+    },
+    "oip_report_policy": {
+      "passed": 6,
+      "failed": 0
+    },
+    "oip_native_8": {
+      "cases": 3,
+      "assertions": 14,
+      "passed": true,
+      "synthetic_negative_control_detected": true
+    },
+    "oip_native_12": {
+      "cases": 3,
+      "assertions": 14,
+      "passed": true,
+      "synthetic_negative_control_detected": true
+    },
+    "oip_self_test": {
+      "tests": 4,
+      "assertions": 24,
+      "passed": true,
+      "scope": "Upstream own IEC-subset example, not current source"
+    },
+    "canonical_projection_drift": "pass",
+    "static_build": "pass",
+    "skill_frontmatter": "pass",
+    "diff_whitespace": {
+      "status": "warning",
+      "file": "web/data/simulation/conveyor-12.scl",
+      "trailing_space_lines": [
+        5,
+        13,
+        21,
+        30
+      ],
+      "reason": "Retained four VAR declaration trailing spaces in the actually tested historical-dialect source copy; no syntax or behavior failure. No whitespace rule disabled."
+    },
+    "contract_checkout_eol": {
+      "status": "pass",
+      "eol": "lf",
+      "staged_content_matches_tested_bytes": true
+    }
+  },
+  "negative_controls": [
+    {
+      "kind": "old eight-wait source labelled twelve-wait contract",
+      "expected": "fail",
+      "first_scan": 9
+    },
+    {
+      "kind": "type-valid Enable-to-motor bypass wiring",
+      "expected": "fail",
+      "first_scan": 2
+    },
+    {
+      "kind": "native Done output suppressed in independent source copy",
+      "expected": "fail"
+    },
+    {
+      "kind": "zero-tests upstream exits zero",
+      "expected": "not_run"
+    },
+    {
+      "kind": "native infinite loop",
+      "expected": "unknown and worker termination"
+    },
+    {
+      "kind": "finite slow native scans exceed batch budget",
+      "expected": "unknown, completed trace retained and other sessions remain usable"
+    }
+  ],
+  "contract_sha256": "d4365f61686f31aed2b8ffae0748519e849ce55735f7e5342289fb0806e81215",
+  "source_sha256": {
+    ".agents/skills/plc-workspace-control/SKILL.md": "2165c8a36c4c39fae9fa087c5f7c82bf4d498a7d40355cd9e4714a0ebd9c78ac",
+    ".agents/skills/plc-workspace-control/agents/openai.yaml": "b0c528ea13c92dc2923fdb62bbde25558e4dfb77f1a036c3c4d959407a1ad121",
+    "integrations/open-industry-project/assemble.py": "3e2611b2f284f3aaaec463b3bdf7d0220b113e27d2ca82d6de2adb6aee9aa69b",
+    "integrations/open-industry-project/bridge.mjs": "1e58128c2cd798fd4080cce7688726dad93b63794f789029f75a80f35f3a59cc",
+    "integrations/open-industry-project/common.py": "5341d7194d15c2e834efbe06ca51069a6e0f3155a223154c37f034668bfe1685",
+    "integrations/open-industry-project/examples/conveyor-native.json": "ff981d1a320a8dc32043bbb9c4a01fe5c445ede4cd56e267d261af035cd699ab",
+    "integrations/open-industry-project/export.py": "6d4ff6318e0b04be9bbcb1e40dddf354b9a94513397374fa0778792204f6005a",
+    "integrations/open-industry-project/native_bridge.py": "c1066377c78aeb3a9423b6d1d9a1d845c0227e3f7260c70975ba9242781ab889",
+    "integrations/open-industry-project/run.py": "0fc4d7cb9c6ac045dbf1e9a836b7bc8407ce2bd138688bdc5b1a335c741b3169",
+    "integrations/open-industry-project/setup.py": "42d01a2c9c1822724d34f4bcac564dbaa0f4088d3ab3c274973788075ec641d1",
+    "integrations/open-industry-project/source-index.json": "b1b09ec0346e3d2bece11c336d92e2bf7658fd577ef90ef2f6406caff93cfc16",
+    "integrations/open-industry-project/test_reporting.py": "2cfbcf44f64ea05a81b01f1b9332504d3647b1e24d1eda8848f3537404710b57",
+    "integrations/open-industry-project/test_termination.py": "4ccad0083e3451191bc7bed6ab1c451d41cc06fa9db248ced83049d3651ee2bf",
+    "web/data/simulation/catalog.json": "08c43b4a7126c7523a92fa76b6833172948bc0b03d4598a476a9fe534f665b7c",
+    "web/data/simulation/contract.md": "d4365f61686f31aed2b8ffae0748519e849ce55735f7e5342289fb0806e81215",
+    "web/data/simulation/conveyor-12.scl": "a3fbac0a1d84baeb0cf3116c664067671f48d5f4acfd3605c27888d893a708ef",
+    "web/data/simulation/conveyor-pusher.scene.json": "debd7cbd1ec5553bcb0f25805a4a3b965a48b3c25f08a57028a8acb04f919d50",
+    "web/data/simulation/conveyor.scene.json": "41c6a69e2068394cc7960d4d19750896a24baf85766979678e7363f037dcfe4b",
+    "web/data/simulation/latch.scene.json": "34f1bf327e0cb992da963312e42faf90f208a441f6e3ffbe1952416a816035e0",
+    "web/data/simulation/start-stop.scl": "9057653e62f3d50a92dc6066ada64c1d270353593c7417ada82b7919acb93314",
+    "web/data/simulation/transfer-pusher.scl": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+    "web/generation.css": "1b5f67d1fde66335013e47e3a87b39408c62529e80e1145e23700d6013619bb3",
+    "web/generation.js": "4b80e1697c4441d4d084be83fd3fbaf79fb02393be49a77394687002a0d93b0c",
+    "web/index.html": "909bd4378889f220907905684939ca9e4d26f7ce86ca0b9f0e46cf5344a47554",
+    "web/scripts/build.mjs": "512bc878672f412d5e99d23e63146dccbc4d540a10a3369c367f13fde0ef2974",
+    "web/scripts/local-server.py": "7f388791a7e9316de477bd7884041e1d665e852914079dc9f22d8af1afa0eedb",
+    "web/scripts/plc-agent.py": "2003b3dc3ed9b4eab31192b57a6fe98397290e02ae79c97ee85b595a57a7b00b",
+    "web/scripts/simulation-bridge.py": "278b72542925d96dae885ae5ad75875953697faa5c6ba5cc70127ee8cd7ea169",
+    "web/scripts/simulation-core.py": "2f897be869a63e6cafae0f78c4dae4bae0ef8a784139da48b0e29ee2850eb915",
+    "web/scripts/simulation-server.py": "0be2f3fd4f477bbd7080d7b24c326640537008cb8bcbe327647752601d8aa799",
+    "web/scripts/simulation-worker.py": "b9a65c173abc269229b06b7155af46b34164d4737309833c5c2a04945b722d20",
+    "web/scripts/test_simulation_bridge.py": "757e70f327191f9a9dbcd3fc7b96c20c3c18181e503d76a7b141f50dcfe4e9c1",
+    "web/scripts/test_simulation_core.py": "91abe543f2f8ce9c2b54fb339602af462883abd96134ec3dc3095e7c345dba23",
+    "web/simulator-3d.js": "71f83ae18f6ce7ee814200ca84cb29e5ea57d4d4b7e888e66a2b51607f45435b",
+    "web/simulator.css": "a9a29f70b47aa3010c3f4d781bc485e3c80ff8648692c164351075749e538d41",
+    "web/simulator.html": "30bea32aff32beb5fb4dffbbea3cd39e5717936fee74cd61cbf9f14691507e87",
+    "web/simulator.js": "d7cd6879d278175e31141318102789594c4483328967a43ac9374297c08c177f",
+    ".gitattributes": "be0affe451374279ed9c541e27bcdca23714493ab75358f69d4e91696e4eb3ac"
+  },
+  "regression_log": "regression.txt",
+  "regression_log_sha256": "9ac909504f37c791bcb4342c657e89da7737205b2a9221ab4c6523b0fc1aba68",
+  "scope": "Repository integration, actual captured native FBs, typed synthetic plant, real browser and optional pinned OIP/Jolt plant; no arbitrary PLC language or full industrial acceptance",
+  "acceptance": {
+    "integration": true,
+    "tia": false,
+    "plcsim": false,
+    "machine": false,
+    "safety": false
+  },
+  "formal_evidence": "Canonical ST/projections unchanged; drift gate passed, historical formal verification was not rerun",
+  "deployment": "Cloud workspace test only; no persistent public service deployed",
+  "actual_agent": {
+    "context": "Fresh agent without implementation conversation; used public Skill and CLI only",
+    "cli_calls": 40,
+    "normal_assertions": 64,
+    "jam_assertions": 41,
+    "repaired_stop_assertions": 14,
+    "current_contract_rerun": true,
+    "expected_bad_wiring_first_failure_scan": 2,
+    "source_unchanged": true,
+    "oip_current_source_cases": 3,
+    "oip_current_source_assertions": 14,
+    "raw_evidence": "agent-acceptance/raw-evidence.zip",
+    "raw_evidence_sha256": "47c8e11006df2a9dd9cf3fbb8572ea594cd8998e8cb1230866d8514da7cacdbf",
+    "archived_files": 185
+  }
+}

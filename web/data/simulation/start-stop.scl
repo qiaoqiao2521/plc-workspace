@@ -1,0 +1,25 @@
+FUNCTION_BLOCK FB_StartStop
+VAR_INPUT
+    Enable : BOOL;
+    Start : BOOL;
+    Stop : BOOL;
+END_VAR
+VAR_OUTPUT
+    Motor : BOOL;
+END_VAR
+VAR
+    running : BOOL := FALSE;
+    previousStart : BOOL := FALSE;
+END_VAR
+VAR_TEMP
+    startEdge : BOOL;
+END_VAR
+startEdge := Start AND NOT previousStart;
+previousStart := Start;
+IF NOT Enable OR Stop THEN
+    running := FALSE;
+ELSIF startEdge THEN
+    running := TRUE;
+END_IF;
+Motor := running;
+END_FUNCTION_BLOCK

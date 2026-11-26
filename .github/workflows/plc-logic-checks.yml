@@ -61,3 +61,5 @@ jobs:
         run: |
           python3 validation/scripts/sync-semantics.py --project projects/FB_MainSequence --check
           npm --prefix web run build
+      - name: Reject empty or invalid optional OIP evidence
+        run: python3 integrations/open-industry-project/test_reporting.py

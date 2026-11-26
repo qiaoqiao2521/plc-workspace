@@ -1,0 +1,549 @@
+{
+  "kind": "actual-agent-skill-cli-acceptance",
+  "date": "2026-11-26",
+  "method": "Agent read allowed project instructions and public CLI responses, chose scene wiring and inputs, invoked only documented public PLC CLI actions through a persistent transport. Transport contains no test scenarios or expected verdicts.",
+  "product_code_modified_by_acceptance_agent": false,
+  "test_or_implementation_files_read": false,
+  "previous_acceptance_answers_read": false,
+  "evidence_raw_fields_modified": false,
+  "environment": {
+    "cloud_only": true,
+    "url": "http://127.0.0.1:8776",
+    "simulation_toolchain": {
+      "SIM_IEC2C": "/workspace/scratch/e3ad139ce787/tools/matiec/iec2c",
+      "SIM_MATIEC_LIB": "/workspace/scratch/e3ad139ce787/tools/matiec/lib",
+      "PLC_OIP_DIR": "/workspace/scratch/e3ad139ce787/tools/open-industry-project"
+    },
+    "service_stopped": true,
+    "all_explicit_live_sessions_closed": true
+  },
+  "scene_choice": {
+    "base_profile": "conveyor-pusher-v1",
+    "new_component": {
+      "id": "motor_status",
+      "type": "lamp",
+      "position": [
+        2.6,
+        0,
+        2.0
+      ],
+      "parameters": {}
+    },
+    "new_connection": {
+      "from": "drive.running",
+      "to": "motor_status.value"
+    },
+    "total_components": 11
+  },
+  "identity": {
+    "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+    "original_template_scene_sha256": "2ea356971728ad15f37e9d2ffdd913e9c63286ee9fbbc315a564c6eb44147767",
+    "correct_scene_sha256": "6f9f97a258d7270477a9e39392649f677af922331986a4dd167ecc9826c5b527",
+    "wrong_scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+    "original_contract_sha256": "413ec49249443a67bc376eb1b8dd6bc84b885f6d57cd62b3d49b67560a6906f6",
+    "final_contract_sha256": "d4365f61686f31aed2b8ffae0748519e849ce55735f7e5342289fb0806e81215",
+    "source_string_sha256_independently_computed": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db"
+  },
+  "interactive_observation": {
+    "file": "observation.trace.json",
+    "status": "not_run",
+    "scans": 15,
+    "phase_changes": [
+      {
+        "scan": 1,
+        "state": 1
+      },
+      {
+        "scan": 6,
+        "state": 2
+      },
+      {
+        "scan": 10,
+        "state": 3
+      },
+      {
+        "scan": 14,
+        "state": 0
+      }
+    ],
+    "done_scans": [
+      14
+    ],
+    "motor_status_matches_drive_running_in_all_snapshots": true,
+    "independent_case_calls_did_not_advance_observation_session": true
+  },
+  "cases": [
+    {
+      "file": "normal-case.report.json",
+      "case": "normal",
+      "status": "pass",
+      "checks": 64,
+      "failed_checks": 0,
+      "trace_scans": 15,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "6f9f97a258d7270477a9e39392649f677af922331986a4dd167ecc9826c5b527",
+      "contract_sha256": "413ec49249443a67bc376eb1b8dd6bc84b885f6d57cd62b3d49b67560a6906f6",
+      "first_failure": null
+    },
+    {
+      "file": "jam-case.report.json",
+      "case": "jam",
+      "status": "pass",
+      "checks": 41,
+      "failed_checks": 0,
+      "trace_scans": 13,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "6f9f97a258d7270477a9e39392649f677af922331986a4dd167ecc9826c5b527",
+      "contract_sha256": "413ec49249443a67bc376eb1b8dd6bc84b885f6d57cd62b3d49b67560a6906f6",
+      "first_failure": null
+    },
+    {
+      "file": "stop-bypass.report.json",
+      "case": "stop-restart",
+      "status": "fail",
+      "checks": 14,
+      "failed_checks": 2,
+      "trace_scans": 5,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "contract_sha256": "413ec49249443a67bc376eb1b8dd6bc84b885f6d57cd62b3d49b67560a6906f6",
+      "first_failure": {
+        "name": "simultaneous_stop_revokes_actions",
+        "status": "fail",
+        "scan": 2,
+        "expected": true,
+        "actual": false
+      }
+    },
+    {
+      "file": "repaired-stop.report.json",
+      "case": "stop-restart",
+      "status": "pass",
+      "checks": 14,
+      "failed_checks": 0,
+      "trace_scans": 5,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "6f9f97a258d7270477a9e39392649f677af922331986a4dd167ecc9826c5b527",
+      "contract_sha256": "413ec49249443a67bc376eb1b8dd6bc84b885f6d57cd62b3d49b67560a6906f6",
+      "first_failure": null
+    },
+    {
+      "file": "final-normal-case.report.json",
+      "case": "normal",
+      "status": "pass",
+      "checks": 64,
+      "failed_checks": 0,
+      "trace_scans": 15,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "6f9f97a258d7270477a9e39392649f677af922331986a4dd167ecc9826c5b527",
+      "contract_sha256": "d4365f61686f31aed2b8ffae0748519e849ce55735f7e5342289fb0806e81215",
+      "first_failure": null
+    },
+    {
+      "file": "final-stop-bypass.report.json",
+      "case": "stop-restart",
+      "status": "fail",
+      "checks": 14,
+      "failed_checks": 2,
+      "trace_scans": 5,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "contract_sha256": "d4365f61686f31aed2b8ffae0748519e849ce55735f7e5342289fb0806e81215",
+      "first_failure": {
+        "name": "simultaneous_stop_revokes_actions",
+        "status": "fail",
+        "scan": 2,
+        "expected": true,
+        "actual": false
+      }
+    }
+  ],
+  "deliberate_fault": {
+    "remove_binding": "Motor -> drive.command",
+    "add_connection": "enable.value -> drive.command",
+    "legal_types": "BOOL -> BOOL; one writer; acyclic",
+    "first_counterexample": {
+      "name": "simultaneous_stop_revokes_actions",
+      "status": "fail",
+      "scan": 2,
+      "expected": true,
+      "actual": false,
+      "snapshot": {
+        "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+        "scan": 2,
+        "profile": "conveyor-pusher-v1",
+        "step_unit": "FB invocation",
+        "physical_time": false,
+        "inputs": {
+          "Enable": true,
+          "Start": true,
+          "Stop": true,
+          "Reset": false,
+          "AtEnd": false,
+          "Extended": false,
+          "Retracted": true
+        },
+        "outputs": {
+          "Motor": 0,
+          "Busy": 0,
+          "Done": 0,
+          "Error": 0,
+          "TimeoutFault": 0,
+          "Extend": 0,
+          "Retract": 0,
+          "State": 0,
+          "WaitCount": 0
+        },
+        "plant_inputs": {
+          "Enable": true,
+          "Start": true,
+          "Stop": true,
+          "Reset": false,
+          "AtEnd": false,
+          "Extended": false,
+          "Retracted": true
+        },
+        "position": 0.4,
+        "state": 0,
+        "components": [
+          {
+            "id": "enable",
+            "type": "switch",
+            "position": [
+              -2.5,
+              0,
+              1.9
+            ],
+            "parameters": {
+              "initial": true
+            },
+            "state": {
+              "value": true
+            }
+          },
+          {
+            "id": "start",
+            "type": "switch",
+            "position": [
+              -1.8,
+              0,
+              1.9
+            ],
+            "parameters": {
+              "initial": false
+            },
+            "state": {
+              "value": true
+            }
+          },
+          {
+            "id": "stop",
+            "type": "switch",
+            "position": [
+              -1.1,
+              0,
+              1.9
+            ],
+            "parameters": {
+              "initial": false
+            },
+            "state": {
+              "value": true
+            }
+          },
+          {
+            "id": "reset",
+            "type": "switch",
+            "position": [
+              -0.4,
+              0,
+              1.9
+            ],
+            "parameters": {
+              "initial": false
+            },
+            "state": {
+              "value": false
+            }
+          },
+          {
+            "id": "drive",
+            "type": "motor",
+            "position": [
+              -1.6,
+              0,
+              0.8
+            ],
+            "parameters": {},
+            "state": {
+              "command": true,
+              "running": true
+            }
+          },
+          {
+            "id": "belt",
+            "type": "conveyor",
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "parameters": {
+              "step": 0.2,
+              "initial_position": 0
+            },
+            "state": {
+              "position": 0.4,
+              "running": true,
+              "jammed": false
+            }
+          },
+          {
+            "id": "eye",
+            "type": "photoeye",
+            "position": [
+              1.8,
+              0,
+              -0.75
+            ],
+            "parameters": {
+              "threshold": 1
+            },
+            "state": {
+              "detected": false,
+              "position": 0.4
+            }
+          },
+          {
+            "id": "part",
+            "type": "workpiece",
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "parameters": {},
+            "state": {
+              "position": 0.4
+            }
+          },
+          {
+            "id": "runlamp",
+            "type": "lamp",
+            "position": [
+              2.6,
+              0,
+              1.0
+            ],
+            "parameters": {},
+            "state": {
+              "value": false
+            }
+          },
+          {
+            "id": "pusher",
+            "type": "cylinder",
+            "position": [
+              1.8,
+              0,
+              -0.95
+            ],
+            "parameters": {
+              "step": 0.25,
+              "initial_position": 0
+            },
+            "state": {
+              "position": 0,
+              "extended": false,
+              "retracted": true,
+              "extend": false,
+              "retract": false,
+              "conflict": false,
+              "jammed": false
+            }
+          },
+          {
+            "id": "motor_status",
+            "type": "lamp",
+            "position": [
+              2.6,
+              0,
+              2.0
+            ],
+            "parameters": {},
+            "state": {
+              "value": true
+            }
+          }
+        ],
+        "faults": {},
+        "events": [],
+        "halted": null,
+        "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+        "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+        "request_fingerprint": null,
+        "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance"
+      }
+    },
+    "repair": "Restore only original device wiring; same stop-restart case passes in repaired-stop.report.json; original source and contract expectations unchanged."
+  },
+  "interactive_jam": {
+    "file": "jam-observation.trace.json",
+    "status": "not_run",
+    "injected_via": "inject_fault belt jam active=true",
+    "timeout_scan": 13,
+    "timeout_outputs": {
+      "Motor": 0,
+      "Busy": 0,
+      "Done": 0,
+      "Error": 1,
+      "TimeoutFault": 1,
+      "Extend": 0,
+      "Retract": 0,
+      "State": 900,
+      "WaitCount": 12
+    },
+    "after_release_outputs": {
+      "Motor": 0,
+      "Busy": 0,
+      "Done": 0,
+      "Error": 1,
+      "TimeoutFault": 1,
+      "Extend": 0,
+      "Retract": 0,
+      "State": 900,
+      "WaitCount": 12
+    },
+    "after_release_faults": {}
+  },
+  "oip": {
+    "integration_status": {
+      "installed": true,
+      "ready": true,
+      "commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+      "repository": "https://github.com/Open-Industry-Project/Open-Industry-Project.git",
+      "license": "MIT",
+      "supported_profiles": [
+        "conveyor-8-demo-v1",
+        "conveyor-12-v1"
+      ],
+      "native_ready": true,
+      "status": "pass",
+      "reason": null,
+      "scope": "Pinned headless plant; native PLC source is executed separately from OIP self-tests"
+    },
+    "catalog_status": "pass",
+    "catalog_parts": [
+      "oip.belt-conveyor",
+      "oip.diffuse-sensor",
+      "oip.box"
+    ],
+    "assembly_status": "pass",
+    "native_report": "oip-native.report.json",
+    "native_status": "pass",
+    "profile": "conveyor-12-v1",
+    "source_sha256": "a3fbac0a1d84baeb0cf3116c664067671f48d5f4acfd3605c27888d893a708ef",
+    "scene_sha256": "3d592adfd274a9d2456f7f6b29173b3662ec744253fde74b7e52dcaf09224b63",
+    "project_sha256": "154c339fde928e9c84ee50d21ce9566f1111c19f0b6a55cfb1d99774cee953d3",
+    "counts": {
+      "tests": 3,
+      "checks": 14,
+      "failed_checks": 0,
+      "negative_controls": 1,
+      "negative_controls_detected": 1
+    },
+    "clock": {
+      "physics_hz": 60,
+      "scan_ms": 250,
+      "physics_steps_per_scan": 15,
+      "startup_settle_steps_without_plc": 30,
+      "timeout_unit": "FB calls, not milliseconds",
+      "waiting_calls": 12,
+      "expected_timeout_scan": 13
+    },
+    "tests": [
+      {
+        "name": "normal-arrival",
+        "status": "passed",
+        "checks": 6,
+        "trace_scans": 16
+      },
+      {
+        "name": "physical-jam",
+        "status": "passed",
+        "checks": 4,
+        "trace_scans": 16
+      },
+      {
+        "name": "sensor-stuck-off",
+        "status": "passed",
+        "checks": 4,
+        "trace_scans": 16
+      }
+    ],
+    "built_in_negative_control_detected": true,
+    "built_in_negative_control_source_sha256": "85d52ea681066225e1e4d87a8cedf8e352fc5499042c2df58aa648302e7c2eff",
+    "self_test": {
+      "file": "oip-self-test.report.json",
+      "status": "pass",
+      "counts": {
+        "tests": 4,
+        "checks": 24,
+        "failed_checks": 0
+      },
+      "scope": "OIP's own example and embedded PLC; not plc-workspace native-source acceptance"
+    },
+    "unsupported_pusher_request": {
+      "file": "oip-pusher-unsupported.request.json",
+      "raw_cli_error": "24-oip-pusher-boundary.stdout.json",
+      "expected_http_status": 400,
+      "reason": "The OIP native plant bridge currently supports the two conveyor profiles"
+    },
+    "visual_render": "not_run",
+    "siemens_acceptance": "not_run",
+    "hardware_acceptance": "not_run"
+  },
+  "runtime_revision": {
+    "reason": "Parent reported added 30s whole-step batch budget; contract text/hash changed; source and scene did not change. Exactly two final cases rerun after restart.",
+    "doctor_file": "final-01-doctor.stdout.json",
+    "reported_limits": {
+      "scan_timeout_seconds": 2.0,
+      "batch_timeout_seconds": 30.0,
+      "max_step_count": 500
+    }
+  },
+  "cli_operation_count": 40,
+  "unexpected_product_interface_defects_observed": [],
+  "expected_nonzero_exits": [
+    {
+      "operation": "00-prestart-doctor",
+      "exit_code": 1
+    },
+    {
+      "operation": "19-stop-bypass-case",
+      "exit_code": 1
+    },
+    {
+      "operation": "24-oip-pusher-boundary",
+      "exit_code": 1
+    },
+    {
+      "operation": "final-00-prestart-doctor",
+      "exit_code": 1
+    },
+    {
+      "operation": "final-03-stop-bypass-case",
+      "exit_code": 1
+    }
+  ],
+  "not_covered": [
+    "Browser/3D visual acceptance",
+    "Current engineering import and generation workflow",
+    "Other native profiles and the native sensor-failed/fault-reset cases",
+    "Batch timeout/watchdog enforcement (limits only read in doctor)",
+    "OIP pusher/cylinder bridge, which is explicitly unsupported",
+    "OIP Stop/Reset/race controls beyond its three finite native cases",
+    "Arbitrary process correctness, LAD execution, Siemens compilation, TIA, PLCSIM, real-time timers, retention, safety or hardware acceptance"
+  ],
+  "machine_paths": "Raw responses preserve actual temporary absolute paths, session identifiers and project identifiers. These are provenance, not portable identifiers. Recreate sessions and OIP project_id for new runs."
+}

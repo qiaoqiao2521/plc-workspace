@@ -1,0 +1,61 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> plc-workspace-web@0.2.0 test
+> node --test scripts/test-*.mjs && python3 -m unittest discover -s scripts -p "test_*.py"
+
+✔ zero threshold clears accumulated timer and restored threshold starts fresh (1.003862ms)
+✔ held reset does not clear aborted after stop release (0.170171ms)
+✔ completion wins on deadline and held start does not restart (0.114272ms)
+✔ disable clears current fault but new enable clears diagnostic history (0.114683ms)
+✔ all displayed energized actions are revoked on error (0.310048ms)
+✔ flow draft preserves cycle link and leaves process conditions unguessed (10.589085ms)
+✔ request freezes input values; changed process has a different fingerprint (11.405482ms)
+✔ old result or other request cannot bind to current requirements (2.557153ms)
+✔ result validator rejects path traversal, duplicate code files and malformed networks (1.39624ms)
+✔ model claims are transported as reports, not a proof flag (3.270175ms)
+✔ API settings preserve an existing key by omitting empty replacements (0.598487ms)
+✔ API configuration rejects credentials in URLs and malformed transport settings (0.376814ms)
+✔ Agent handoff uses the repository Skill and a persistent CLI without credentials in argv (2.222476ms)
+✔ engineering reopen restores original binding without weakening result import (2.35511ms)
+✔ engineering reopen rejects tampering and malformed states before restoration (2.549199ms)
+✔ LAD display and export share prefix normalization without modifying candidates (0.48463ms)
+✔ original source and selected scan contract are frozen into the request identity (1.120499ms)
+✔ saved source-bound diagnostics and repair diffs survive reopening a failed candidate (2.207728ms)
+✔ verification binding rejects partial, duplicate and wrong-name evidence (1.116454ms)
+✔ compile-only result is explicitly separate from behavior acceptance (0.816352ms)
+✔ required failure unknown and not-run cannot be hidden behind a forged total pass (3.576761ms)
+✔ legacy imported cancelled unapproved and incomplete results cannot regain current acceptance (1.963333ms)
+✔ same source with changed requirements cannot reuse a v2 report (1.288628ms)
+✔ display rejects duplicate, relabeled, unsupported and unselected checks (0.53959ms)
+✔ synthetic latch contract is explicit and cannot silently accept edited process or source (1.489848ms)
+✔ S2 result requires both serialized products with matching symbols and no legacy shell (5.394991ms)
+✔ S2 scoped pass needs independent behavior and graph comparison; failures never inherit aggregate pass (0.543319ms)
+✔ IR and LAD hashes bind current products and imported passes remain history (5.90116ms)
+✔ structurally rejected IR stays reviewable without fabricating missing products (2.895693ms)
+✔ graph preview keeps every generated wire, branch, symbol and contact polarity (4.773897ms)
+✔ graph display refuses broken connections, duplicate writers and changed polarity types (1.703345ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 319.479721
+.............................................................................................................................................127.0.0.1 - - [25/Nov/2026 21:13:30] "POST /api/simulation/step HTTP/1.1" 403 -
+127.0.0.1 - - [25/Nov/2026 21:13:30] "POST /api/simulation/step HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:30] "POST /api/simulation/step HTTP/1.1" 400 -
+.127.0.0.1 - - [25/Nov/2026 21:13:31] "POST /api/simulation/step HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "GET /simulation-source.scl HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "GET /simulation.js HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "GET /simulation.css HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "GET /simulation.html HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "GET /data/example.json HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "POST /api/simulation/step HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "POST /api/simulation/new HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 21:13:31] "POST /api/simulation/step HTTP/1.1" 200 -
+.............................
+----------------------------------------------------------------------
+Ran 171 tests in 98.399s
+
+OK

@@ -1,9 +1,9 @@
 ---
 name: plc-workspace-control
-description: 用 PLC Workspace 的本机 CLI 接管 LAD/SCL 需求分析、生成、独立检查与有限修复。用于用户要求 Agent 控制工作台、接管页面任务、按已确认需求启动生成或处理编译/行为反例时；通过持续 stdio 会话回答控制器当前阶段，不能替代工具验收或操作现场 PLC。
+description: 用 PLC Workspace 的 CLI 接管 LAD/SCL 需求分析、生成、独立检查、有限修复与可组装仿真。用于用户要求 Agent 控制工作台、接管页面任务、组装设备、试跑当前工程、注入故障或定位逐扫描反例时；调用同一控制器与原生仿真服务，不能替代工具验收或操作现场 PLC。
 ---
 
-# PLC 工作台接管
+# PLC 工作台生成与仿真
 
 从 `plc-workspace` 仓库根目录运行 [plc-agent.py](../../../web/scripts/plc-agent.py)。使用用户提供的工作台地址；默认 `http://127.0.0.1:8766`。这是项目技能，依赖该仓库中的 CLI 与运行中的本机服务；不要求特定 Agent 产品。
 
@@ -16,6 +16,32 @@ python3 web/scripts/plc-agent.py doctor
 ```
 
 服务未运行且用户已要求本机生成时，按仓库 README 构建并启动 `npm --prefix web run dev`，保持服务进程运行。需要真实编译时使用用户环境中已有的 `SIM_IEC2C`、`SIM_MATIEC_LIB` 和 GCC；不能把缺工具变成通过，也不要为接管安装新的编排平台。地址可在命令前配置 `--url http://127.0.0.1:8766`。
+
+仿真任务先走下面的独立操作入口；生成或修复工程时再走持续 workflow。两条路径共用工作台服务，但仿真记录不能替代生成控制器的检查。
+
+## 可组装仿真
+
+读取 [仿真协议](../../../docs/PLC_SIMULATION.md) 的场景格式和动作表，然后执行：
+
+```sh
+python3 web/scripts/plc-agent.py simulate catalog
+python3 web/scripts/plc-agent.py simulate templates --output /outside/repo/templates.json
+```
+
+这是有限 JSON 请求，不需要保持 stdin；`--input -` 可读一个 JSON 对象，`--input path.json` 可读文件。`--output path.json` 保存完整结果，stdout 只给摘要。没有 `--output` 时，结果在 stdout JSON 的 `result` 字段。使用独立的仓库外工作目录保存请求、场景、轨迹和报告。
+
+1. 从目录选择明确合同，保留模板的 `program` 和 `scene`。按用户目标修改场景组件、参数、位置、端口连接和 PLC 绑定；用 `create` 提交 `{program,scene}`。不得为了通过改源码、改合同或改期望。只有明确的源码修改任务才可修改候选，并重新验证。
+2. 当前工程用 `create` 或 `run_case` 的 `{engineering:完整导出工程}` 输入。保留完整 request/result，不挑选旧示例替换它，不抄入历史 verification。服务校验需求身份并冻结本次源码；不支持的接口应如实说明。
+3. 记下服务返回的 `session`、源码和场景哈希。`step --session ID` 接收 `{"inputs":{"Enable":true,"Start":true,"Stop":false},"count":1}`。输入保持电平；启动脉冲需后续单独写 `Start:false`。`count` 表示 FB 调用次数，不是秒数。对多个会话分别保存 ID，避免串台。
+4. 用 `inject_fault --session ID --input fault.json` 注入设备目录支持的故障，JSON 为 `{"device":"belt","fault":"jam","active":true}`；解除时设 false。选择场景实际 ID，不猜 ID 或给不支持的设备套故障。
+5. `run_case --session ID --input case.json` 对同份冻结源码和场景运行独立新会话，输入如 `{"case":"normal"}` 或目录列出的故障用例。它不会消耗当前观察会话。按结果报告 pass/fail/unknown，失败读取 `first_failure` 的 scan、expected、actual 和 snapshot；不要只看退出码或动画。
+6. 用 `export_trace --session ID --output trace.json` 保存交互轨迹，再用 `close --session ID` 清理。导出成功返回 0；交互轨迹内的 `not_run` 表示没有独立用例裁决，不能将导出成功称作验证通过。
+
+可选 Open Industry Project 入口为 `integrations`、`oip_catalog`、`oip_assemble`、`oip_test`、`oip_self_test`。先检查 integrations，按协议区分上游自测与当前 native PLC 驱动 Jolt 设备的测试。当前 OIP 桥只支持两种 conveyor profile；将 `{program}` 或 `{engineering}` 明确传给 `oip_test`，不得把不带源码的历史示例测试当作当前工程证据。
+
+交付包含实际场景变化、实际工具结论、源码/场景身份、首个反例和证据文件。有限用例通过不等于任意工艺、真实时间定时器、LAD执行、TIA/PLCSIM或实机验收；缺工具和零断言都不得称通过。组件参数与新合成合同只用于已标明的演示范围。
+
+## 生成任务入口
 
 按已有材料选择一个入口，不重复启动当前任务：
 

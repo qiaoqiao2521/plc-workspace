@@ -1,0 +1,265 @@
+{
+  "schema_version": "plc-scene.v1",
+  "components": [
+    {
+      "type": "switch",
+      "label": "按钮 / 开关",
+      "ports": {
+        "inputs": {},
+        "outputs": {
+          "value": "BOOL"
+        }
+      },
+      "parameters": {
+        "initial": {
+          "default": false,
+          "type": "BOOL"
+        }
+      },
+      "faults": []
+    },
+    {
+      "type": "lamp",
+      "label": "指示灯",
+      "ports": {
+        "inputs": {
+          "value": "BOOL"
+        },
+        "outputs": {}
+      },
+      "parameters": {},
+      "faults": []
+    },
+    {
+      "type": "motor",
+      "label": "电机",
+      "ports": {
+        "inputs": {
+          "command": "BOOL"
+        },
+        "outputs": {
+          "running": "BOOL"
+        }
+      },
+      "parameters": {},
+      "faults": [
+        "stuck_off"
+      ]
+    },
+    {
+      "type": "conveyor",
+      "label": "输送段",
+      "ports": {
+        "inputs": {
+          "run": "BOOL"
+        },
+        "outputs": {
+          "position": "REAL"
+        }
+      },
+      "parameters": {
+        "step": {
+          "default": 0.2,
+          "min": 0.01,
+          "max": 1,
+          "unit": "travel/scan"
+        },
+        "initial_position": {
+          "default": 0,
+          "min": 0,
+          "max": 1
+        }
+      },
+      "faults": [
+        "jam"
+      ]
+    },
+    {
+      "type": "photoeye",
+      "label": "光电传感器",
+      "ports": {
+        "inputs": {
+          "position": "REAL"
+        },
+        "outputs": {
+          "detected": "BOOL"
+        }
+      },
+      "parameters": {
+        "threshold": {
+          "default": 1,
+          "min": 0,
+          "max": 1
+        }
+      },
+      "faults": [
+        "stuck_low",
+        "stuck_high"
+      ]
+    },
+    {
+      "type": "cylinder",
+      "label": "双向气缸",
+      "ports": {
+        "inputs": {
+          "extend": "BOOL",
+          "retract": "BOOL"
+        },
+        "outputs": {
+          "position": "REAL",
+          "extended": "BOOL",
+          "retracted": "BOOL"
+        }
+      },
+      "parameters": {
+        "step": {
+          "default": 0.25,
+          "min": 0.01,
+          "max": 1,
+          "unit": "travel/scan"
+        },
+        "initial_position": {
+          "default": 0,
+          "min": 0,
+          "max": 1
+        }
+      },
+      "faults": [
+        "jam"
+      ]
+    },
+    {
+      "type": "workpiece",
+      "label": "工件",
+      "ports": {
+        "inputs": {
+          "position": "REAL"
+        },
+        "outputs": {}
+      },
+      "parameters": {},
+      "faults": []
+    }
+  ],
+  "profiles": [
+    {
+      "id": "conveyor-pusher-v1",
+      "label": "输送与推料 · 合成合同",
+      "block": "FB_TransferPusher",
+      "inputs": {
+        "Enable": "BOOL",
+        "Start": "BOOL",
+        "Stop": "BOOL",
+        "Reset": "BOOL",
+        "AtEnd": "BOOL",
+        "Extended": "BOOL",
+        "Retracted": "BOOL"
+      },
+      "outputs": {
+        "Motor": "BOOL",
+        "Busy": "BOOL",
+        "Done": "BOOL",
+        "Error": "BOOL",
+        "TimeoutFault": "BOOL",
+        "Extend": "BOOL",
+        "Retract": "BOOL",
+        "State": "UINT",
+        "WaitCount": "UINT"
+      },
+      "actuators": [
+        "Motor",
+        "Extend",
+        "Retract"
+      ],
+      "waiting_calls": 12,
+      "cases": [
+        "normal",
+        "jam",
+        "sensor-failed",
+        "stop-restart",
+        "fault-reset"
+      ]
+    },
+    {
+      "id": "conveyor-12-v1",
+      "label": "输送带 · 12次等待合同",
+      "block": "FB_ConveyorPack",
+      "inputs": {
+        "Enable": "BOOL",
+        "Start": "BOOL",
+        "Stop": "BOOL",
+        "Reset": "BOOL",
+        "AtEnd": "BOOL"
+      },
+      "outputs": {
+        "Motor": "BOOL",
+        "Busy": "BOOL",
+        "Done": "BOOL",
+        "Error": "BOOL",
+        "TimeoutFault": "BOOL"
+      },
+      "actuators": [
+        "Motor"
+      ],
+      "waiting_calls": 12,
+      "cases": [
+        "normal",
+        "jam",
+        "sensor-failed",
+        "stop-restart",
+        "fault-reset"
+      ]
+    },
+    {
+      "id": "conveyor-8-demo-v1",
+      "label": "历史输送演示 · 8次等待",
+      "block": "FB_ConveyorPack",
+      "inputs": {
+        "Enable": "BOOL",
+        "Start": "BOOL",
+        "Stop": "BOOL",
+        "Reset": "BOOL",
+        "AtEnd": "BOOL"
+      },
+      "outputs": {
+        "Motor": "BOOL",
+        "Busy": "BOOL",
+        "Done": "BOOL",
+        "Error": "BOOL",
+        "TimeoutFault": "BOOL"
+      },
+      "actuators": [
+        "Motor"
+      ],
+      "waiting_calls": 8,
+      "cases": [
+        "normal",
+        "jam",
+        "sensor-failed",
+        "stop-restart",
+        "fault-reset"
+      ]
+    },
+    {
+      "id": "latch-start-stop-v1",
+      "label": "启停自锁 · BOOL基准",
+      "block": "FB_StartStop",
+      "inputs": {
+        "Enable": "BOOL",
+        "Start": "BOOL",
+        "Stop": "BOOL"
+      },
+      "outputs": {
+        "Motor": "BOOL"
+      },
+      "actuators": [
+        "Motor"
+      ],
+      "waiting_calls": null,
+      "cases": [
+        "normal",
+        "stop-restart"
+      ]
+    }
+  ]
+}

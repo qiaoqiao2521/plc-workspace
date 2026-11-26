@@ -9,9 +9,9 @@
 </head>
 <body class="generation-page">
 <a class="skip" href="#requirement">跳到工艺需求</a>
-<header class="site-header"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▥</span><span>PLC <b>Workspace</b></span></a><nav aria-label="主导航"><a class="active" href="./">需求生成</a><a href="./validation.html">验证与回放</a><a href="./simulation.html">本机输送仿真</a><a href="https://github.com/qiaoqiao2521/plc-workspace" target="_blank" rel="noreferrer">项目文档</a></nav><span id="connection" class="connection">正在检查本机服务…</span></header>
+<header class="site-header"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▥</span><span>PLC <b>Workspace</b></span></a><nav aria-label="主导航"><a class="active" href="./">需求生成</a><a href="./simulator.html">仿真验证</a><a href="./validation.html">验证与回放</a><a href="https://github.com/qiaoqiao2521/plc-workspace" target="_blank" rel="noreferrer">项目文档</a></nav><span id="connection" class="connection">正在检查本机服务…</span></header>
 <main>
-<section class="generation-intro"><div><h1>从工艺需求，写出 PLC 工程。</h1><p>你描述机器如何工作，AI 整理状态、信号和约束，生成 SCL 与 LAD 网络草稿。</p></div><a class="mobile-validation" href="./validation.html">验证与回放</a></section>
+<section class="generation-intro"><div><h1>从工艺需求，写出 PLC 工程。</h1><p>你描述机器如何工作，AI 整理状态、信号和约束，生成 SCL 与 LAD 网络草稿。</p></div><div class="mobile-workspace-links"><a href="./simulator.html">仿真验证</a><a class="mobile-validation" href="./validation.html">验证与回放</a></div></section>
 <ol class="workflow" aria-label="工程生成流程"><li class="current" id="step-input"><span>1</span>描述工艺</li><li id="step-spec"><span>2</span>审阅规格</li><li id="step-code"><span>3</span>生成工程</li><li><span>4</span>验证与交付</li></ol>
 <div id="message" class="workspace-message" role="status" aria-live="polite" hidden></div>
 <div class="generation-grid">
@@ -52,7 +52,7 @@
 <div id="panel-scl" class="artifact-view" role="tabpanel" aria-labelledby="tab-scl" hidden><p id="scl-empty" class="empty-copy">AI 返回代码后，可以逐文件审阅和下载 SCL。</p><div id="scl-content" hidden><div class="code-toolbar"><label>源文件<select id="scl-files"></select></label><button id="download-scl" class="secondary-button">下载当前 SCL</button><button id="modify-current" type="button" class="text-button">以当前代码继续修改</button></div><pre class="code-view"><code id="scl-code"></code></pre></div></div>
 <div id="panel-lad" class="artifact-view" role="tabpanel" aria-labelledby="tab-lad" hidden><p id="lad-format-note" class="view-note">Main 的 LAD 网络审阅图，包含周期 FB 调用与简单触点／线圈。导出网络规格后需在 TIA 中实现和编译。</p><p id="lad-empty" class="empty-copy">AI 返回网络后显示梯形图草稿。</p><div id="lad-networks"></div><button id="download-lad" class="secondary-button" hidden>下载 LAD 网络规格</button></div>
 <div id="panel-checks" class="artifact-view" role="tabpanel" aria-labelledby="tab-checks" hidden><div class="checks-boundary"><strong id="verification-title">新工程尚未验证</strong><p id="verification-note">生成与验证是两步。下面的 Agent 自报检查不代表实际编译或扫描测试。</p></div><div id="checks-list"></div><a class="verification-link" href="./validation.html">打开仓库示例的验证与回放</a></div>
-<div class="artifact-footer"><span id="request-label">需求整理后建立本次任务</span><button id="export-project" class="secondary-button" disabled>导出工程草稿</button></div>
+<div class="artifact-footer"><span id="request-label">需求整理后建立本次任务</span><button id="simulate-current" class="secondary-button" disabled>在仿真中验证</button><button id="export-project" class="secondary-button" disabled>导出工程草稿</button></div>
 </section>
 </div>
 <section class="generation-boundary"><p><strong>需求驱动生成，验证保障质量。</strong> 状态、I/O 和代码属于同一份工程；已有示例的检查记录只适用于该示例。这里不会连接现场 PLC。</p><a href="./validation.html#contract">了解扫描语义约束</a></section>

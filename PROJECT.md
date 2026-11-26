@@ -12,6 +12,8 @@ The user has invested substantially in this industrial-automation workspace. On 
 
 2026-11-23: The user retired CM/Paperclip and requested direct model API configuration plus external Agent control. Both now use the same constrained PLC controller. The user also requested Skill/CLI/workflow integration; the repository provides `plc-workspace-control` and a thin persistent `plc-agent.py` client around that same controller. No model CLI, company ID or general Agent platform is required.
 
+2026-11-26: The user requested an AI-callable, atomically composable and visually useful simulation entry tied to PLC logic, then authorized full integration and actual subagent testing. This adds a bounded validation workspace beside generation, with an optional pinned Open Industry Project plant bridge. It does not start generation S3/S4 or broaden Siemens acceptance.
+
 ## Non-goals
 
 No replacement of TIA/PLCSIM with container evidence. No remote/device writes, automatic download or F-safety code generation. No platform migration or broad rewrite. No new general-purpose Harness, scheduler, PLC IDE, HMI/SCADA suite or multi-vendor platform. No automatic claim of correctness from compilation, shared IR, model approval or matching finite traces.
@@ -44,6 +46,8 @@ The main entry in `web/` is a requirement-to-engineering workspace with in-page 
 
 ## Current Priority
 
+The [composable simulation entry](docs/PLC_SIMULATION.md) now uses the same 8766 service and Agent CLI: typed atomic devices, captured-source native execution, independent finite cases, fault injection, 3D observation and trace replay. Current engineering imports validate request/result identity; saved verdicts stay historical. Four explicit profiles and a new synthetic transfer/pusher example are supported. OIP can run a real Jolt conveyor under the same native conveyor source, separately from its upstream IEC-subset self-tests. Actual implementation and test evidence are tracked in [the simulation plan](plans/plc-composable-simulation/progress.md).
+
 [PLC Logic Harness v1](plans/plc-logic-harness-v1/task_plan.md) remains the active generation plan. S1's scoped evidence and S2's deterministic BOOL IR, LAD/SCL outputs, independent native/graph checks, bounded IR repair and UI recovery are implemented. The 2026-11-23 access correction replaces the old orchestration dependency with direct API configuration or external Agent answers. The PLC contract, checks and repair limits remain in force. Local HTTP fixtures test the new connections and use real native tools where stated; an actual Agent has completed one first-attempt latch generation through the Skill/CLI, while configured remote API and actual Agent diagnostic-repair acceptance remain open.
 
 S3–S4 have not started. Do not add model roles, a scheduler, broader PLC instructions or mandatory Siemens dependencies. The next online check uses the same latch contract with a configured API or an actual Agent repair scenario, records failures/repairs/cancellation and keeps TIA/PLCSIM/machine acceptance separate. Cloud deployment and real-machine integration still require their own scope and actual project inputs.
@@ -56,6 +60,7 @@ S3–S4 have not started. Do not add model roles, a scheduler, broader PLC instr
 - `docs/DECISIONS.md`: durable choices and scoped implementation decisions.
 - `docs/SCL_STANDARD_BASELINE.md`: official references, corrections to earlier advice, and implementation gaps.
 - `docs/SCL_CLOSED_LOOP.md`: implemented current-source compilation and repair loop.
+- `docs/PLC_SIMULATION.md`: typed scene, current-engineering handoff, CLI/HTTP actions and OIP evidence boundaries.
 - `projects/FB_MainSequence/01_specs/scan-contract.md`: authoritative implemented abstract-core semantics and migration rules.
 - `plans/plc-semantics-v1/`: abstract-core semantic convergence records, not the new generator plan.
 - `validation/tests/README.md`: offline verification commands and limits.

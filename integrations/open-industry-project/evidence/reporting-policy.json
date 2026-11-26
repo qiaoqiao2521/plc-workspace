@@ -1,0 +1,16 @@
+{
+  "schema": "plc-oip-result/v1",
+  "check": "report-policy",
+  "scope": "Integration result handling only",
+  "status": "passed",
+  "upstream_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+  "siemens_acceptance": "not_run",
+  "hardware_acceptance": "not_run",
+  "counts": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0
+  },
+  "failures": [],
+  "errors": []
+}

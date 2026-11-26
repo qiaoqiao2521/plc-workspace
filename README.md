@@ -51,8 +51,20 @@ CLI 通过逐行 JSON 与 Agent 交互：输出当前阶段包，接收结构化
 - SCL 文件、LAD 网络规格与工程草稿导出。
 - **启停自锁合成基准**：AI 提议受限 BOOL IR，程序生成包含真实串并联逻辑的 LAD 图和 SCL；分别执行后对照固定预期。该路径只支持明确选择的基准，不将它套用到任意工艺。
 - [验证与回放](web/README.md)：仓库已有 FB_MainSequence 的 6 个实际 ST 场景。
+- [可组装仿真](docs/PLC_SIMULATION.md)：当前工程源码驱动开关、灯、电机、输送、光电、气缸与工件；三维组装、单步、故障注入、独立用例和逐扫描反例共用一套原生执行服务。Agent 可通过同一 CLI 操作，可选 Open Industry Project 物理复核。
 
 普通任务的 LAD 仍为简单串联触点/线圈与周期 FB 调用网络的审阅表示。启停基准新增内部 LAD 图及其独立执行入口，仍不是 TIA 可导入工程。默认流程对当前 SCL 运行支持范围内的 Linux 编译，选择输送带合同后执行其固定扫描；仓库示例的 27 项扫描测试、32 条断言不适用于任意新工程。TIA、PLCSIM 和实机验收由 Windows 工程侧完成。
+
+## 运行可组装仿真
+
+配置既有 `SIM_IEC2C`、`SIM_MATIEC_LIB` 后，启动上面的同一工作台服务，从“仿真验证”进入 `http://127.0.0.1:8766/simulator.html`。生成结果可直接点击“在仿真中验证”，也可从模板开始组装。仿真无需配置模型密钥。
+
+```sh
+python3 web/scripts/plc-agent.py simulate catalog
+python3 web/scripts/plc-agent.py simulate templates --output /tmp/plc-templates.json
+```
+
+四种明确合同、场景 JSON、完整 CLI/HTTP 动作和可选 OIP 安装见[仿真说明](docs/PLC_SIMULATION.md)。交互观察、固定用例通过、OIP 上游自测与当前源码驱动物理场景分别留证；新入口不恢复旧工程验收，也不授予 TIA/PLCSIM/实机验收。实际测试记录见[接入进度](plans/plc-composable-simulation/progress.md)。
 
 ## 复验启停双输出
 

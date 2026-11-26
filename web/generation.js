@@ -1,6 +1,7 @@
 import {flowDraft, makeRequest, validateResult, agentPrompt, openEngineering, ladTitle, conveyorAcceptanceBrief, latchAcceptanceBrief, LATCH_PROFILE, bindVerification, verificationSummary, apiConfigPayload, agentHandoffInstructions} from './generation-model.js';
 import {layoutLadNetwork} from './lad-graph.js';
 const $ = id => document.getElementById(id);
+const SIMULATION_HANDOFF_KEY = 'plc-workspace-simulation-engineering-v1';
 const fieldIds = {name:'project-name', block_name:'block-name', requirement:'requirement', flow:'flow', io_text:'io-text', constraints:'constraints'};
 let states = [], request, result, example, ready = false, busy = false, stale = false, jobId, generationOrigin = 'agent', exportFile, generationBudget = 0;
 let sourceFiles = [], verification, workflow, currentAcceptance = false;
@@ -27,13 +28,19 @@ function updateActions() {
   $('import-result').disabled = !request || busy;
   $('open-project').disabled = busy;
   $('export-project').disabled = !result || stale || busy;
+  $('simulate-current').disabled = !request || !result?.scl_files.length || stale || busy;
+  if (!request || !result || stale || busy) clearSimulationHandoff();
   $('download-scl').disabled = stale || busy;
   $('download-lad').disabled = stale || busy;
   $('modify-current').disabled = stale || busy || !result?.scl_files.length;
   $('source-files').disabled = busy || !sourceFiles.length;
   $('source-content').disabled = busy || !sourceFiles.length;
 }
+function clearSimulationHandoff() {
+  try { sessionStorage.removeItem(SIMULATION_HANDOFF_KEY); } catch { /* Storage may be unavailable; file handoff remains available. */ }
+}
 function dirty() {
+  clearSimulationHandoff();
   currentAcceptance = false;
   request = undefined;
   stale = !!result;
@@ -74,6 +81,7 @@ function renderStates() {
 }
 function renderQuestions(questions) { $('questions-box').hidden = !questions.length; $('questions').replaceChildren(...questions.map(q => node('li',q))); }
 function renderResult() {
+  clearSimulationHandoff();
   stale = false; $('artifact-status').classList.remove('stale');
   text('artifact-status', generationOrigin === 'example' ? '仓库工程示例' : generationOrigin === 'import' ? '已保存工程 · 本次未重跑' : result.logic_ir && !result.lad_graph ? 'IR 草稿 · 尚无双输出' : workflow && workflow.verdict !== 'reviewed_draft' ? '当前候选 · 尚未通过' : verification ? verificationSummary(verification,{profile:request.brief.validation_profile,current:true,approved:currentAcceptance}).title : 'AI 工程草稿 · 待验证');
   text('spec-summary', result.summary); states = structuredClone(result.states); renderStates(); renderQuestions(result.questions);
@@ -393,6 +401,14 @@ $('close-export').addEventListener('click',()=> $('export-dialog').close());
 $('save-export').addEventListener('click',saveExport);
 $('copy-export').addEventListener('click',async()=> { try { await navigator.clipboard.writeText(exportFile.content); text('export-feedback','文本已复制。'); } catch { text('export-feedback','浏览器不允许自动复制，请选中上方文本复制。'); } });
 $('export-project').addEventListener('click', () => { if (!stale && result) download('plc-engineering-draft.json',{kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result,verification,workflow,verification_status:'saved_record_requires_rerun',industrial_acceptance:'not_run',lad_format:result.lad_graph ? 'plc-lad-bool-v1_not_tia_project' : 'review_networks_not_tia_project'}); });
+$('simulate-current').addEventListener('click', () => {
+  if (stale || busy || !request || !result?.scl_files.length) return;
+  try {
+    // Transfer the exact candidate, never historical acceptance or credentials.
+    sessionStorage.setItem(SIMULATION_HANDOFF_KEY, JSON.stringify({kind:generationOrigin === 'example' ? 'repository_example' : 'agent_candidate',request,result}));
+    location.assign('./simulator.html?engineering=1');
+  } catch { message('浏览器无法暂存工程。请导出工程草稿，再从仿真验证页打开这份文件。', true); }
+});
 async function init() {
   try { const saved = JSON.parse(localStorage.getItem('plc-workspace-brief-v1')); if (saved?.brief && Array.isArray(saved.states)) { writeBrief(saved.brief); states = saved.states; message('已恢复此浏览器保存的需求草稿。请整理任务后重新生成。'); } } catch { /* Invalid/blocked local storage leaves a clean editable form. */ }
   await refreshConnection();

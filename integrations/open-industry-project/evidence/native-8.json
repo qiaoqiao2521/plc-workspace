@@ -1,0 +1,6109 @@
+{
+  "schema": "plc-oip-result/v1",
+  "check": "native-oip-loop",
+  "scope": "Frozen FB_ConveyorPack source compiled by matiec/GCC driving OIP/Jolt plant",
+  "status": "passed",
+  "upstream_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+  "siemens_acceptance": "not_run",
+  "hardware_acceptance": "not_run",
+  "identity": {
+    "repository": "https://github.com/Open-Industry-Project/Open-Industry-Project.git",
+    "commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+    "package_lock_sha256": "d40c13994ed6bd557e9ff21de6df7745d917adaa3ff25047d7dc165f62e135b5",
+    "node": "v24.22.3",
+    "source_clean": true
+  },
+  "native_source": "plans/plc-generation-ui/user-eval/candidates/FB_ConveyorPack.scl",
+  "profile": "conveyor-8-demo-v1",
+  "program_identity": {
+    "profile": "conveyor-8-demo-v1",
+    "filename": "FB_ConveyorPack.scl"
+  },
+  "source_sha256": "1ba2fd331d00e58748dce9086334ca96368a5fc308cc4bcd3e6235d4d883c49f",
+  "adapted_source_sha256": "703e540d39399d686e2d95abbfcf8bed9c7ff1a6bfb2d6f202bd533eca012403",
+  "runtime_source_sha256": "c887cdb5208f85bb4f38b1efc5719c2d240d8c90262504b9d88663beed56d41b",
+  "recipe_sha256": "ff981d1a320a8dc32043bbb9c4a01fe5c445ede4cd56e267d261af035cd699ab",
+  "project_identity": {
+    "sha256": "67bb875129ee80029b83373bd601faa64263d9aaa3d8bc41c979b947d64b4ff6",
+    "files": {
+      "parts/oip.belt-conveyor/behavior.js": "ee3070e13d956117b1bb602cdf74fdeb1866b358e94f4e2cdac9a159ebc0806b",
+      "parts/oip.belt-conveyor/manifest.json": "bc130c56d3f21fa8735915c35632d5b3bede37ea0ba112c2d8d5df46e9042a62",
+      "parts/oip.box/behavior.js": "1c61d1ac0199e95bd327edc848a37881214652394537827a3ac72a53e247d257",
+      "parts/oip.box/manifest.json": "e68f9b16737d43af5df9ec23757300001b488a6393fa52f79648538df816dda9",
+      "parts/oip.diffuse-sensor/behavior.js": "a79469a24ec94bd2d0b2f7529b3bbca4962ab185aa25079db3362b5f6a9cf642",
+      "parts/oip.diffuse-sensor/manifest.json": "9a41f94fd4bdcaf43f33e23caf83584d87dde966e150c097e277a5ed94d707a3",
+      "project.json": "71a59a7f89433d1b1d00315dcaf93f32b7e2f126189f09e736939bab962cbd09",
+      "scene.json": "3d592adfd274a9d2456f7f6b29173b3662ec744253fde74b7e52dcaf09224b63"
+    }
+  },
+  "scene_sha256": "3d592adfd274a9d2456f7f6b29173b3662ec744253fde74b7e52dcaf09224b63",
+  "clock": {
+    "physics_hz": 60,
+    "scan_ms": 250,
+    "physics_steps_per_scan": 15,
+    "startup_settle_steps_without_plc": 30,
+    "timeout_unit": "FB calls, not milliseconds",
+    "waiting_calls": 8,
+    "expected_timeout_scan": 9
+  },
+  "tests": [
+    {
+      "name": "normal-arrival",
+      "status": "passed",
+      "source_sha256": "1ba2fd331d00e58748dce9086334ca96368a5fc308cc4bcd3e6235d4d883c49f",
+      "checks": [
+        {
+          "name": "start drives the real belt",
+          "ok": true,
+          "observed": {
+            "belt": 1
+          }
+        },
+        {
+          "name": "arrival produces exactly one Done before timeout",
+          "ok": true,
+          "observed": [
+            5
+          ]
+        },
+        {
+          "name": "completion uses actual sampled sensor",
+          "ok": true,
+          "observed": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        {
+          "name": "arrival revokes Motor and Busy on the completion call",
+          "ok": true,
+          "observed": [
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 1,
+              "Error": 0,
+              "TimeoutFault": 0
+            }
+          ]
+        },
+        {
+          "name": "normal run never latches an error",
+          "ok": true,
+          "observed": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "cargo moved in physical world",
+          "ok": true,
+          "observed": [
+            1.3999141454696655,
+            0.9499987363815308,
+            8.29100827104412e-05
+          ]
+        }
+      ],
+      "trace": [
+        {
+          "scan": 1,
+          "time_ms": 0,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": true,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 0,
+            "sim_time_s": 0,
+            "plant_time_s": 0.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.5717458128929138,
+                  0.9499990940093994,
+                  6.550662874360569e-06
+                ],
+                "quaternion": [
+                  1.393025286233751e-06,
+                  2.6501297156755754e-08,
+                  -1.4559757346432889e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 2,
+          "time_ms": 250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.5717458128929138,
+                  0.9499990940093994,
+                  6.550662874360569e-06
+                ],
+                "quaternion": [
+                  1.393025286233751e-06,
+                  2.6501297156755754e-08,
+                  -1.4559757346432889e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.8217285871505737,
+                  0.9499993324279785,
+                  2.808825774991419e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 3,
+          "time_ms": 500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.8217285871505737,
+                  0.9499993324279785,
+                  2.808825774991419e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.0717116594314575,
+                  0.9499993324279785,
+                  4.9972484703175724e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 4,
+          "time_ms": 750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.0717116594314575,
+                  0.9499993324279785,
+                  4.9972484703175724e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630704869708874,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.321695327758789,
+                  0.9499993324279785,
+                  7.185676804510877e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 5,
+          "time_ms": 1000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 1,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630704869708874,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.321695327758789,
+                  0.9499993324279785,
+                  7.185676804510877e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630828956906907,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.290995174320415e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 6,
+          "time_ms": 1250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630828956906907,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.290995174320415e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289575617433,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.291010453831404e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 7,
+          "time_ms": 1500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289575617433,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.291010453831404e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 8,
+          "time_ms": 1750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 9,
+          "time_ms": 2000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 10,
+          "time_ms": 2250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 11,
+          "time_ms": 2500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 12,
+          "time_ms": 2750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 180,
+            "sim_time_s": 3,
+            "plant_time_s": 3.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        }
+      ],
+      "runtime_source_sha256": "c887cdb5208f85bb4f38b1efc5719c2d240d8c90262504b9d88663beed56d41b"
+    },
+    {
+      "name": "physical-jam",
+      "status": "passed",
+      "source_sha256": "1ba2fd331d00e58748dce9086334ca96368a5fc308cc4bcd3e6235d4d883c49f",
+      "checks": [
+        {
+          "name": "start drives the real belt",
+          "ok": true,
+          "observed": {
+            "belt": 1
+          }
+        },
+        {
+          "name": "8 waiting calls expire on scan 9",
+          "ok": true,
+          "observed": 9
+        },
+        {
+          "name": "timeout revokes Motor and stays latched",
+          "ok": true,
+          "observed": [
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            },
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            },
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            },
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            }
+          ]
+        },
+        {
+          "name": "physical jam acted on cargo",
+          "ok": true,
+          "observed": {
+            "first_x": 0.39999884366989136,
+            "last_x": 0.39999884366989136
+          }
+        }
+      ],
+      "trace": [
+        {
+          "scan": 1,
+          "time_ms": 0,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": true,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 0,
+            "sim_time_s": 0,
+            "plant_time_s": 0.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 2,
+          "time_ms": 250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 3,
+          "time_ms": 500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 4,
+          "time_ms": 750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 5,
+          "time_ms": 1000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 6,
+          "time_ms": 1250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 7,
+          "time_ms": 1500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 8,
+          "time_ms": 1750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 9,
+          "time_ms": 2000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 10,
+          "time_ms": 2250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 11,
+          "time_ms": 2500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 12,
+          "time_ms": 2750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 180,
+            "sim_time_s": 3,
+            "plant_time_s": 3.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": true,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": true,
+            "sensor_stuck_off": false
+          }
+        }
+      ],
+      "runtime_source_sha256": "c887cdb5208f85bb4f38b1efc5719c2d240d8c90262504b9d88663beed56d41b"
+    },
+    {
+      "name": "sensor-stuck-off",
+      "status": "passed",
+      "source_sha256": "1ba2fd331d00e58748dce9086334ca96368a5fc308cc4bcd3e6235d4d883c49f",
+      "checks": [
+        {
+          "name": "start drives the real belt",
+          "ok": true,
+          "observed": {
+            "belt": 1
+          }
+        },
+        {
+          "name": "8 waiting calls expire on scan 9",
+          "ok": true,
+          "observed": 9
+        },
+        {
+          "name": "timeout revokes Motor and stays latched",
+          "ok": true,
+          "observed": [
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            },
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            },
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            },
+            {
+              "Motor": 0,
+              "Busy": 0,
+              "Done": 0,
+              "Error": 1,
+              "TimeoutFault": 1
+            }
+          ]
+        },
+        {
+          "name": "raw sensor saw cargo but PLC input was stuck off",
+          "ok": true,
+          "observed": [
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        }
+      ],
+      "trace": [
+        {
+          "scan": 1,
+          "time_ms": 0,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": true,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 0,
+            "sim_time_s": 0,
+            "plant_time_s": 0.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.5717458128929138,
+                  0.9499990940093994,
+                  6.550662874360569e-06
+                ],
+                "quaternion": [
+                  1.393025286233751e-06,
+                  2.6501297156755754e-08,
+                  -1.4559757346432889e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 2,
+          "time_ms": 250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.5717458128929138,
+                  0.9499990940093994,
+                  6.550662874360569e-06
+                ],
+                "quaternion": [
+                  1.393025286233751e-06,
+                  2.6501297156755754e-08,
+                  -1.4559757346432889e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.8217285871505737,
+                  0.9499993324279785,
+                  2.808825774991419e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 3,
+          "time_ms": 500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.8217285871505737,
+                  0.9499993324279785,
+                  2.808825774991419e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.0717116594314575,
+                  0.9499993324279785,
+                  4.9972484703175724e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 4,
+          "time_ms": 750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.0717116594314575,
+                  0.9499993324279785,
+                  4.9972484703175724e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630704869708874,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.321695327758789,
+                  0.9499993324279785,
+                  7.185676804510877e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 5,
+          "time_ms": 1000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630704869708874,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.321695327758789,
+                  0.9499993324279785,
+                  7.185676804510877e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.5716789960861206,
+                  0.9499993324279785,
+                  9.374106593895704e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 6,
+          "time_ms": 1250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.5716789960861206,
+                  0.9499993324279785,
+                  9.374106593895704e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.8216626644134521,
+                  0.9499993324279785,
+                  0.00011562526196939871
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 7,
+          "time_ms": 1500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.8216626644134521,
+                  0.9499993324279785,
+                  0.00011562526196939871
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.071645736694336,
+                  0.9499993324279785,
+                  0.00013750954531133175
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 8,
+          "time_ms": 1750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.071645736694336,
+                  0.9499993324279785,
+                  0.00013750954531133175
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.321627616882324,
+                  0.9499993324279785,
+                  0.0001593938795849681
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 9,
+          "time_ms": 2000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.321627616882324,
+                  0.9499993324279785,
+                  0.0001593938795849681
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.3998467922210693,
+                  0.9499987363815308,
+                  0.00017044693231582642
+                ],
+                "quaternion": [
+                  1.0268882988384576e-07,
+                  2.6498634397853493e-08,
+                  -2.9377122245932696e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 10,
+          "time_ms": 2250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.3998467922210693,
+                  0.9499987363815308,
+                  0.00017044693231582642
+                ],
+                "quaternion": [
+                  1.0268882988384576e-07,
+                  2.6498634397853493e-08,
+                  -2.9377122245932696e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.3998467922210693,
+                  0.9499987363815308,
+                  0.00017044690321199596
+                ],
+                "quaternion": [
+                  1.0268882988384576e-07,
+                  2.6498634397853493e-08,
+                  -2.9377122245932696e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 11,
+          "time_ms": 2500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.3998467922210693,
+                  0.9499987363815308,
+                  0.00017044690321199596
+                ],
+                "quaternion": [
+                  1.0268882988384576e-07,
+                  2.6498634397853493e-08,
+                  -2.9377122245932696e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.3998467922210693,
+                  0.9499987363815308,
+                  0.0001704468741081655
+                ],
+                "quaternion": [
+                  1.0268882988384576e-07,
+                  2.6498634397853493e-08,
+                  -2.9377122245932696e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        },
+        {
+          "scan": 12,
+          "time_ms": 2750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 1,
+            "TimeoutFault": 1
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.3998467922210693,
+                  0.9499987363815308,
+                  0.0001704468741081655
+                ],
+                "quaternion": [
+                  1.0268882988384576e-07,
+                  2.6498634397853493e-08,
+                  -2.9377122245932696e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 180,
+            "sim_time_s": 3,
+            "plant_time_s": 3.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  2.3998467922210693,
+                  0.9499987363815308,
+                  0.0001704468741081655
+                ],
+                "quaternion": [
+                  1.0268882988384576e-07,
+                  2.6498634397853493e-08,
+                  -2.9377122245932696e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": true
+          }
+        }
+      ],
+      "runtime_source_sha256": "c887cdb5208f85bb4f38b1efc5719c2d240d8c90262504b9d88663beed56d41b"
+    }
+  ],
+  "negative_control": {
+    "kind": "synthetic source mutation: suppress Done after original FB body",
+    "detected": true,
+    "run": {
+      "name": "negative-control-suppress-done",
+      "status": "failed",
+      "source_sha256": "215d804d95a949bae0061371d0728b57334d205350c3b3fbd709090a07d4b776",
+      "checks": [
+        {
+          "name": "start drives the real belt",
+          "ok": true,
+          "observed": {
+            "belt": 1
+          }
+        },
+        {
+          "name": "arrival produces exactly one Done before timeout",
+          "ok": false,
+          "observed": []
+        },
+        {
+          "name": "completion uses actual sampled sensor",
+          "ok": false,
+          "observed": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        {
+          "name": "arrival revokes Motor and Busy on the completion call",
+          "ok": false,
+          "observed": []
+        },
+        {
+          "name": "normal run never latches an error",
+          "ok": true,
+          "observed": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "cargo moved in physical world",
+          "ok": true,
+          "observed": [
+            1.3999141454696655,
+            0.9499987363815308,
+            8.29100827104412e-05
+          ]
+        }
+      ],
+      "trace": [
+        {
+          "scan": 1,
+          "time_ms": 0,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": true,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 0,
+            "sim_time_s": 0,
+            "plant_time_s": 0.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.39999884366989136,
+                  0.9499998688697815,
+                  1.6193902183658793e-06
+                ],
+                "quaternion": [
+                  -6.056654910935322e-08,
+                  5.445835839570923e-13,
+                  -4.907077482130262e-07,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.5717458128929138,
+                  0.9499990940093994,
+                  6.550662874360569e-06
+                ],
+                "quaternion": [
+                  1.393025286233751e-06,
+                  2.6501297156755754e-08,
+                  -1.4559757346432889e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 2,
+          "time_ms": 250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 15,
+            "sim_time_s": 0.25,
+            "plant_time_s": 0.75,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.5717458128929138,
+                  0.9499990940093994,
+                  6.550662874360569e-06
+                ],
+                "quaternion": [
+                  1.393025286233751e-06,
+                  2.6501297156755754e-08,
+                  -1.4559757346432889e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.8217285871505737,
+                  0.9499993324279785,
+                  2.808825774991419e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 3,
+          "time_ms": 500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 30,
+            "sim_time_s": 0.5,
+            "plant_time_s": 1,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  0.8217285871505737,
+                  0.9499993324279785,
+                  2.808825774991419e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.0717116594314575,
+                  0.9499993324279785,
+                  4.9972484703175724e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 4,
+          "time_ms": 750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": false
+          },
+          "native_outputs": {
+            "Motor": 1,
+            "Busy": 1,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 45,
+            "sim_time_s": 0.75,
+            "plant_time_s": 1.25,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": false
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": false,
+                  "distance": 1,
+                  "color": [
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.0717116594314575,
+                  0.9499993324279785,
+                  4.9972484703175724e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630704869708874,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.321695327758789,
+                  0.9499993324279785,
+                  7.185676804510877e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 5,
+          "time_ms": 1000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 60,
+            "sim_time_s": 1,
+            "plant_time_s": 1.5,
+            "tags": {
+              "MotorRunning": true,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 1
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630704869708874,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.321695327758789,
+                  0.9499993324279785,
+                  7.185676804510877e-05
+                ],
+                "quaternion": [
+                  -6.729948722750123e-07,
+                  2.649636421381274e-08,
+                  -2.857438630599063e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630828956906907,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.290995174320415e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 6,
+          "time_ms": 1250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 75,
+            "sim_time_s": 1.25,
+            "plant_time_s": 1.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.2630828956906907,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.290995174320415e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289575617433,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.291010453831404e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 7,
+          "time_ms": 1500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 90,
+            "sim_time_s": 1.5,
+            "plant_time_s": 2,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289575617433,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.291010453831404e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 8,
+          "time_ms": 1750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 105,
+            "sim_time_s": 1.75,
+            "plant_time_s": 2.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 9,
+          "time_ms": 2000,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 120,
+            "sim_time_s": 2,
+            "plant_time_s": 2.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 10,
+          "time_ms": 2250,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 135,
+            "sim_time_s": 2.25,
+            "plant_time_s": 2.75,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 11,
+          "time_ms": 2500,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 150,
+            "sim_time_s": 2.5,
+            "plant_time_s": 3,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        },
+        {
+          "scan": 12,
+          "time_ms": 2750,
+          "sampled_inputs": {
+            "Enable": true,
+            "Start": false,
+            "Stop": false,
+            "Reset": false,
+            "AtEnd": true
+          },
+          "native_outputs": {
+            "Motor": 0,
+            "Busy": 0,
+            "Done": 0,
+            "Error": 0,
+            "TimeoutFault": 0
+          },
+          "plant_before": {
+            "physics_hz": 60,
+            "physics_steps": 165,
+            "sim_time_s": 2.75,
+            "plant_time_s": 3.25,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "plant_after": {
+            "physics_hz": 60,
+            "physics_steps": 180,
+            "sim_time_s": 3,
+            "plant_time_s": 3.5,
+            "tags": {
+              "MotorRunning": false,
+              "AtEnd": true
+            },
+            "conveyor_speeds": {
+              "belt": 0
+            },
+            "beam_hits": {
+              "eye": {
+                "lens": {
+                  "hit": true,
+                  "distance": 0.26308289569796667,
+                  "color": [
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            },
+            "jammed": false,
+            "cargo": [
+              {
+                "id": 1,
+                "part": "cargo",
+                "position": [
+                  1.3999141454696655,
+                  0.9499987363815308,
+                  8.29100827104412e-05
+                ],
+                "quaternion": [
+                  1.0271742212353274e-07,
+                  2.6498632621496654e-08,
+                  -2.937527142421459e-06,
+                  1
+                ],
+                "half_extents": [
+                  0.15000000596046448,
+                  0.15000000596046448,
+                  0.15000000596046448
+                ]
+              }
+            ]
+          },
+          "faults": {
+            "jam": false,
+            "sensor_stuck_off": false
+          }
+        }
+      ],
+      "runtime_source_sha256": "24fcd59513dcd2f243d64fb29e6d216c56bfe9821416d60cb8d25f4486e9df4f"
+    }
+  },
+  "counts": {
+    "tests": 3,
+    "checks": 14,
+    "failed_checks": 0,
+    "negative_controls": 1,
+    "negative_controls_detected": 1
+  },
+  "visual_render": "not_run",
+  "oip_plc_execution": "not_used",
+  "elapsed_seconds": 8.748
+}

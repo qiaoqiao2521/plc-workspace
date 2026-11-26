@@ -1,0 +1,28 @@
+{
+  "schema": "plc-oip-result/v1",
+  "check": "oip-export",
+  "scope": "Reviewable OIP project/native source/evidence bundle",
+  "status": "passed",
+  "upstream_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+  "siemens_acceptance": "not_run",
+  "hardware_acceptance": "not_run",
+  "output": "/workspace/scratch/e3ad139ce787/plc-oip-review.zip",
+  "sha256": "de1387e572f64d6d6f8f0875bc6ed5bf395bb0263cd6d502af0fb58f9d3141e2",
+  "files": 16,
+  "project_identity": {
+    "sha256": "67bb875129ee80029b83373bd601faa64263d9aaa3d8bc41c979b947d64b4ff6",
+    "files": {
+      "parts/oip.belt-conveyor/behavior.js": "ee3070e13d956117b1bb602cdf74fdeb1866b358e94f4e2cdac9a159ebc0806b",
+      "parts/oip.belt-conveyor/manifest.json": "bc130c56d3f21fa8735915c35632d5b3bede37ea0ba112c2d8d5df46e9042a62",
+      "parts/oip.box/behavior.js": "1c61d1ac0199e95bd327edc848a37881214652394537827a3ac72a53e247d257",
+      "parts/oip.box/manifest.json": "e68f9b16737d43af5df9ec23757300001b488a6393fa52f79648538df816dda9",
+      "parts/oip.diffuse-sensor/behavior.js": "a79469a24ec94bd2d0b2f7529b3bbca4962ab185aa25079db3362b5f6a9cf642",
+      "parts/oip.diffuse-sensor/manifest.json": "9a41f94fd4bdcaf43f33e23caf83584d87dde966e150c097e277a5ed94d707a3",
+      "project.json": "71a59a7f89433d1b1d00315dcaf93f32b7e2f126189f09e736939bab962cbd09",
+      "scene.json": "3d592adfd274a9d2456f7f6b29173b3662ec744253fde74b7e52dcaf09224b63"
+    }
+  },
+  "source_sha256": "a3fbac0a1d84baeb0cf3116c664067671f48d5f4acfd3605c27888d893a708ef",
+  "native_execution": "passed",
+  "visual_render": "not_run"
+}

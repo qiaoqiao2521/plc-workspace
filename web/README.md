@@ -72,6 +72,12 @@ LAD numbering is supplied once by the viewer/exporter; redundant model title pre
 
 The default `--timeout 0` imposes no whole-task deadline. Set a positive number of seconds to bound the task. The API request I/O timeout is separately configurable (default 120, range 1–600). Cancellation revokes acceptance, unwinds native checks and wakes all waiting Agent stages; an API wait that cannot exit receives a local process-group kill after five seconds. This does not cancel remote provider billing or stop an independently owned Agent process. A disconnected page keeps its task/cancel controls and can retry polling without starting a second job.
 
+## Composable simulation
+
+The main 8766 bridge now also serves `simulator.html` and `/api/sim/*`. The page assembles typed switches, lamps, motors, conveyors, photoeyes, cylinders and workpieces; captures current engineering source; executes isolated native FBs; and displays three-dimensional equipment, faults, finite cases and counterexample traces. The same operations are exposed by `plc-agent.py simulate`, without a model API key. Four explicit profiles and an optional pinned Open Industry Project native-PLC/physical-plant bridge are documented in [PLC simulation](../docs/PLC_SIMULATION.md).
+
+Configure the same `SIM_IEC2C` / `SIM_MATIEC_LIB` environment before starting `npm --prefix web run dev`. The main and mobile navigation include this entry. The old fixed demonstration below remains distinct and does not stand in for the current generated source.
+
 ## Visible conveyor simulation
 
 Build the site, then run the fixed recorded conveyor FB through the existing native compiler:

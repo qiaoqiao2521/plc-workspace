@@ -1,0 +1,200 @@
+{
+  "schema": "plc-oip-result/v1",
+  "check": "oip-upstream-tests",
+  "scope": "OIP's own example and embedded PLC; not plc-workspace native-source acceptance",
+  "status": "passed",
+  "upstream_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+  "siemens_acceptance": "not_run",
+  "hardware_acceptance": "not_run",
+  "identity": {
+    "repository": "https://github.com/Open-Industry-Project/Open-Industry-Project.git",
+    "commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+    "package_lock_sha256": "d40c13994ed6bd557e9ff21de6df7745d917adaa3ff25047d7dc165f62e135b5",
+    "node": "v24.22.3",
+    "source_clean": true
+  },
+  "project": "/workspace/scratch/e3ad139ce787/tools/open-industry-project/examples/projects/start-stop-motor",
+  "project_identity": {
+    "sha256": "0784f19d687828c8e2e20e2d38ee6986560b381a97a379755dbb060afa0f8375",
+    "files": {
+      "parts/demo.motor/behavior.js": "0aaba978695a7acbdae2b381b0db8a8902345374dca29fae0659043610bfe547",
+      "parts/demo.motor/manifest.json": "17db58e95a08641db037d0ad24fbc338ea9edc49bf3da25981435c476d8b5ff5",
+      "plc/program.st": "f5e53e4e3d9ff059143cdbea68140ad3044d6dc6c27a1e2a3011578c838b22f9",
+      "project.json": "787bcb0c0882620f19af5272341f564837f9987ebf49f2c07d434ea388aec3b4",
+      "scene.json": "66320de2a9fa633202d329e76dbd4de1ab8f3b42a871dde5e80b7f6bf04b9934",
+      "tests/comms-loss.test.json": "5dbdcd0646ebd82eecbf9ed0943e0d0010073d502f09bfc4f9769c5d6a9cabfd",
+      "tests/feedback-lost.test.json": "35fc42a611003eabd74797541aff4481143b03b0393f8963030c1ac78961a76a",
+      "tests/motor-fault.test.json": "67ae0caa5a609c13226b373b7a3e18d229d84c7a813f6a4ef0af5d2ccf7e6ec7",
+      "tests/start-stop.test.json": "572f2f879bcdb42034f925369c8437d1e346f0ed795fd21c6ae667b19a79a63a"
+    }
+  },
+  "exit_code": 0,
+  "stderr": "",
+  "counts": {
+    "tests": 4,
+    "checks": 24,
+    "failed_checks": 0
+  },
+  "upstream": {
+    "ok": true,
+    "exitCode": 0,
+    "tests": [
+      {
+        "name": "start-stop.test.json",
+        "title": "Start/stop seal-in latches and unlatches the motor",
+        "ok": true,
+        "project": "Start/Stop Motor",
+        "duration": 2,
+        "checks": [
+          {
+            "ok": true,
+            "detail": "Running = false at t=0.2s"
+          },
+          {
+            "ok": true,
+            "detail": "Running reached = true at t=0.53s"
+          },
+          {
+            "ok": true,
+            "detail": "Running = true at t=1s"
+          },
+          {
+            "ok": true,
+            "detail": "Running = false at t=1.9s"
+          }
+        ],
+        "facts": [],
+        "timing": {
+          "setupMs": 42,
+          "simMs": 12,
+          "checkMs": 2
+        }
+      },
+      {
+        "name": "motor-fault.test.json",
+        "title": "A motor that stops responding trips MotorFault and stays off until Reset",
+        "ok": true,
+        "project": "Start/Stop Motor",
+        "duration": 4.5,
+        "checks": [
+          {
+            "ok": true,
+            "detail": "Running = true at t=0.9s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault = false at t=0.9s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault reached = true at t=1.53s"
+          },
+          {
+            "ok": true,
+            "detail": "Run = false at t=2s"
+          },
+          {
+            "ok": true,
+            "detail": "Running = false at t=2.9s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault = false at t=4.2s"
+          },
+          {
+            "ok": true,
+            "detail": "Running = true at t=4.2s"
+          }
+        ],
+        "facts": [],
+        "timing": {
+          "setupMs": 4,
+          "simMs": 4,
+          "checkMs": 2
+        }
+      },
+      {
+        "name": "feedback-lost.test.json",
+        "title": "A broken Running feedback wire trips MotorFault even though the motor runs",
+        "ok": true,
+        "project": "Start/Stop Motor",
+        "duration": 2.5,
+        "checks": [
+          {
+            "ok": true,
+            "detail": "Running = true at t=0.9s"
+          },
+          {
+            "ok": true,
+            "detail": "Running = false at t=1.2s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault reached = true at t=1.52s"
+          },
+          {
+            "ok": true,
+            "detail": "Run = false at t=2.2s"
+          }
+        ],
+        "facts": [],
+        "timing": {
+          "setupMs": 3,
+          "simMs": 3,
+          "checkMs": 1
+        }
+      },
+      {
+        "name": "comms-loss.test.json",
+        "title": "Losing the I/O connection trips MotorFault at once, and Reset cannot clear it until comms return",
+        "ok": true,
+        "project": "Start/Stop Motor",
+        "duration": 3.8,
+        "checks": [
+          {
+            "ok": true,
+            "detail": "Running = true at t=0.9s"
+          },
+          {
+            "ok": true,
+            "detail": "IoFault = false at t=0.9s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault reached = true at t=1.02s"
+          },
+          {
+            "ok": true,
+            "detail": "Run = false at t=1.2s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault = true at t=1.55s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault = true at t=1.8s"
+          },
+          {
+            "ok": true,
+            "detail": "Running = false at t=2.5s"
+          },
+          {
+            "ok": true,
+            "detail": "MotorFault = false at t=3.5s"
+          },
+          {
+            "ok": true,
+            "detail": "Running = true at t=3.5s"
+          }
+        ],
+        "facts": [],
+        "timing": {
+          "setupMs": 4,
+          "simMs": 3,
+          "checkMs": 1
+        }
+      }
+    ]
+  }
+}

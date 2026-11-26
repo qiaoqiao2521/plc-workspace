@@ -1,0 +1,1615 @@
+{
+  "schema_version": "plc-simulation-evidence.v1",
+  "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+  "profile": "conveyor-pusher-v1",
+  "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+  "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+  "contract_sha256": "d4365f61686f31aed2b8ffae0748519e849ce55735f7e5342289fb0806e81215",
+  "request_fingerprint": null,
+  "request_id": null,
+  "program": {
+    "profile": "conveyor-pusher-v1",
+    "source": "FUNCTION_BLOCK FB_TransferPusher\nVAR_INPUT\n    Enable : BOOL;\n    Start : BOOL;\n    Stop : BOOL;\n    Reset : BOOL;\n    AtEnd : BOOL;\n    Extended : BOOL;\n    Retracted : BOOL;\nEND_VAR\nVAR_OUTPUT\n    Motor : BOOL;\n    Extend : BOOL;\n    Retract : BOOL;\n    Busy : BOOL;\n    Done : BOOL;\n    Error : BOOL;\n    TimeoutFault : BOOL;\n    State : UINT;\n    WaitCount : UINT;\nEND_VAR\nVAR\n    phase : UINT := 0;\n    waitScans : UINT := 0;\n    fault : BOOL := FALSE;\n    timeout : BOOL := FALSE;\n    previousStart : BOOL := FALSE;\n    previousReset : BOOL := FALSE;\nEND_VAR\nVAR_TEMP\n    startEdge : BOOL;\n    resetEdge : BOOL;\n    nextPhase : UINT;\n    nextWait : UINT;\n    nextFault : BOOL;\n    nextTimeout : BOOL;\n    finished : BOOL;\nEND_VAR\nstartEdge := Start AND NOT previousStart;\nresetEdge := Reset AND NOT previousReset;\npreviousStart := Start;\npreviousReset := Reset;\nnextPhase := phase;\nnextWait := waitScans;\nnextFault := fault;\nnextTimeout := timeout;\nfinished := FALSE;\n\nIF Enable AND NOT Stop AND NOT Start AND resetEdge THEN\n    nextPhase := 0;\n    nextWait := 0;\n    nextFault := FALSE;\n    nextTimeout := FALSE;\nELSIF fault THEN\n    nextPhase := 900;\nELSIF NOT Enable OR Stop OR Reset THEN\n    nextPhase := 0;\n    nextWait := 0;\nELSIF Extended AND Retracted THEN\n    nextPhase := 900;\n    nextFault := TRUE;\nELSIF phase = 0 THEN\n    IF startEdge AND Retracted THEN\n        nextPhase := 1;\n        nextWait := 0;\n    END_IF;\nELSIF phase = 1 THEN\n    IF AtEnd THEN\n        nextPhase := 2;\n        nextWait := 0;\n    ELSE\n        nextWait := waitScans + 1;\n        IF nextWait >= 12 THEN\n            nextPhase := 900;\n            nextFault := TRUE;\n            nextTimeout := TRUE;\n        END_IF;\n    END_IF;\nELSIF phase = 2 THEN\n    IF Extended THEN\n        nextPhase := 3;\n        nextWait := 0;\n    ELSE\n        nextWait := waitScans + 1;\n        IF nextWait >= 12 THEN\n            nextPhase := 900;\n            nextFault := TRUE;\n            nextTimeout := TRUE;\n        END_IF;\n    END_IF;\nELSIF phase = 3 THEN\n    IF Retracted THEN\n        nextPhase := 0;\n        nextWait := 0;\n        finished := TRUE;\n    ELSE\n        nextWait := waitScans + 1;\n        IF nextWait >= 12 THEN\n            nextPhase := 900;\n            nextFault := TRUE;\n            nextTimeout := TRUE;\n        END_IF;\n    END_IF;\nELSE\n    nextPhase := 900;\n    nextFault := TRUE;\nEND_IF;\n\nphase := nextPhase;\nwaitScans := nextWait;\nfault := nextFault;\ntimeout := nextTimeout;\nMotor := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 1);\nExtend := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 2);\nRetract := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 3);\nBusy := Enable AND NOT Stop AND NOT Reset AND NOT fault AND ((phase = 1) OR (phase = 2) OR (phase = 3));\nDone := finished AND NOT fault;\nError := fault;\nTimeoutFault := timeout;\nState := phase;\nWaitCount := waitScans;\nEND_FUNCTION_BLOCK\n",
+    "filename": "transfer-pusher.scl"
+  },
+  "scene": {
+    "schema_version": "plc-scene.v1",
+    "id": "agent-transfer-pusher-status",
+    "label": "Agent 实际验收：输送推料与电机反馈灯",
+    "components": [
+      {
+        "id": "enable",
+        "type": "switch",
+        "position": [
+          -2.5,
+          0,
+          1.9
+        ],
+        "parameters": {
+          "initial": true
+        }
+      },
+      {
+        "id": "start",
+        "type": "switch",
+        "position": [
+          -1.8,
+          0,
+          1.9
+        ],
+        "parameters": {
+          "initial": false
+        }
+      },
+      {
+        "id": "stop",
+        "type": "switch",
+        "position": [
+          -1.1,
+          0,
+          1.9
+        ],
+        "parameters": {
+          "initial": false
+        }
+      },
+      {
+        "id": "reset",
+        "type": "switch",
+        "position": [
+          -0.4,
+          0,
+          1.9
+        ],
+        "parameters": {
+          "initial": false
+        }
+      },
+      {
+        "id": "drive",
+        "type": "motor",
+        "position": [
+          -1.6,
+          0,
+          0.8
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "belt",
+        "type": "conveyor",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "parameters": {
+          "step": 0.2,
+          "initial_position": 0
+        }
+      },
+      {
+        "id": "eye",
+        "type": "photoeye",
+        "position": [
+          1.8,
+          0,
+          -0.75
+        ],
+        "parameters": {
+          "threshold": 1
+        }
+      },
+      {
+        "id": "part",
+        "type": "workpiece",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "runlamp",
+        "type": "lamp",
+        "position": [
+          2.6,
+          0,
+          1.0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "pusher",
+        "type": "cylinder",
+        "position": [
+          1.8,
+          0,
+          -0.95
+        ],
+        "parameters": {
+          "step": 0.25,
+          "initial_position": 0
+        }
+      },
+      {
+        "id": "motor_status",
+        "type": "lamp",
+        "position": [
+          2.6,
+          0,
+          2.0
+        ],
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "from": "drive.running",
+        "to": "belt.run"
+      },
+      {
+        "from": "belt.position",
+        "to": "eye.position"
+      },
+      {
+        "from": "belt.position",
+        "to": "part.position"
+      },
+      {
+        "from": "drive.running",
+        "to": "motor_status.value"
+      },
+      {
+        "from": "enable.value",
+        "to": "drive.command"
+      }
+    ],
+    "bindings": {
+      "inputs": {
+        "Enable": "enable.value",
+        "Start": "start.value",
+        "Stop": "stop.value",
+        "Reset": "reset.value",
+        "AtEnd": "eye.detected",
+        "Extended": "pusher.extended",
+        "Retracted": "pusher.retracted"
+      },
+      "outputs": {
+        "Motor": [
+          "runlamp.value"
+        ],
+        "Extend": [
+          "pusher.extend"
+        ],
+        "Retract": [
+          "pusher.retract"
+        ]
+      }
+    }
+  },
+  "trace": [
+    {
+      "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+      "scan": 1,
+      "profile": "conveyor-pusher-v1",
+      "step_unit": "FB invocation",
+      "physical_time": false,
+      "inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "outputs": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0,
+        "Extend": 0,
+        "Retract": 0,
+        "State": 1,
+        "WaitCount": 0
+      },
+      "plant_inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "position": 0.2,
+      "state": 1,
+      "components": [
+        {
+          "id": "enable",
+          "type": "switch",
+          "position": [
+            -2.5,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": true
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "start",
+          "type": "switch",
+          "position": [
+            -1.8,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "stop",
+          "type": "switch",
+          "position": [
+            -1.1,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "reset",
+          "type": "switch",
+          "position": [
+            -0.4,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "drive",
+          "type": "motor",
+          "position": [
+            -1.6,
+            0,
+            0.8
+          ],
+          "parameters": {},
+          "state": {
+            "command": true,
+            "running": true
+          }
+        },
+        {
+          "id": "belt",
+          "type": "conveyor",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {
+            "step": 0.2,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0.2,
+            "running": true,
+            "jammed": false
+          }
+        },
+        {
+          "id": "eye",
+          "type": "photoeye",
+          "position": [
+            1.8,
+            0,
+            -0.75
+          ],
+          "parameters": {
+            "threshold": 1
+          },
+          "state": {
+            "detected": false,
+            "position": 0.2
+          }
+        },
+        {
+          "id": "part",
+          "type": "workpiece",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {},
+          "state": {
+            "position": 0.2
+          }
+        },
+        {
+          "id": "runlamp",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            1.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "pusher",
+          "type": "cylinder",
+          "position": [
+            1.8,
+            0,
+            -0.95
+          ],
+          "parameters": {
+            "step": 0.25,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0,
+            "extended": false,
+            "retracted": true,
+            "extend": false,
+            "retract": false,
+            "conflict": false,
+            "jammed": false
+          }
+        },
+        {
+          "id": "motor_status",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            2.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        }
+      ],
+      "faults": {},
+      "events": [],
+      "halted": null,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "request_fingerprint": null,
+      "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance"
+    },
+    {
+      "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+      "scan": 2,
+      "profile": "conveyor-pusher-v1",
+      "step_unit": "FB invocation",
+      "physical_time": false,
+      "inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": true,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "outputs": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0,
+        "Extend": 0,
+        "Retract": 0,
+        "State": 0,
+        "WaitCount": 0
+      },
+      "plant_inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": true,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "position": 0.4,
+      "state": 0,
+      "components": [
+        {
+          "id": "enable",
+          "type": "switch",
+          "position": [
+            -2.5,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": true
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "start",
+          "type": "switch",
+          "position": [
+            -1.8,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "stop",
+          "type": "switch",
+          "position": [
+            -1.1,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "reset",
+          "type": "switch",
+          "position": [
+            -0.4,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "drive",
+          "type": "motor",
+          "position": [
+            -1.6,
+            0,
+            0.8
+          ],
+          "parameters": {},
+          "state": {
+            "command": true,
+            "running": true
+          }
+        },
+        {
+          "id": "belt",
+          "type": "conveyor",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {
+            "step": 0.2,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0.4,
+            "running": true,
+            "jammed": false
+          }
+        },
+        {
+          "id": "eye",
+          "type": "photoeye",
+          "position": [
+            1.8,
+            0,
+            -0.75
+          ],
+          "parameters": {
+            "threshold": 1
+          },
+          "state": {
+            "detected": false,
+            "position": 0.4
+          }
+        },
+        {
+          "id": "part",
+          "type": "workpiece",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {},
+          "state": {
+            "position": 0.4
+          }
+        },
+        {
+          "id": "runlamp",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            1.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "pusher",
+          "type": "cylinder",
+          "position": [
+            1.8,
+            0,
+            -0.95
+          ],
+          "parameters": {
+            "step": 0.25,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0,
+            "extended": false,
+            "retracted": true,
+            "extend": false,
+            "retract": false,
+            "conflict": false,
+            "jammed": false
+          }
+        },
+        {
+          "id": "motor_status",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            2.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        }
+      ],
+      "faults": {},
+      "events": [],
+      "halted": null,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "request_fingerprint": null,
+      "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance"
+    },
+    {
+      "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+      "scan": 3,
+      "profile": "conveyor-pusher-v1",
+      "step_unit": "FB invocation",
+      "physical_time": false,
+      "inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "outputs": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0,
+        "Extend": 0,
+        "Retract": 0,
+        "State": 0,
+        "WaitCount": 0
+      },
+      "plant_inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "position": 0.6,
+      "state": 0,
+      "components": [
+        {
+          "id": "enable",
+          "type": "switch",
+          "position": [
+            -2.5,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": true
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "start",
+          "type": "switch",
+          "position": [
+            -1.8,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "stop",
+          "type": "switch",
+          "position": [
+            -1.1,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "reset",
+          "type": "switch",
+          "position": [
+            -0.4,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "drive",
+          "type": "motor",
+          "position": [
+            -1.6,
+            0,
+            0.8
+          ],
+          "parameters": {},
+          "state": {
+            "command": true,
+            "running": true
+          }
+        },
+        {
+          "id": "belt",
+          "type": "conveyor",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {
+            "step": 0.2,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0.6,
+            "running": true,
+            "jammed": false
+          }
+        },
+        {
+          "id": "eye",
+          "type": "photoeye",
+          "position": [
+            1.8,
+            0,
+            -0.75
+          ],
+          "parameters": {
+            "threshold": 1
+          },
+          "state": {
+            "detected": false,
+            "position": 0.6
+          }
+        },
+        {
+          "id": "part",
+          "type": "workpiece",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {},
+          "state": {
+            "position": 0.6
+          }
+        },
+        {
+          "id": "runlamp",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            1.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "pusher",
+          "type": "cylinder",
+          "position": [
+            1.8,
+            0,
+            -0.95
+          ],
+          "parameters": {
+            "step": 0.25,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0,
+            "extended": false,
+            "retracted": true,
+            "extend": false,
+            "retract": false,
+            "conflict": false,
+            "jammed": false
+          }
+        },
+        {
+          "id": "motor_status",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            2.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        }
+      ],
+      "faults": {},
+      "events": [],
+      "halted": null,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "request_fingerprint": null,
+      "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance"
+    },
+    {
+      "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+      "scan": 4,
+      "profile": "conveyor-pusher-v1",
+      "step_unit": "FB invocation",
+      "physical_time": false,
+      "inputs": {
+        "Enable": true,
+        "Start": false,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "outputs": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0,
+        "Extend": 0,
+        "Retract": 0,
+        "State": 0,
+        "WaitCount": 0
+      },
+      "plant_inputs": {
+        "Enable": true,
+        "Start": false,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "position": 0.8,
+      "state": 0,
+      "components": [
+        {
+          "id": "enable",
+          "type": "switch",
+          "position": [
+            -2.5,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": true
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "start",
+          "type": "switch",
+          "position": [
+            -1.8,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "stop",
+          "type": "switch",
+          "position": [
+            -1.1,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "reset",
+          "type": "switch",
+          "position": [
+            -0.4,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "drive",
+          "type": "motor",
+          "position": [
+            -1.6,
+            0,
+            0.8
+          ],
+          "parameters": {},
+          "state": {
+            "command": true,
+            "running": true
+          }
+        },
+        {
+          "id": "belt",
+          "type": "conveyor",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {
+            "step": 0.2,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0.8,
+            "running": true,
+            "jammed": false
+          }
+        },
+        {
+          "id": "eye",
+          "type": "photoeye",
+          "position": [
+            1.8,
+            0,
+            -0.75
+          ],
+          "parameters": {
+            "threshold": 1
+          },
+          "state": {
+            "detected": false,
+            "position": 0.8
+          }
+        },
+        {
+          "id": "part",
+          "type": "workpiece",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {},
+          "state": {
+            "position": 0.8
+          }
+        },
+        {
+          "id": "runlamp",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            1.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "pusher",
+          "type": "cylinder",
+          "position": [
+            1.8,
+            0,
+            -0.95
+          ],
+          "parameters": {
+            "step": 0.25,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0,
+            "extended": false,
+            "retracted": true,
+            "extend": false,
+            "retract": false,
+            "conflict": false,
+            "jammed": false
+          }
+        },
+        {
+          "id": "motor_status",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            2.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        }
+      ],
+      "faults": {},
+      "events": [],
+      "halted": null,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "request_fingerprint": null,
+      "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance"
+    },
+    {
+      "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+      "scan": 5,
+      "profile": "conveyor-pusher-v1",
+      "step_unit": "FB invocation",
+      "physical_time": false,
+      "inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "outputs": {
+        "Motor": 1,
+        "Busy": 1,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0,
+        "Extend": 0,
+        "Retract": 0,
+        "State": 1,
+        "WaitCount": 0
+      },
+      "plant_inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": false,
+        "Reset": false,
+        "AtEnd": true,
+        "Extended": false,
+        "Retracted": true
+      },
+      "position": 1.0,
+      "state": 1,
+      "components": [
+        {
+          "id": "enable",
+          "type": "switch",
+          "position": [
+            -2.5,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": true
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "start",
+          "type": "switch",
+          "position": [
+            -1.8,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "stop",
+          "type": "switch",
+          "position": [
+            -1.1,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "reset",
+          "type": "switch",
+          "position": [
+            -0.4,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "drive",
+          "type": "motor",
+          "position": [
+            -1.6,
+            0,
+            0.8
+          ],
+          "parameters": {},
+          "state": {
+            "command": true,
+            "running": true
+          }
+        },
+        {
+          "id": "belt",
+          "type": "conveyor",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {
+            "step": 0.2,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 1.0,
+            "running": true,
+            "jammed": false
+          }
+        },
+        {
+          "id": "eye",
+          "type": "photoeye",
+          "position": [
+            1.8,
+            0,
+            -0.75
+          ],
+          "parameters": {
+            "threshold": 1
+          },
+          "state": {
+            "detected": true,
+            "position": 1.0
+          }
+        },
+        {
+          "id": "part",
+          "type": "workpiece",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {},
+          "state": {
+            "position": 1.0
+          }
+        },
+        {
+          "id": "runlamp",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            1.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "pusher",
+          "type": "cylinder",
+          "position": [
+            1.8,
+            0,
+            -0.95
+          ],
+          "parameters": {
+            "step": 0.25,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0,
+            "extended": false,
+            "retracted": true,
+            "extend": false,
+            "retract": false,
+            "conflict": false,
+            "jammed": false
+          }
+        },
+        {
+          "id": "motor_status",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            2.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        }
+      ],
+      "faults": {},
+      "events": [
+        {
+          "type": "state_change",
+          "component": "eye",
+          "signal": "detected",
+          "value": true
+        }
+      ],
+      "halted": null,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "request_fingerprint": null,
+      "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance"
+    }
+  ],
+  "halted": null,
+  "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance",
+  "status": "fail",
+  "acceptance": {
+    "simulation_case": false,
+    "generation": false,
+    "tia": false,
+    "machine": false
+  },
+  "note": "Independent finite case assertions only; no generation/platform acceptance",
+  "case": "stop-restart",
+  "checks": [
+    {
+      "name": "actuator_interlock",
+      "status": "pass",
+      "scan": 1,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "cylinder_command_interlock:pusher",
+      "status": "pass",
+      "scan": 1,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "initial_start",
+      "status": "pass",
+      "scan": 1,
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "name": "actuator_interlock",
+      "status": "pass",
+      "scan": 2,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "cylinder_command_interlock:pusher",
+      "status": "pass",
+      "scan": 2,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "simultaneous_stop_revokes_actions",
+      "status": "fail",
+      "scan": 2,
+      "expected": true,
+      "actual": false
+    },
+    {
+      "name": "actuator_interlock",
+      "status": "pass",
+      "scan": 3,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "cylinder_command_interlock:pusher",
+      "status": "pass",
+      "scan": 3,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "held_start_after_stop_does_not_restart",
+      "status": "fail",
+      "scan": 3,
+      "expected": true,
+      "actual": false
+    },
+    {
+      "name": "actuator_interlock",
+      "status": "pass",
+      "scan": 4,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "cylinder_command_interlock:pusher",
+      "status": "pass",
+      "scan": 4,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "actuator_interlock",
+      "status": "pass",
+      "scan": 5,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "name": "cylinder_command_interlock:pusher",
+      "status": "pass",
+      "scan": 5,
+      "expected": false,
+      "actual": false
+    },
+    {
+      "name": "fresh_edge_restarts",
+      "status": "pass",
+      "scan": 5,
+      "expected": 1,
+      "actual": 1
+    }
+  ],
+  "first_failure": {
+    "name": "simultaneous_stop_revokes_actions",
+    "status": "fail",
+    "scan": 2,
+    "expected": true,
+    "actual": false,
+    "snapshot": {
+      "session": "bf47441d-28cc-42e7-9b3c-822e794c204a",
+      "scan": 2,
+      "profile": "conveyor-pusher-v1",
+      "step_unit": "FB invocation",
+      "physical_time": false,
+      "inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": true,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "outputs": {
+        "Motor": 0,
+        "Busy": 0,
+        "Done": 0,
+        "Error": 0,
+        "TimeoutFault": 0,
+        "Extend": 0,
+        "Retract": 0,
+        "State": 0,
+        "WaitCount": 0
+      },
+      "plant_inputs": {
+        "Enable": true,
+        "Start": true,
+        "Stop": true,
+        "Reset": false,
+        "AtEnd": false,
+        "Extended": false,
+        "Retracted": true
+      },
+      "position": 0.4,
+      "state": 0,
+      "components": [
+        {
+          "id": "enable",
+          "type": "switch",
+          "position": [
+            -2.5,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": true
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "start",
+          "type": "switch",
+          "position": [
+            -1.8,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "stop",
+          "type": "switch",
+          "position": [
+            -1.1,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": true
+          }
+        },
+        {
+          "id": "reset",
+          "type": "switch",
+          "position": [
+            -0.4,
+            0,
+            1.9
+          ],
+          "parameters": {
+            "initial": false
+          },
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "drive",
+          "type": "motor",
+          "position": [
+            -1.6,
+            0,
+            0.8
+          ],
+          "parameters": {},
+          "state": {
+            "command": true,
+            "running": true
+          }
+        },
+        {
+          "id": "belt",
+          "type": "conveyor",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {
+            "step": 0.2,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0.4,
+            "running": true,
+            "jammed": false
+          }
+        },
+        {
+          "id": "eye",
+          "type": "photoeye",
+          "position": [
+            1.8,
+            0,
+            -0.75
+          ],
+          "parameters": {
+            "threshold": 1
+          },
+          "state": {
+            "detected": false,
+            "position": 0.4
+          }
+        },
+        {
+          "id": "part",
+          "type": "workpiece",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "parameters": {},
+          "state": {
+            "position": 0.4
+          }
+        },
+        {
+          "id": "runlamp",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            1.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": false
+          }
+        },
+        {
+          "id": "pusher",
+          "type": "cylinder",
+          "position": [
+            1.8,
+            0,
+            -0.95
+          ],
+          "parameters": {
+            "step": 0.25,
+            "initial_position": 0
+          },
+          "state": {
+            "position": 0,
+            "extended": false,
+            "retracted": true,
+            "extend": false,
+            "retract": false,
+            "conflict": false,
+            "jammed": false
+          }
+        },
+        {
+          "id": "motor_status",
+          "type": "lamp",
+          "position": [
+            2.6,
+            0,
+            2.0
+          ],
+          "parameters": {},
+          "state": {
+            "value": true
+          }
+        }
+      ],
+      "faults": {},
+      "events": [],
+      "halted": null,
+      "source_sha256": "db95952b2e457c9f8a7b5a2b37990b666340d3538b83101f3bff80e80475c3db",
+      "scene_sha256": "d9f09f3a0094dd590e48678557e9e5e8be3d18bc6bd069019d924293986b7356",
+      "request_fingerprint": null,
+      "scope": "Actual captured ST via matiec/GCC, one persistent FB call per step; synthetic scan-count plant, not physical dynamics, real-time TON, LAD execution, TIA/PLCSIM, retention, safety or machine acceptance"
+    }
+  }
+}

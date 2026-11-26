@@ -1,0 +1,122 @@
+FUNCTION_BLOCK FB_TransferPusher
+VAR_INPUT
+    Enable : BOOL;
+    Start : BOOL;
+    Stop : BOOL;
+    Reset : BOOL;
+    AtEnd : BOOL;
+    Extended : BOOL;
+    Retracted : BOOL;
+END_VAR
+VAR_OUTPUT
+    Motor : BOOL;
+    Extend : BOOL;
+    Retract : BOOL;
+    Busy : BOOL;
+    Done : BOOL;
+    Error : BOOL;
+    TimeoutFault : BOOL;
+    State : UINT;
+    WaitCount : UINT;
+END_VAR
+VAR
+    phase : UINT := 0;
+    waitScans : UINT := 0;
+    fault : BOOL := FALSE;
+    timeout : BOOL := FALSE;
+    previousStart : BOOL := FALSE;
+    previousReset : BOOL := FALSE;
+END_VAR
+VAR_TEMP
+    startEdge : BOOL;
+    resetEdge : BOOL;
+    nextPhase : UINT;
+    nextWait : UINT;
+    nextFault : BOOL;
+    nextTimeout : BOOL;
+    finished : BOOL;
+END_VAR
+startEdge := Start AND NOT previousStart;
+resetEdge := Reset AND NOT previousReset;
+previousStart := Start;
+previousReset := Reset;
+nextPhase := phase;
+nextWait := waitScans;
+nextFault := fault;
+nextTimeout := timeout;
+finished := FALSE;
+
+IF Enable AND NOT Stop AND NOT Start AND resetEdge THEN
+    nextPhase := 0;
+    nextWait := 0;
+    nextFault := FALSE;
+    nextTimeout := FALSE;
+ELSIF fault THEN
+    nextPhase := 900;
+ELSIF NOT Enable OR Stop OR Reset THEN
+    nextPhase := 0;
+    nextWait := 0;
+ELSIF Extended AND Retracted THEN
+    nextPhase := 900;
+    nextFault := TRUE;
+ELSIF phase = 0 THEN
+    IF startEdge AND Retracted THEN
+        nextPhase := 1;
+        nextWait := 0;
+    END_IF;
+ELSIF phase = 1 THEN
+    IF AtEnd THEN
+        nextPhase := 2;
+        nextWait := 0;
+    ELSE
+        nextWait := waitScans + 1;
+        IF nextWait >= 12 THEN
+            nextPhase := 900;
+            nextFault := TRUE;
+            nextTimeout := TRUE;
+        END_IF;
+    END_IF;
+ELSIF phase = 2 THEN
+    IF Extended THEN
+        nextPhase := 3;
+        nextWait := 0;
+    ELSE
+        nextWait := waitScans + 1;
+        IF nextWait >= 12 THEN
+            nextPhase := 900;
+            nextFault := TRUE;
+            nextTimeout := TRUE;
+        END_IF;
+    END_IF;
+ELSIF phase = 3 THEN
+    IF Retracted THEN
+        nextPhase := 0;
+        nextWait := 0;
+        finished := TRUE;
+    ELSE
+        nextWait := waitScans + 1;
+        IF nextWait >= 12 THEN
+            nextPhase := 900;
+            nextFault := TRUE;
+            nextTimeout := TRUE;
+        END_IF;
+    END_IF;
+ELSE
+    nextPhase := 900;
+    nextFault := TRUE;
+END_IF;
+
+phase := nextPhase;
+waitScans := nextWait;
+fault := nextFault;
+timeout := nextTimeout;
+Motor := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 1);
+Extend := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 2);
+Retract := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 3);
+Busy := Enable AND NOT Stop AND NOT Reset AND NOT fault AND ((phase = 1) OR (phase = 2) OR (phase = 3));
+Done := finished AND NOT fault;
+Error := fault;
+TimeoutFault := timeout;
+State := phase;
+WaitCount := waitScans;
+END_FUNCTION_BLOCK

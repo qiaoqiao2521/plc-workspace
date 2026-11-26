@@ -1,0 +1,24 @@
+{
+  "schema": "plc-external-source/v1",
+  "name": "Open Industry Project",
+  "repository": "https://github.com/Open-Industry-Project/Open-Industry-Project.git",
+  "commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+  "commit_date": "2026-11-25T22:22:53-05:00",
+  "license": "MIT",
+  "node_major_minimum": 24,
+  "files_sha256": {
+    "LICENSE": "7df94d38c1acf252388708fa243383f1b2f22ad4e5eedb3caeaeda83c81b0e50",
+    "THIRD_PARTY_NOTICES.md": "a5d60a18102ef668be4541d61065479e07bc8d8f912d55947752d30255b43c8b",
+    "package-lock.json": "d40c13994ed6bd557e9ff21de6df7745d917adaa3ff25047d7dc165f62e135b5"
+  },
+  "entry_points": {
+    "catalog": "scripts/catalog.mjs",
+    "assemble": "scripts/add-part.mjs",
+    "project_tests": "scripts/test-project.mjs",
+    "plant": "src/sim/world.ts",
+    "project_reader": "scripts/lib/projectFolderFiles.mjs",
+    "project_codec": "src/core/project/projectFolder.ts"
+  },
+  "scope": "Pinned optional plant and upstream self-test adapter. Native PLC source stays in plc-workspace; no vendor PLC or hardware connection.",
+  "compatibility": "Internal SimWorld tag/step API is pinned to this commit, not a claimed stable upstream API. Desktop MCP and browser authoring are separate from this cloud headless adapter."
+}

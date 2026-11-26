@@ -1,0 +1,66 @@
+{
+  "schema": "plc-browser-smoke/v1",
+  "status": "pass",
+  "timestamp": "2026-11-26T05:12:49.214Z",
+  "browser": "158.0.8127.0",
+  "checks": [
+    {
+      "name": "ten component scene renders with actual WebGL",
+      "status": "pass"
+    },
+    {
+      "name": "native pusher scans, fault injection, independent case and replay",
+      "status": "pass"
+    },
+    {
+      "name": "latch has supported controls and cases without invented State",
+      "status": "pass"
+    },
+    {
+      "name": "added lamp receives typed PLC output, replay and scene JSON roundtrip",
+      "status": "pass"
+    },
+    {
+      "name": "component removal invalidates the old run",
+      "status": "pass"
+    },
+    {
+      "name": "390px mobile has no horizontal overflow and a visible generation entry",
+      "status": "pass"
+    },
+    {
+      "name": "generation hands off exact source and request without acceptance",
+      "status": "pass"
+    },
+    {
+      "name": "current source executes in OIP physical review from UI",
+      "status": "pass"
+    },
+    {
+      "name": "changed timeout produces a real first counterexample at scan 9",
+      "status": "pass"
+    },
+    {
+      "name": "engineering import rejects tampered identity and edits invalidate handoff",
+      "status": "pass"
+    },
+    {
+      "name": "no uncaught browser errors during the complete flow",
+      "status": "pass"
+    },
+    {
+      "name": "missing-native",
+      "status": "pass",
+      "message": "not_run · PLC 执行工具尚未就绪。现在可以组装场景，安装运行工具并重启工作台服务后再执行验证。"
+    },
+    {
+      "name": "static",
+      "status": "pass",
+      "message": "此页面没有连接仿真服务。请运行同一工程工作台的服务后重试。"
+    }
+  ],
+  "physical_review": "pass",
+  "scope": "Real browser + native matiec/GCC simulation + optional OIP. No Siemens or hardware acceptance.",
+  "engineering_source_sha256": "a3fbac0a1d84baeb0cf3116c664067671f48d5f4acfd3605c27888d893a708ef",
+  "engineering_error_message": "工程需求指纹不匹配，文件可能已被改写。"
+}

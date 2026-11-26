@@ -1,4 +1,4 @@
-import {mkdir,copyFile,readFile,rm} from 'node:fs/promises';
+import {mkdir,copyFile,readFile,rm,cp} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -18,6 +18,8 @@ for(const [key,relative] of [['projection_manifest_sha256','projects/FB_MainSequ
 }
 await rm(path.join(root,'dist'),{recursive:true,force:true});await mkdir(path.join(root,'dist/data'),{recursive:true});
 for(const f of ['index.html','validation.html','style.css','generation.css','app.js','generation.js','generation-model.js','lad-graph.js','simulation.html','simulation.css','simulation.js','simulation-3d.js','favicon.svg','data/traces.json','data/generation-result.schema.json','data/logic-ir.schema.json','data/latch-start-stop-brief.json'])await copyFile(path.join(root,f),path.join(root,'dist',f));
+for(const f of ['simulator.html','simulator.css','simulator.js','simulator-3d.js'])await copyFile(path.join(root,f),path.join(root,'dist',f));
+await cp(path.join(root,'data/simulation'),path.join(root,'dist/data/simulation'),{recursive:true});
 await copyFile(path.join(root,'../plans/plc-generation-ui/user-eval/candidates/FB_ConveyorPack.scl'),path.join(root,'dist/simulation-source.scl'));
 await mkdir(path.join(root,'dist/vendor/three'),{recursive:true});
 for(const [from,to] of [['build/three.module.js','three.module.js'],['build/three.core.js','three.core.js'],['examples/jsm/controls/OrbitControls.js','OrbitControls.js'],['LICENSE','LICENSE']])await copyFile(path.join(root,'node_modules/three',from),path.join(root,'dist/vendor/three',to));

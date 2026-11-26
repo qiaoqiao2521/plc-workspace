@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17364b">
+  <meta name="description" content="组装设备，运行当前 PLC 工程，注入故障并查看逐扫描证据。">
+  <title>PLC Workspace · 仿真验证</title>
+  <link rel="icon" href="./favicon.svg">
+  <link rel="stylesheet" href="./simulator.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
+  <script type="module" src="./simulator.js"></script>
+</head>
+<body>
+  <a class="skip" href="#scene-title">跳到仿真场景</a>
+  <header class="sim-header">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">P</span><span>PLC <b>Workspace</b></span></a>
+    <nav aria-label="主导航"><a href="./">需求生成</a><a class="active" aria-current="page" href="./simulator.html">仿真验证</a><a href="./validation.html">验证记录</a></nav>
+    <span id="connection-status" class="connection" role="status">正在检查服务</span>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">工程实验台</p><h1>让逻辑在设备上运行。</h1><p class="intro-copy">组装设备、绑定信号；逐拍观察动作，回到第一次不符合预期的位置。</p></div>
+      <div class="intro-actions"><button id="import-engineering" class="secondary">打开当前工程</button><input id="engineering-file" type="file" accept=".json,application/json" hidden><button id="export-scene" class="quiet">导出场景</button><button id="import-scene" class="quiet">导入场景</button><input id="scene-file" type="file" accept=".json,application/json" hidden></div>
+    </section>
+    <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+    <section class="setup" aria-label="运行配置">
+      <label class="template-control">设备单元<select id="template-select" disabled><option>正在读取组件与场景</option></select></label>
+      <div class="program-identity"><span class="field-label">本次执行程序</span><strong id="program-name">尚未载入</strong><span id="program-detail">创建运行后显示对应源码身份</span></div>
+      <button id="use-example" class="quiet" hidden>使用示例程序</button>
+      <button id="create-session" class="primary" disabled>创建运行</button>
+    </section>
+    <div class="workspace">
+      <aside class="assembly-panel panel" aria-labelledby="assembly-title">
+        <div class="panel-heading"><h2 id="assembly-title">设备组件</h2><span id="component-count">0 件</span></div>
+        <div class="component-add"><label class="sr-only" for="component-type">组件类型</label><select id="component-type" disabled></select><button id="add-component" title="添加组件" disabled>添加</button></div>
+        <div id="component-list" class="component-list" role="list" aria-label="场景中的组件"></div>
+        <div class="assembly-note">选中组件查看参数和信号。修改场景后，需要重新创建运行。</div>
+        <details class="connections-editor"><summary>设备之间的连接 <span id="connection-count">0</span></summary><div id="connections-list"></div><button id="add-connection" class="quiet" disabled>添加连接</button></details>
+      </aside>
+      <section class="viewport-panel panel" aria-labelledby="scene-title">
+        <div class="viewport-heading"><div><h2 id="scene-title">设备场景</h2><span id="scene-state">配置预览 · 尚未执行 PLC</span></div><div class="view-actions"><button id="camera-home" class="icon-button" title="整体视角" aria-label="整体视角"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5v8l-9 5-9-5V8l9-5Zm0 10 9-5M3 8l9 5v8"/></svg></button><button id="camera-top" class="icon-button" title="俯视图" aria-label="俯视图"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 9h16M9 4v16"/></svg></button><label class="signal-toggle"><input id="show-signals" type="checkbox" checked>信号连接</label></div></div>
+        <div id="scene" class="scene" aria-label="可旋转、可选择设备的三维场景"><div id="scene-fallback" class="scene-fallback" hidden>三维画面暂不可用。信号、单步运行和验证记录仍可使用。</div><span class="scene-hint">拖动旋转 · 滚轮缩放 · 点击设备</span><div id="view-tag" class="view-tag">配置预览</div></div>
+        <div class="transport">
+          <div class="transport-buttons"><button id="start" class="primary" disabled>启动一拍</button><button id="step" class="secondary" disabled>单步</button><button id="play" class="secondary" disabled aria-pressed="false">连续运行</button><button id="stop" class="stop-button" disabled>停止一拍</button><button id="reset" class="quiet" disabled>复位一拍</button></div>
+          <div class="scan-meter"><span>扫描</span><strong id="scan-count">0</strong><span id="scan-unit">次调用</span></div>
+        </div>
+        <div class="input-controls"><label><input id="input-enable" type="checkbox" checked>Enable</label><label><input id="input-start" type="checkbox">Start</label><label><input id="input-stop" type="checkbox">Stop</label><label><input id="input-reset" type="checkbox">Reset</label><span>勾选值在下一拍采样；按钮脉冲后需一拍释放。</span></div>
+      </section>
+      <aside class="inspector-panel panel" aria-labelledby="inspector-title">
+        <div class="panel-heading"><h2 id="inspector-title">组件与信号</h2><span id="selected-type">未选择</span></div>
+        <div id="inspector-empty" class="empty-copy">点击画面或左侧组件，查看参数、接口和实际状态。</div>
+        <div id="inspector" hidden>
+          <div class="selected-heading"><strong id="selected-name"></strong><button id="remove-component" class="danger-text">移除</button></div>
+          <fieldset class="position-fields"><legend>场景位置</legend><label>X<input id="position-x" type="number" min="-50" max="50" step="0.1"></label><label>Y<input id="position-y" type="number" min="-50" max="50" step="0.1"></label><label>Z<input id="position-z" type="number" min="-50" max="50" step="0.1"></label></fieldset>
+          <div id="parameter-fields" class="parameter-fields"></div>
+          <h3>接口</h3><div id="component-ports" class="port-list"></div>
+          <h3>运行状态</h3><div id="component-state" class="state-list"><p class="muted">创建运行后显示实际状态</p></div>
+        </div>
+        <details class="bindings-editor" open><summary>PLC 信号绑定</summary><p class="muted small">PLC 输入读取设备输出；PLC 输出驱动设备输入。</p><div id="bindings-list"></div></details>
+      </aside>
+    </div>
+    <div class="verification-grid">
+      <section class="panel test-panel" aria-labelledby="test-title">
+        <div class="panel-heading"><h2 id="test-title">故障与用例</h2><span>同一程序 · 独立预期</span></div>
+        <div class="fault-controls"><label>故障部件<select id="fault-device" disabled></select></label><label>故障类型<select id="fault-type" disabled></select></label><div><button id="inject-fault" class="secondary" disabled>施加故障</button><button id="clear-fault" class="quiet" disabled>解除故障</button></div></div>
+        <div id="active-faults" class="active-faults">未施加故障</div>
+        <div class="case-controls"><label>独立验证用例<select id="test-case"><option value="normal">正常完成</option><option value="jam">输送卡料</option><option value="sensor-failed">光电没有反馈</option><option value="stop-restart">停止与重新启动</option></select></label><button id="run-case" class="primary" disabled>运行用例</button></div>
+        <div id="case-result" class="case-result" role="status">尚未运行用例。用例将创建独立实例，不改变手动运行状态。</div>
+        <button id="show-failure" class="danger-text" hidden>定位首次失败</button>
+      </section>
+      <section class="panel signals-panel" aria-labelledby="signals-title">
+        <div class="panel-heading"><h2 id="signals-title">本拍信号</h2><span id="snapshot-label">尚未执行</span></div>
+        <div class="signal-columns"><div><h3>PLC 输入</h3><div id="plc-inputs" class="signal-values"></div></div><div><h3>PLC 输出与状态</h3><div id="plc-outputs" class="signal-values"></div></div></div>
+      </section>
+    </div>
+    <section class="panel integration-panel" aria-labelledby="oip-title">
+      <div class="integration-heading"><div><p class="eyebrow">物理复核</p><h2 id="oip-title">Open Industry Project</h2><p id="oip-status">正在检查物理执行器…</p></div><button id="run-oip" class="secondary" disabled>运行物理复核</button></div>
+      <p class="integration-note">用固定的上游输送场景与物理引擎执行当前输送程序，检查工件移动、传感反馈和超时。可组装设备模型与物理复核分别保留证据。</p>
+      <div id="oip-summary" class="integration-summary" role="status">not_run · 尚未执行</div>
+      <details id="oip-details" hidden><summary>本次物理复核报告</summary><pre id="oip-report"></pre></details>
+    </section>
+    <section class="panel trace-panel" aria-labelledby="trace-title">
+      <div class="panel-heading"><div><h2 id="trace-title">逐扫描记录</h2><span id="trace-note">选择记录可回看对应快照；回看不会再次执行 PLC。</span></div><div class="trace-actions"><button id="show-live" class="quiet" hidden>返回当前运行</button><button id="export-trace" class="secondary" disabled>导出记录</button></div></div>
+      <div class="trace-scroll"><table><thead><tr><th>扫描</th><th>PLC 状态</th><th>输入为真</th><th>输出为真</th><th>工件位置</th><th>事件</th></tr></thead><tbody id="trace-rows"><tr><td colspan="6" class="empty-copy">创建运行并单步后，记录出现在这里。</td></tr></tbody></table></div>
+    </section>
+    <details class="source-details"><summary>执行源码与验证范围</summary><p id="execution-scope">运行前检查程序与场景接口。仿真记录只覆盖所用执行器、设备模型和已执行的用例。</p><p id="source-hash" class="hash"></p><pre id="program-source">尚未载入程序。</pre></details>
+    <footer><span>固定步长设备模型 · 逐扫描执行 · TIA / PLCSIM / 实机未验收</span><a href="./simulation.html">历史输送示例</a><a href="https://github.com/Open-Industry-Project/Open-Industry-Project" target="_blank" rel="noreferrer">Open Industry Project 来源</a></footer>
+  </main>
+</body>
+</html>

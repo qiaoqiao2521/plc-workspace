@@ -5,6 +5,7 @@
    Read `docs/SCL_STANDARD_BASELINE.md` as well: it supersedes the earlier request to let the user choose an arbitrary Enable/Reset convention and records the official basis and the implemented v0.3 scope.
 3. For new generation/Harness work, read `plans/plc-logic-harness-v1/task_plan.md`, then its `findings.md` and `progress.md`. Distinguish implemented S1/S2 and model-access changes from the unstarted S3/S4 slices; stop at the recorded boundary.
 4. Follow `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` and `plans/plc-semantics-v1/` only as needed for the existing implementation and abstract core.
+5. For composable simulation, read `docs/PLC_SIMULATION.md` and `plans/plc-composable-simulation/`. The 2026-11-26 user authorization adds this verification entry independently of the still-unstarted generation S3/S4 slices; do not use the older full-simulator non-goal to block this implemented scope.
 
 ## PLC-specific rules
 
@@ -33,3 +34,5 @@ S1 evidence classification and the S2 synthetic latch BOOL IR/LAD slice are impl
 The 2026-11-23 user correction removes the former CM/Paperclip requirement. Keep API keys and Agent tokens out of source, runtime evidence, argv, browser storage and exports. Agent control means answering controller-issued packets, not editing expectations or writing acceptance. Current setup and protocol are in `docs/PLC_AGENT_WORKFLOW.md`; older CM/CLI plan records are historical.
 
 For external Agent takeover, read `.agents/skills/plc-workspace-control/SKILL.md` and use `web/scripts/plc-agent.py`. The Skill guides one persistent CLI session; it cannot replace the controller’s gates. Keep task credentials only in that process’s stdin/memory, not a new config file or argv.
+
+Simulation actions use finite `plc-agent.py simulate` requests, not the generation stdio workflow. Capture exact current source, typed scene and explicit profile; never replace a current engineering candidate with a passing template. UI rendering does not execute PLC transitions. Keep native scan-count plant evidence, OIP native-PLC/physics evidence and OIP own IEC-subset self-tests separate. Record source/scene/contract hashes and first failures; imported reports and zero-assertion runs confer no acceptance. Optional upstream code stays pinned outside this repository.

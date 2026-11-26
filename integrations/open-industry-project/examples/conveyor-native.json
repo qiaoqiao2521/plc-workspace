@@ -1,0 +1,34 @@
+{
+  "schema": "plc-oip-assembly/v1",
+  "name": "Recorded ConveyorPack with OIP plant",
+  "scope": "Demonstration fixture, with 8-call timeout in the unchanged recorded FB. No real machine geometry or Siemens acceptance.",
+  "native_source": "plans/plc-generation-ui/user-eval/candidates/FB_ConveyorPack.scl",
+  "native_block": "FB_ConveyorPack",
+  "physics_hz": 60,
+  "scan_ms": 250,
+  "parts": [
+    {
+      "package": "oip.belt-conveyor",
+      "id": "belt",
+      "at": [0, 0.8, 0],
+      "params": "segments=[[3,0]],width=0.8,standHeight=0.8,fpmUnits=false,speed=1,accelTime=0,decelTime=0,runTag=Motor,runningTag=MotorRunning"
+    },
+    {
+      "package": "oip.diffuse-sensor",
+      "id": "eye",
+      "at": [1.4, 0.78, -0.45],
+      "params": "tag=AtEnd,maxRange=1"
+    },
+    {
+      "package": "oip.box",
+      "id": "cargo",
+      "at": [0.4, 0.96, 0],
+      "params": "length=0.3,height=0.3,width=0.3,mass=1"
+    }
+  ],
+  "bindings": {
+    "plant_to_native": {"AtEnd": "AtEnd"},
+    "native_to_plant": {"Motor": "Motor"},
+    "observations": ["MotorRunning"]
+  }
+}

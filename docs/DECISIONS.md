@@ -1,5 +1,13 @@
 # Decisions
 
+## 2026-11-26 — Source-bound, composable visual simulation
+
+The user authorized a complete AI-callable simulation entry and subagent testing. Keep the generation controller and canonical FB contracts intact; add a bounded service under the existing workbench and CLI. Atomic components declare typed ports, parameters and supported faults. Scene assembly is explicit, and current engineering captures its own source after request/result identity validation. Historical pass fields never authorize a new run.
+
+Execute actual captured ST in watchdog-controlled persistent native workers. An independently specified finite case, the current source and the canonical scene each have their own identity. Use one returned snapshot for visual geometry, signals and trace; rendering cannot execute PLC logic. Scan-count devices make no real-time or mechanical claim. Wrong contracts, wrong wiring and wrong logic must produce counterexamples rather than attractive passing animations.
+
+Pin Open Industry Project outside the repository, retain its source/license index, and expose catalog, assembly and tests through the same agent entry. Its Jolt plant may be stepped by this repository's native PLC. The upstream IEC-subset self-test, the native PLC/physical plant test and the local scan-count plant case are distinct scopes. Zero tests or assertions cannot pass. Neither simulation path confers generation, LAD, Siemens, safety or machine acceptance.
+
 ## S1 — Scope acceptance to explicit required checks
 
 Report v2 distinguishes source-file structure, Linux compilation, fixed behavior, LAD/SCL comparison and TIA. The controller freezes either a compile-only or named behavior goal; workflow and bridge use one deterministic policy to recompute required checks instead of trusting totals or model claims. `reviewed_draft` remains compatible, but compile-only results never gain behavior acceptance. Missing/unknown/unrun mandatory evidence cannot be waived. Imported legacy reports remain readable history and cannot authorize a new task.

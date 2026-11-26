@@ -1,0 +1,168 @@
+{
+  "program": {
+    "profile": "conveyor-pusher-v1",
+    "source": "FUNCTION_BLOCK FB_TransferPusher\nVAR_INPUT\n    Enable : BOOL;\n    Start : BOOL;\n    Stop : BOOL;\n    Reset : BOOL;\n    AtEnd : BOOL;\n    Extended : BOOL;\n    Retracted : BOOL;\nEND_VAR\nVAR_OUTPUT\n    Motor : BOOL;\n    Extend : BOOL;\n    Retract : BOOL;\n    Busy : BOOL;\n    Done : BOOL;\n    Error : BOOL;\n    TimeoutFault : BOOL;\n    State : UINT;\n    WaitCount : UINT;\nEND_VAR\nVAR\n    phase : UINT := 0;\n    waitScans : UINT := 0;\n    fault : BOOL := FALSE;\n    timeout : BOOL := FALSE;\n    previousStart : BOOL := FALSE;\n    previousReset : BOOL := FALSE;\nEND_VAR\nVAR_TEMP\n    startEdge : BOOL;\n    resetEdge : BOOL;\n    nextPhase : UINT;\n    nextWait : UINT;\n    nextFault : BOOL;\n    nextTimeout : BOOL;\n    finished : BOOL;\nEND_VAR\nstartEdge := Start AND NOT previousStart;\nresetEdge := Reset AND NOT previousReset;\npreviousStart := Start;\npreviousReset := Reset;\nnextPhase := phase;\nnextWait := waitScans;\nnextFault := fault;\nnextTimeout := timeout;\nfinished := FALSE;\n\nIF Enable AND NOT Stop AND NOT Start AND resetEdge THEN\n    nextPhase := 0;\n    nextWait := 0;\n    nextFault := FALSE;\n    nextTimeout := FALSE;\nELSIF fault THEN\n    nextPhase := 900;\nELSIF NOT Enable OR Stop OR Reset THEN\n    nextPhase := 0;\n    nextWait := 0;\nELSIF Extended AND Retracted THEN\n    nextPhase := 900;\n    nextFault := TRUE;\nELSIF phase = 0 THEN\n    IF startEdge AND Retracted THEN\n        nextPhase := 1;\n        nextWait := 0;\n    END_IF;\nELSIF phase = 1 THEN\n    IF AtEnd THEN\n        nextPhase := 2;\n        nextWait := 0;\n    ELSE\n        nextWait := waitScans + 1;\n        IF nextWait >= 12 THEN\n            nextPhase := 900;\n            nextFault := TRUE;\n            nextTimeout := TRUE;\n        END_IF;\n    END_IF;\nELSIF phase = 2 THEN\n    IF Extended THEN\n        nextPhase := 3;\n        nextWait := 0;\n    ELSE\n        nextWait := waitScans + 1;\n        IF nextWait >= 12 THEN\n            nextPhase := 900;\n            nextFault := TRUE;\n            nextTimeout := TRUE;\n        END_IF;\n    END_IF;\nELSIF phase = 3 THEN\n    IF Retracted THEN\n        nextPhase := 0;\n        nextWait := 0;\n        finished := TRUE;\n    ELSE\n        nextWait := waitScans + 1;\n        IF nextWait >= 12 THEN\n            nextPhase := 900;\n            nextFault := TRUE;\n            nextTimeout := TRUE;\n        END_IF;\n    END_IF;\nELSE\n    nextPhase := 900;\n    nextFault := TRUE;\nEND_IF;\n\nphase := nextPhase;\nwaitScans := nextWait;\nfault := nextFault;\ntimeout := nextTimeout;\nMotor := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 1);\nExtend := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 2);\nRetract := Enable AND NOT Stop AND NOT Reset AND NOT fault AND (phase = 3);\nBusy := Enable AND NOT Stop AND NOT Reset AND NOT fault AND ((phase = 1) OR (phase = 2) OR (phase = 3));\nDone := finished AND NOT fault;\nError := fault;\nTimeoutFault := timeout;\nState := phase;\nWaitCount := waitScans;\nEND_FUNCTION_BLOCK\n",
+    "filename": "transfer-pusher.scl"
+  },
+  "scene": {
+    "schema_version": "plc-scene.v1",
+    "id": "agent-transfer-pusher-status",
+    "label": "Agent 实际验收：输送推料与电机反馈灯",
+    "components": [
+      {
+        "id": "enable",
+        "type": "switch",
+        "position": [
+          -2.5,
+          0,
+          1.9
+        ],
+        "parameters": {
+          "initial": true
+        }
+      },
+      {
+        "id": "start",
+        "type": "switch",
+        "position": [
+          -1.8,
+          0,
+          1.9
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "stop",
+        "type": "switch",
+        "position": [
+          -1.1,
+          0,
+          1.9
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "reset",
+        "type": "switch",
+        "position": [
+          -0.4,
+          0,
+          1.9
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "drive",
+        "type": "motor",
+        "position": [
+          -1.6,
+          0,
+          0.8
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "belt",
+        "type": "conveyor",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "eye",
+        "type": "photoeye",
+        "position": [
+          1.8,
+          0,
+          -0.75
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "part",
+        "type": "workpiece",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "runlamp",
+        "type": "lamp",
+        "position": [
+          2.6,
+          0,
+          1.0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "pusher",
+        "type": "cylinder",
+        "position": [
+          1.8,
+          0,
+          -0.95
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "motor_status",
+        "type": "lamp",
+        "position": [
+          2.6,
+          0,
+          2.0
+        ],
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "from": "drive.running",
+        "to": "belt.run"
+      },
+      {
+        "from": "belt.position",
+        "to": "eye.position"
+      },
+      {
+        "from": "belt.position",
+        "to": "part.position"
+      },
+      {
+        "from": "drive.running",
+        "to": "motor_status.value"
+      }
+    ],
+    "bindings": {
+      "inputs": {
+        "Enable": "enable.value",
+        "Start": "start.value",
+        "Stop": "stop.value",
+        "Reset": "reset.value",
+        "AtEnd": "eye.detected",
+        "Extended": "pusher.extended",
+        "Retracted": "pusher.retracted"
+      },
+      "outputs": {
+        "Motor": [
+          "drive.command",
+          "runlamp.value"
+        ],
+        "Extend": [
+          "pusher.extend"
+        ],
+        "Retract": [
+          "pusher.retract"
+        ]
+      }
+    }
+  },
+  "case": "normal"
+}

@@ -28,6 +28,9 @@ _policy_spec.loader.exec_module(verification_policy)
 _api_spec = importlib.util.spec_from_file_location('model_api', Path(__file__).with_name('model-api.py'))
 model_api = importlib.util.module_from_spec(_api_spec)
 _api_spec.loader.exec_module(model_api)
+_sim_spec = importlib.util.spec_from_file_location('simulation_bridge', Path(__file__).with_name('simulation-bridge.py'))
+simulation_bridge = importlib.util.module_from_spec(_sim_spec)
+_sim_spec.loader.exec_module(simulation_bridge)
 
 
 def validate_schema(value, schema, root=None, depth=0):
@@ -176,6 +179,8 @@ class GenerationBridge:
             'base_url': 'https://api.openai.com/v1', 'model': '', 'api_key': '',
             'timeout_seconds': 120, 'response_format': 'json_object'}
         self.jobs, self._tokens, self.lock, self.active = {}, {}, threading.Lock(), None
+        self.simulation = simulation_bridge.SimulationBridge(
+            self.runtime_root / 'simulation', validate_request, validate_workflow_artifact)
 
     @property
     def ready(self):
@@ -489,7 +494,10 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             if path == '/api/capabilities':
                 return self.reply(200, {'provider': 'api', 'ready': self.server.bridge.ready,
-                                       'agent_control': True, 'timeout_seconds': self.server.bridge.timeout})
+                                       'agent_control': True, 'timeout_seconds': self.server.bridge.timeout,
+                                       'simulation': self.server.bridge.simulation.capabilities()})
+            if path in ('/api/sim/catalog', '/api/sim/templates', '/api/sim/integrations'):
+                return self.reply(200, self.server.bridge.simulation.dispatch(path.rsplit('/', 1)[1], {}))
             if path == '/api/config':
                 return self.reply(200, self.server.bridge.public_config())
             match = re.fullmatch(r'/api/agent/jobs/([^/]+)/packets', path)
@@ -517,6 +525,15 @@ class Handler(SimpleHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError('请求必须是对象。')
             path = urlparse(self.path).path
+            if path.startswith('/api/sim/'):
+                try:
+                    return self.reply(200, self.server.bridge.simulation.dispatch(path.removeprefix('/api/sim/'), data))
+                except (ValueError, KeyError, TypeError) as error:
+                    return self.reply(400, {'status': 'fail', 'reason': 'invalid_simulation_request',
+                                            'error': str(error), 'industrial_acceptance': 'not_run'})
+                except (OSError, RuntimeError, TimeoutError) as error:
+                    return self.reply(409, {'status': 'unknown', 'reason': 'simulation_unavailable',
+                                            'error': str(error), 'industrial_acceptance': 'not_run'})
             if path == '/api/config':
                 return self.reply(200, self.server.bridge.configure(data))
             if path == '/api/generate':
@@ -568,18 +585,24 @@ def main():
         parser.error(str(error))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
     server.bridge = bridge
+    def request_shutdown(_signum, _frame):
+        raise KeyboardInterrupt
+    previous_sigterm = signal.signal(signal.SIGTERM, request_shutdown)
     print(f'PLC Workspace: http://127.0.0.1:{args.port} (API {"configured" if bridge.ready else "unconfigured"}; Agent ready)', flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        bridge.simulation.shutdown()
         if bridge.active:
             bridge.cancel(bridge.active)
             deadline = time.monotonic() + 6
             while bridge.active and time.monotonic() < deadline:
                 time.sleep(0.05)
         server.server_close()
+        signal.signal(signal.SIGTERM, previous_sigterm)
 
 
 if __name__ == '__main__':

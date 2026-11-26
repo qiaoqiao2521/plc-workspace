@@ -1,4 +1,4 @@
 interface:
   display_name: "PLC 工作台接管"
-  short_description: "通过 CLI 接管 LAD/SCL 生成、检查与有限修复工作流"
-  default_prompt: "使用 $plc-workspace-control 接管当前 PLC 任务，按控制器阶段生成或修复 LAD/SCL，并如实汇报检查结果。"
+  short_description: "通过 CLI 生成和检查 LAD/SCL，组装设备仿真并定位逐扫描反例"
+  default_prompt: "使用 $plc-workspace-control 处理当前 PLC 任务，按目标生成工程或组装仿真，执行真实检查并报告源码对应的结果。"

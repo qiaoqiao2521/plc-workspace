@@ -6,3 +6,4 @@ Dockerfile text eol=lf
 *.py text eol=lf
 *.ps1 text eol=crlf
 *.md text eol=crlf
+web/data/simulation/contract.md text eol=lf

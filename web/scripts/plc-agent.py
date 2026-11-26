@@ -147,7 +147,7 @@ class LocalApi:
         self.url = server_url(url)
         self.opener = urllib.request.build_opener(NoRedirect(), urllib.request.ProxyHandler({}))
 
-    def call(self, path, data=None, token=None, timeout=HTTP_TIMEOUT):
+    def call(self, path, data=None, token=None, timeout=HTTP_TIMEOUT, details=False):
         body = None if data is None else json.dumps(data, ensure_ascii=False, allow_nan=False).encode()
         if body is not None and len(body) > INPUT_LIMIT:
             raise CliError('The local API request exceeds the size limit.', 400)
@@ -160,10 +160,18 @@ class LocalApi:
                 raw = response.read(RESPONSE_LIMIT + 1)
         except urllib.error.HTTPError as error:
             status = error.code
+            detail = ''
+            if details:
+                try:
+                    payload = parse_json(error.read(16000))
+                    if isinstance(payload, dict) and isinstance(payload.get('error'), str):
+                        detail = ' ' + payload['error'][:3000]
+                except (CliError, OSError):
+                    pass
             error.close()
             if 300 <= status < 400:
                 raise CliError('Local API redirects are not followed.', status) from None
-            raise CliError('Local API rejected the request (HTTP ' + str(status) + ').', status) from None
+            raise CliError('Local API rejected the request (HTTP ' + str(status) + ').' + detail, status) from None
         except (OSError, urllib.error.URLError, http.client.HTTPException, ValueError):
             raise CliError('Cannot reach the local PLC workspace; check its address and process.') from None
         if len(raw) > RESPONSE_LIMIT:
@@ -375,12 +383,58 @@ class JsonParser(argparse.ArgumentParser):
         raise CliError('Invalid CLI arguments; use --help for the command syntax.')
 
 
+def run_simulation(args, api):
+    """Use the same typed operations as the visual editor, with no model key."""
+    body = {}
+    if args.input:
+        if args.input == '-':
+            raw = sys.stdin.buffer.read(INPUT_LIMIT + 1)
+            if len(raw) > INPUT_LIMIT:
+                raise CliError('The simulation request exceeds the size limit.')
+            body = parse_json(raw)
+        else:
+            body = read_json_file(args.input)
+    if not isinstance(body, dict):
+        raise CliError('The simulation request must be a JSON object.')
+    if args.session:
+        identifier = job_id(args.session)
+        if body.get('session', identifier) != identifier:
+            raise CliError('The file and --session refer to different sessions.')
+        body['session'] = identifier
+    action = {'fault': 'inject_fault', 'run-case': 'run_case',
+              'trace': 'export_trace'}.get(args.action, args.action)
+    result = api.call('/api/sim/' + action, body, timeout=180, details=True)
+    if args.output:
+        try:
+            destination = Path(args.output)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n')
+        except OSError:
+            raise CliError('Cannot write the simulation result file.') from None
+        emit({'type': 'simulation', 'action': action, 'output': str(destination),
+              'status': result.get('status'), 'session': result.get('session'),
+              'source_sha256': result.get('source_sha256'),
+              'first_failure': result.get('first_failure') or result.get('first_counterexample')})
+    else:
+        emit({'type': 'simulation', 'action': action, 'result': result})
+    if action == 'export_trace':
+        return 0  # Export delivery succeeds even when observations confer no verdict.
+    return 1 if result.get('status') == 'fail' else 2 if result.get('status') in ('unknown', 'not_run') else 0
+
+
 def main():
     parser = JsonParser(description=__doc__)
     parser.add_argument('--url', default='http://127.0.0.1:8766', help='HTTP loopback root URL')
     parser.add_argument('--poll-interval', type=float, default=.25, help='Polling seconds, 0.1 to 5')
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('doctor', help='Read local capabilities')
+    simulation = commands.add_parser('simulate', help='Assemble, execute and diagnose a source-bound simulated cell')
+    simulation.add_argument('action', choices=('catalog', 'templates', 'create', 'inspect', 'step',
+        'inject_fault', 'fault', 'run_case', 'run-case', 'export_trace', 'trace', 'close',
+        'integrations', 'oip_catalog', 'oip_assemble', 'oip_test', 'oip_self_test'))
+    simulation.add_argument('--input', help='Operation JSON file, or - to read one JSON object from stdin')
+    simulation.add_argument('--session', help='Existing simulation session ID')
+    simulation.add_argument('--output', help='Write the complete result JSON and print a compact receipt')
     prepare = commands.add_parser('prepare', help='Build a bound request from an explicit brief')
     prepare.add_argument('--brief', required=True)
     for command in ('status', 'cancel'):
@@ -405,6 +459,8 @@ def main():
         elif args.command == 'cancel':
             identifier = job_id(args.job_id)
             emit({'type': 'cancel', 'job_id': identifier, 'job': cancel_and_wait(api, identifier)})
+        elif args.command == 'simulate':
+            return run_simulation(args, api)
         else:
             return run_workflow(args, api)
         return 0

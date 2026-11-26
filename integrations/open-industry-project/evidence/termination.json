@@ -1,0 +1,42 @@
+{
+  "schema": "plc-oip-result/v1",
+  "check": "termination-cleanup",
+  "scope": "Process lifecycle only, with an explicitly synthetic looping controller",
+  "status": "passed",
+  "upstream_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+  "siemens_acceptance": "not_run",
+  "hardware_acceptance": "not_run",
+  "signal": "SIGTERM",
+  "loaded_native_worker_observed": true,
+  "native_worker_separate_process_group": true,
+  "children_before_signal": [
+    {
+      "pid": 23,
+      "ppid": 6,
+      "pgid": 6,
+      "ticks": 753,
+      "started": "4124419"
+    },
+    {
+      "pid": 49,
+      "ppid": 6,
+      "pgid": 49,
+      "ticks": 21,
+      "started": "4125069"
+    }
+  ],
+  "remaining_children": [],
+  "adapter_exit_code": 2,
+  "adapter_result": {
+    "schema": "plc-oip-result/v1",
+    "check": "native-test",
+    "scope": "Requested OIP integration check",
+    "status": "error",
+    "upstream_commit": "3d888156f38974c8e2105e5e657a9f428fda3cb5",
+    "siemens_acceptance": "not_run",
+    "hardware_acceptance": "not_run",
+    "reason": "Integration interrupted by signal 15; no new verdict is available"
+  },
+  "cleanup_seconds": 0.079,
+  "stderr": ""
+}
