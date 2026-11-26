@@ -1,0 +1,57 @@
+{
+  "schema": "plc-siemens-reference-verification.v1",
+  "date": "2026-11-26",
+  "scope": "documentation_and_static_reference_data",
+  "basis_commit": "5693589844173aab6f075402242aff533a401863",
+  "artifact_git_blob_ids": {
+    "docs/SIEMENS_SIMULATION_BASELINE.md": "73930a951f294c14cd837e01d5ed6682baf6fb54",
+    "web/data/simulation/siemens-reference-index.json": "5113af75ed687b25db1b53ced89d96a1f68b619e"
+  },
+  "checks": {
+    "json_structure": "pass",
+    "official_source_url_metadata": "pass",
+    "source_and_gap_references": "pass",
+    "document_source_ids_match_index": "pass",
+    "relative_document_links": "pass",
+    "web_build": "pass",
+    "built_index_byte_identity": "pass",
+    "protected_runtime_assets_unchanged": "pass",
+    "staged_whitespace": "pass"
+  },
+  "counts": {
+    "source_count": 32,
+    "gap_count": 15,
+    "gap_source_reference_count": 66,
+    "not_run_states": 15,
+    "official_url_metadata_checked": 44,
+    "relative_links_checked": 41,
+    "source_reference_definitions_checked": 32,
+    "changed_files_in_scope": 10
+  },
+  "built_index_sha256": "f15ae369a05169ecce3c0bd680b3b7eb6667ee8006308a63275d6c9996dc8e6c",
+  "cross_review": [
+    "PLCSIM API and versions",
+    "SIMIT MCD Unity modeling",
+    "Test Suite Openness and source index"
+  ],
+  "build_command": "npm --prefix web run build",
+  "build_exit_code": 0,
+  "build_note": "npm emitted an existing http-proxy environment configuration deprecation warning; build completed.",
+  "previous_runtime_tests": "not_rerun_runtime_assets_unchanged",
+  "siemens_runtime": "not_run",
+  "official_example_archives": "not_downloaded_or_executed",
+  "external_links_live_reachability": "not_asserted_some_official_documents_read_through_search_index",
+  "acceptance_granted": false,
+  "change_paths": [
+    "AGENTS.md",
+    "PROJECT.md",
+    "README.md",
+    "docs/PLC_SIMULATION.md",
+    "docs/SIEMENS_SIMULATION_BASELINE.md",
+    "plans/plc-composable-simulation/evidence/siemens-reference-verification.json",
+    "plans/plc-composable-simulation/findings.md",
+    "plans/plc-composable-simulation/progress.md",
+    "plans/plc-composable-simulation/task_plan.md",
+    "web/data/simulation/siemens-reference-index.json"
+  ]
+}

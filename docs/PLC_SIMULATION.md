@@ -2,6 +2,8 @@
 
 仿真是需求到工程工作台的一个验证入口。人通过三维设备、端口和逐扫描轨迹观察动作，Agent 通过同一 HTTP / CLI 组装场景、运行候选、注入故障和读取反例。每次运行绑定具体源码与具体场景，既有工程中的历史“通过”记录不授予本次验收。
 
+西门子官方的 C# 输送带、SIMIT / MCD / Unity、Test Suite、Openness 与 AX 参照见 [官方仿真基线](SIEMENS_SIMULATION_BASELINE.md)，来源和待实现项见 [机器索引](../web/data/simulation/siemens-reference-index.json)。索引随静态数据构建，也可直接由 Agent 读文件；本轮补充不增加 Siemens 运行后端或新 CLI 动作。
+
 ## 启动与页面
 
 Node 24、Python 3.10+、GCC 和已安装的 matiec 是原生执行依赖。与现有生成检查使用同一工具链：

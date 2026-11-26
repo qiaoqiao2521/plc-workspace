@@ -14,6 +14,8 @@ The user has invested substantially in this industrial-automation workspace. On 
 
 2026-11-26: The user requested an AI-callable, atomically composable and visually useful simulation entry tied to PLC logic, then authorized full integration and actual subagent testing. This adds a bounded validation workspace beside generation, with an optional pinned Open Industry Project plant bridge. It does not start generation S3/S4 or broaden Siemens acceptance.
 
+2026-11-26 follow-up: The user requested a comprehensive search of analogous Siemens official implementations. The versioned reference baseline and machine-readable source/gap index are documented in `docs/SIEMENS_SIMULATION_BASELINE.md`. This is research and adapter design, not an installed Siemens runtime or an expansion of existing acceptance.
+
 ## Non-goals
 
 No replacement of TIA/PLCSIM with container evidence. No remote/device writes, automatic download or F-safety code generation. No platform migration or broad rewrite. No new general-purpose Harness, scheduler, PLC IDE, HMI/SCADA suite or multi-vendor platform. No automatic claim of correctness from compilation, shared IR, model approval or matching finite traces.
@@ -61,6 +63,7 @@ S3–S4 have not started. Do not add model roles, a scheduler, broader PLC instr
 - `docs/SCL_STANDARD_BASELINE.md`: official references, corrections to earlier advice, and implementation gaps.
 - `docs/SCL_CLOSED_LOOP.md`: implemented current-source compilation and repair loop.
 - `docs/PLC_SIMULATION.md`: typed scene, current-engineering handoff, CLI/HTTP actions and OIP evidence boundaries.
+- `docs/SIEMENS_SIMULATION_BASELINE.md`: official co-simulation examples, version constraints, model/clock/test boundaries and proposed adapter work; source IDs and gaps also live in `web/data/simulation/siemens-reference-index.json`.
 - `projects/FB_MainSequence/01_specs/scan-contract.md`: authoritative implemented abstract-core semantics and migration rules.
 - `plans/plc-semantics-v1/`: abstract-core semantic convergence records, not the new generator plan.
 - `validation/tests/README.md`: offline verification commands and limits.

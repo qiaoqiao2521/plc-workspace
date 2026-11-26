@@ -66,6 +66,8 @@ python3 web/scripts/plc-agent.py simulate templates --output /tmp/plc-templates.
 
 四种明确合同、场景 JSON、完整 CLI/HTTP 动作和可选 OIP 安装见[仿真说明](docs/PLC_SIMULATION.md)。交互观察、固定用例通过、OIP 上游自测与当前源码驱动物理场景分别留证；新入口不恢复旧工程验收，也不授予 TIA/PLCSIM/实机验收。实际测试记录见[接入进度](plans/plc-composable-simulation/progress.md)。
 
+西门子官方同类实现、版本矩阵、模型与时钟约束及后续接入顺序见[官方仿真基线](docs/SIEMENS_SIMULATION_BASELINE.md)。[机器可读来源与缺口索引](web/data/simulation/siemens-reference-index.json) 供 Agent 复核；它是研究资料，未注册或执行 Siemens 后端。
+
 ## 复验启停双输出
 
 不依赖在线模型即可运行明确标注的确定性基准，检查本机生成与验证链：

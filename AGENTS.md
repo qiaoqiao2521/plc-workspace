@@ -5,7 +5,7 @@
    Read `docs/SCL_STANDARD_BASELINE.md` as well: it supersedes the earlier request to let the user choose an arbitrary Enable/Reset convention and records the official basis and the implemented v0.3 scope.
 3. For new generation/Harness work, read `plans/plc-logic-harness-v1/task_plan.md`, then its `findings.md` and `progress.md`. Distinguish implemented S1/S2 and model-access changes from the unstarted S3/S4 slices; stop at the recorded boundary.
 4. Follow `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` and `plans/plc-semantics-v1/` only as needed for the existing implementation and abstract core.
-5. For composable simulation, read `docs/PLC_SIMULATION.md` and `plans/plc-composable-simulation/`. The 2026-11-26 user authorization adds this verification entry independently of the still-unstarted generation S3/S4 slices; do not use the older full-simulator non-goal to block this implemented scope.
+5. For composable simulation, read `docs/PLC_SIMULATION.md` and `plans/plc-composable-simulation/`. The 2026-11-26 user authorization adds this verification entry independently of the still-unstarted generation S3/S4 slices; do not use the older full-simulator non-goal to block this implemented scope. For Siemens simulation research or adapters, also read `docs/SIEMENS_SIMULATION_BASELINE.md` and `web/data/simulation/siemens-reference-index.json`; documented product capabilities and proposed gaps are not implemented backend support or runtime acceptance.
 
 ## PLC-specific rules
 

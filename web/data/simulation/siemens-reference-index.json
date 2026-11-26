@@ -1,0 +1,700 @@
+{
+  "schema": "plc-siemens-reference-index.v1",
+  "researched_at": "2026-11-26",
+  "basis_commit": "5693589844173aab6f075402242aff533a401863",
+  "purpose": "reference_and_gap_index",
+  "is_runtime_adapter": false,
+  "execution_status": {
+    "tia_compile": "not_run",
+    "tia_openness": "not_run",
+    "s7_plcsim_standard": "not_run",
+    "s7_plcsim_advanced": "not_run",
+    "tia_test_suite": "not_run",
+    "simit": "not_run",
+    "nx_mcd": "not_run",
+    "unity_official_example": "not_run",
+    "windows_worker": "not_run",
+    "simatic_ax_axunit_st": "not_run",
+    "wincc_unified_hmi": "not_run",
+    "simatic_s7_1500v": "not_run",
+    "physical_plc": "not_run",
+    "machine_acceptance": "not_run",
+    "safety_acceptance": "not_run"
+  },
+  "existing_evidence": {
+    "path": "plans/plc-composable-simulation/evidence/verification.json",
+    "relationship": "reference_only",
+    "scopes": [
+      "native_compiled_st_and_typed_synthetic_plant",
+      "native_plc_driven_oip_jolt_plant",
+      "separate_upstream_oip_self_tests"
+    ],
+    "rerun_for_this_index": false,
+    "acceptance_granted_by_this_index": false
+  },
+  "interpretation": {
+    "source_review_is_execution": false,
+    "proposed_gaps_change_supported_capabilities": false,
+    "imported_pass_grants_current_acceptance": false,
+    "required_current_evidence": "具体源码、工程、场景、绑定、oracle、版本与本次运行结果必须相符，来源索引不授予任何运行验收。",
+    "priority_meaning": {
+      "P0": "在相关外部后端投入验证前必须建立的边界",
+      "P1": "保持现有范围可用的后续能力",
+      "P2": "在最小 Siemens 验收之后按需评估的额外平台或工具链"
+    },
+    "siemens_delivery_state": {
+      "official_reference_reviewed": true,
+      "adapter_design_proposed": true,
+      "adapter_implemented": false,
+      "runtime_executed": false,
+      "program_download_verified": false,
+      "assertions_passed": false
+    }
+  },
+  "review_caveats": [
+    {
+      "source_ids": [
+        "S01"
+      ],
+      "note": "V1.0.2 文档存在旧页脚，p11 co-sim ZIP 为 v1_0_2，p58仍引用 v1.0.0；未下载 ZIP。默认模式周期回调不代表冻结锁步，接口教学例子不能直接作确定性验收框架。"
+    },
+    {
+      "source_ids": [
+        "S04"
+      ],
+      "note": "SIMIT 手册基线为 V11.2，不能把其限制或许可直接外推至其他版本。"
+    },
+    {
+      "source_ids": [
+        "S07",
+        "S10",
+        "S11"
+      ],
+      "note": "Advanced V8 Update 1 的目录条目不等于其 Readme 正文已核对；执行前复核实际安装更新。"
+    },
+    {
+      "source_ids": [
+        "S08",
+        "S17"
+      ],
+      "note": "V8明确支持表列G2；Unsupported段仍写S7-1200，将其理解为传统代际是结合表格和产品说明的解释。Test Suite的两个G2 MLFB排除不能外推为Advanced不支持。"
+    },
+    {
+      "source_ids": [
+        "S18",
+        "S19",
+        "S17"
+      ],
+      "note": "Managed 模式的许可说明取自 V20 文档；V21 所需软件版本取自 V21 Update 1 Readme，采用时联合核对。"
+    },
+    {
+      "source_ids": [
+        "S27"
+      ],
+      "note": "2024 覆盖率示例仅列 Win10/TIA17/18 实测，不能推断其二进制兼容 V21。"
+    },
+    {
+      "source_ids": [
+        "S28",
+        "S29"
+      ],
+      "note": "AX 2510 是本轮已读文档基线，目录已出现 2610 迁移内容；采用前复核选定发行版的 CLI 和包迁移。"
+    }
+  ],
+  "sources": [
+    {
+      "id": "S01",
+      "title": "S7-PLCSIM Advanced Getting Started — API and Co-Simulation",
+      "url": "https://cache.industry.siemens.com/dl/files/660/109739660/att_1343090/v2/109739660_PLCSIM_ADV_GettingStarted_v1.0.2.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109739660",
+      "version": "V1.0.2, 09/2025",
+      "locator": "Entry 109739660; pp. 2, 11–12, 43–65",
+      "verification_level": "document_review",
+      "relevance": "C# 输送带案例展示实例管理、传感器/执行器映射与事件交换，可作接口参考。"
+    },
+    {
+      "id": "S02",
+      "title": "Virtual Commissioning — Pick and Place with SIMIT, S7-PLCSIM Advanced and NX MCD / Unity build",
+      "url": "https://cache.industry.siemens.com/dl/files/943/109758943/att_1354039/v3/PickAndPlace_V1_0_3_GettingStarted_Manual_en.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109758943",
+      "version": "V1.0.3, 01/2026",
+      "locator": "Entry 109758943; pp. 7–12, 27–32, 38; legal information p. 2",
+      "verification_level": "document_review",
+      "relevance": "区分 PLC、设备行为和机械模型，提供单位换算、位置计算归属与光电故障示例。"
+    },
+    {
+      "id": "S03",
+      "title": "Guideline — Virtual Commissioning with SIMIT, NX MCD and S7-PLCSIM Advanced",
+      "url": "https://cache.industry.siemens.com/dl/files/864/109963864/att_1277519/v1/Guideline_VC_SIMIT_PSA_MCD_V1.0.0.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109963864",
+      "version": "V1.0, 04/2024",
+      "locator": "Entry 109963864; §§1.1, 1.5.3–1.5.4, 2.2.1, 2.2.3, 2.3; pp. 4–5, 9–10, 13–19",
+      "verification_level": "document_review",
+      "relevance": "提供模型分工、符号映射、模板生成、同步与许可的工程依据。"
+    },
+    {
+      "id": "S04",
+      "title": "SIMIT Simulation Platform V11.2 Operating Manual",
+      "url": "https://cache.industry.siemens.com/dl/files/664/109963664/att_1277056/v1/SIMIT_enUS_en-US.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109963664",
+      "version": "V11.2, 04/2024; A5E53669923-AA",
+      "locator": "Entry 109963664; §§2, 3.4, 6.1, 7.2.1, 8.3; pp. 57–60, 277–278, 347, 379, 885–887",
+      "verification_level": "document_review",
+      "relevance": "类型实例、耦合、脚本和 CONTEC 物料连接为可组合模型与独立物料图提供参考。"
+    },
+    {
+      "id": "S05",
+      "title": "Creating a SIMIT Component with Component Type Editor",
+      "url": "https://cache.industry.siemens.com/dl/files/508/109771508/att_1285865/v2/109771508_SIMIT_Components_with_CTE_DOC_V2_0_en.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109771508",
+      "version": "V2.0, 05/2024",
+      "locator": "Entry 109771508; §§1.3–2.1; pp. 6–9; legal information p. 2",
+      "verification_level": "document_review",
+      "relevance": "TankX 示例把参数、状态、类型化端口和动态表现纳入同一组件合同。"
+    },
+    {
+      "id": "S06",
+      "title": "SIMIT Simulation Platform official catalogue",
+      "url": "https://sieportal.siemens.com/en-ww/products-services/10357135?tree=CatalogTree",
+      "version": "Live catalogue, accessed 2026-11-26",
+      "locator": "Function; Interfaces and automation",
+      "verification_level": "catalog_review",
+      "relevance": "目录区分设备与工艺库、耦合和自动化能力，其产品描述不构成本仓库的运行证据。"
+    },
+    {
+      "id": "S07",
+      "title": "S7-PLCSIM Advanced official product catalogue",
+      "url": "https://sieportal.siemens.com/en-us/products-services/10317038",
+      "version": "Advanced V8.0 catalogue, accessed 2026-11-26",
+      "locator": "Version compatibility; licensing; instance limits",
+      "verification_level": "catalog_review",
+      "relevance": "记录 TIA/CPU 兼容范围、许可和技术实例上限。",
+      "listing_url": "https://sieportal.siemens.com/en-ww/products-services/detail/6ES7823-1FE00-0YA5",
+      "listing_observation": {
+        "entry_id": "110002945",
+        "version": "V8 UPD1",
+        "date": "05/2026",
+        "document_number": "A5E38332429-AU",
+        "status": "listing_verified_body_not_retrieved"
+      }
+    },
+    {
+      "id": "S08",
+      "title": "S7-PLCSIM Advanced — Supported CPUs",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_s7_1500_et_200mp_manual_collection_enus_21/comprehensive-information/cpu-function-manuals/s7-plcsim-advanced/product-overview/supported-cpus",
+      "version": "V21 manual collection",
+      "locator": "Product overview / Supported CPUs",
+      "verification_level": "document_review",
+      "relevance": "CPU 能力需按代际、型号与固件记录，并分别核对 S7-1200 G2 和传统 S7-1200。"
+    },
+    {
+      "id": "S09",
+      "title": "S7-PLCSIM Products — Comparison",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_et_200sp_manual_collection_zhcn_21/general-information/cpu-function-manuals/s7-plcsim-advanced/product-overview/s7-plcsim-products?contentId=NamPuBFydrH2z_BAV~vXWg",
+      "version": "V21 manual collection",
+      "locator": "Product overview / S7-PLCSIM products; comparison table and footnotes 1, 5",
+      "verification_level": "document_review",
+      "relevance": "同一界面中的 Standard 与 Advanced 实例仍有 API、虚拟时间和通信能力差异。"
+    },
+    {
+      "id": "S10",
+      "title": "S7-PLCSIM Advanced API Programming Manual",
+      "url": "https://support.industry.siemens.com/cs/attachments/109997789/s7-plcsim_advanced_function_manual_API_en-US_en-US.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109997789",
+      "version": "V8.0, 11/2025; A5E53246567-AE",
+      "locator": "Entry 109997789; §§4.1–4.3; pp. 39–43",
+      "verification_level": "document_review",
+      "relevance": "V8 API 接口变化要求显式锁定 API 与运行时版本，不能从运行时兼容推导源码兼容。"
+    },
+    {
+      "id": "S11",
+      "title": "S7-PLCSIM Advanced Function Manual",
+      "url": "https://support.industry.siemens.com/cs/attachments/109997788/s7-plcsim_advanced_function_manual_en-US_en-US.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109997788",
+      "version": "V8.0, 11/2025; A5E37039512-AK",
+      "locator": "Entry 109997788; §4.1.1; p. 32",
+      "verification_level": "document_review",
+      "relevance": "执行环境必须满足选定 STEP 7 版本对应的 Windows、虚拟化与硬件条件。"
+    },
+    {
+      "id": "S12",
+      "title": "S7-PLCSIM Advanced API — Stop Simulation",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_s7_1500_et_200mp_manual_collection_enus_21/comprehensive-information/cpu-function-manuals/s7-plcsim-advanced-api/iinstance/stop-simulation?contentId=xpY4DD5CEPbD36bvuDLXOQ",
+      "version": "V21 manual collection",
+      "locator": "API / IInstance / Stop simulation",
+      "verification_level": "document_review",
+      "relevance": "仿真 freeze、CPU RUN/STOP 与到达下一同步点是不同状态和操作。"
+    },
+    {
+      "id": "S13",
+      "title": "S7-PLCSIM Advanced API — Cycle-Controlled Synchronization",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_et_200sp_manual_collection_zhcn_21/general-information/cpu-function-manuals/s7-plcsim-advanced-api/iinstance/events-for-iinstances/events-for-operating-state-and-cycle-control/synchronize-simulation-partner/synchronize-simulation-partner-cycle-controlled?contentId=vIvcHhua~M39XtavkHKinQ",
+      "version": "V21 manual collection",
+      "locator": "IInstance / Events / Synchronize simulation partner / Cycle-controlled",
+      "verification_level": "document_review",
+      "relevance": "同步粒度和回调的实际经过时间必须与 FB 调用、PLC 扫描及物理步长分别记录。"
+    },
+    {
+      "id": "S14",
+      "title": "S7-PLCSIM Advanced API — Time-Controlled Synchronization",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_s7_1500_et_200mp_manual_collection_frfr_21/comprehensive-information/cpu-function-manuals/s7-plcsim-advanced-api/iinstance/events-for-iinstances/events-for-operating-state-and-cycle-control/synchronize-simulation-partner/synchronize-simulation-partner-time-controlled?contentId=goECKFIw~_iZApUrNr~~sg",
+      "version": "V21 manual collection",
+      "locator": "IInstance / Events / Synchronize simulation partner / Time-controlled",
+      "verification_level": "document_review",
+      "relevance": "StartProcessing 的实际推进时间可超过请求时长，合作模型应使用返回的虚拟时间。"
+    },
+    {
+      "id": "S15",
+      "title": "S7-PLCSIM Advanced API — Synchronizing Inputs and Outputs",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_et_200sp_manual_collection_frfr_21/general-information/cpu-function-manuals/s7-plcsim-advanced-api/iinstance/i/o-access/synchronizing-inputs-and-outputs?contentId=Rbys2VgIq~5zXpUSCmQ9Iw",
+      "version": "V21 manual collection",
+      "locator": "IInstance / I/O access / Synchronizing inputs and outputs",
+      "verification_level": "document_review",
+      "relevance": "API 对输出的写入可覆盖 PLC 输出，闭环映射必须明确方向与写入权威。"
+    },
+    {
+      "id": "S16",
+      "title": "S7-PLCSIM Advanced API — Tag List",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_et_200sp_manual_collection_zhcn_21/general-information/cpu-function-manuals/s7-plcsim-advanced-api/iinstance/tag-list?contentId=hBsc7gQy68qzU64ITWQ0Aw",
+      "version": "V21 manual collection",
+      "locator": "IInstance / Tag list / UpdateTagList",
+      "verification_level": "document_review",
+      "relevance": "符号表更新后仍须逐项检查绑定存在性、成员展开、类型与方向。"
+    },
+    {
+      "id": "S17",
+      "title": "TIA Portal Test Suite Advanced V21 Update 1 Readme",
+      "url": "https://cache.industry.siemens.com/dl/files/057/109990057/att_1356678/v1/Readme_TestSuite_V21_Update_1.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109990057",
+      "version": "V21 Update 1",
+      "locator": "Entry 109990057; software requirements p. 4; new features p. 5; handling p. 6; update p. 8",
+      "verification_level": "document_review",
+      "relevance": "锁定两种执行模式的依赖、S7-1200 G2 型号排除及测试数据编辑权限。"
+    },
+    {
+      "id": "S18",
+      "title": "Test Suite — SystemManagedPLCSIM Instance",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-test-suite/application-test/test-case-execution/systemmanagedplcsim-instance",
+      "version": "V20, 11/2024",
+      "locator": "Application Test / Test Case Execution / SystemManagedPLCSIM Instance",
+      "verification_level": "document_review",
+      "relevance": "自动编译、下载模拟实例、测试和清理的生命周期明确区分 Fail 与 Inconclusive。"
+    },
+    {
+      "id": "S19",
+      "title": "Test Suite — ExternallyManagedPLCSIM Instance",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-test-suite/application-test/test-case-execution/externallymanagedplcsim-instance",
+      "version": "V20, 11/2024",
+      "locator": "Prerequisites; Points to note; independent/dependent tests",
+      "verification_level": "document_review",
+      "relevance": "复用实例需要当前程序身份、许可、复位策略和时钟模式的显式约束。"
+    },
+    {
+      "id": "S20",
+      "title": "Test Suite — Application Test Basic Instructions",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-test-suite/application-test/basic-instructions?contentId=eYc1EyBT3O0usVoTt~UvWw",
+      "version": "V20, 11/2024",
+      "locator": "Run; Run with condition; Assert statements",
+      "verification_level": "document_review",
+      "relevance": "赋值、受限 RUN 与独立断言提供可组合测试步骤，运行结束本身不等于断言通过。"
+    },
+    {
+      "id": "S21",
+      "title": "Test Suite — System Test Basic Instructions",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-test-suite/system-test/basic-instructions?contentId=uesqwYZKhe2bluStE0CNQQ",
+      "version": "V20, 11/2024",
+      "locator": "Wait instruction; Wait with condition; OPC UA communication notes",
+      "verification_level": "document_review",
+      "relevance": "基于 OPC UA 的 WAIT 受采样和发布间隔影响，不能冒充逐扫描执行。"
+    },
+    {
+      "id": "S22",
+      "title": "Test Suite Openness — Execution of Test Cases",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-test-suite/openness-support/functions-for-application-test/execution-of-test-cases",
+      "version": "V20, 11/2024",
+      "locator": "Reference; TestResults attributes; program-code examples",
+      "verification_level": "document_review",
+      "relevance": "真实 .NET 执行接口返回嵌套结果树，可作为未来编排适配器的数据来源。"
+    },
+    {
+      "id": "S23",
+      "title": "Major Changes for Long-Term Stability in TIA Portal Openness V21",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v21/readme-tia-portal-openness/major-changes-for-long-term-stability-in-tia-portal-openness-v21",
+      "version": "V21, 03/2026",
+      "locator": "Changes; Installation folder; Assembly references; Modular decomposition",
+      "verification_level": "document_review",
+      "relevance": "V21 需要重新编译和 .NET Framework 4.8 模块引用，程序集从本机安装解析。"
+    },
+    {
+      "id": "S24",
+      "title": "S7-PLCSIM Online Help",
+      "url": "https://cache.industry.siemens.com/dl/files/161/109997161/att_1348284/v1/S7-PLCSIM_Help_en-US.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109997161",
+      "version": "V21, 11/2025; A5E46238743-AJ",
+      "locator": "Entry 109997161; §5.3 p. 32; §§6.2–6.4 pp. 39–47 onward",
+      "verification_level": "document_review",
+      "relevance": "扫描控制、SIM 表、Standard 序列和诊断事件各有范围，刺激回放不直接授予正确性。"
+    },
+    {
+      "id": "S25",
+      "title": "Test Suite — Style Guide Introduction",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-test-suite/style-guide/introduction?contentId=vhrgqy0GozdTa5nmKbdkNg",
+      "version": "V20, 11/2024",
+      "locator": "Style guide / Introduction / Overview",
+      "verification_level": "document_review",
+      "relevance": "静态对象规则检查应与执行行为、场景正确性及独立断言分别报告。"
+    },
+    {
+      "id": "S26",
+      "title": "Continuous Integration with TIA Portal — Jenkins",
+      "url": "https://cache.industry.siemens.com/dl/files/203/109801203/att_1135360/v1/109801203_Cont_Int_Jenkins_DOC_V13_en.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109801203",
+      "version": "V1.3, 03/2023",
+      "locator": "Entry 109801203; §§1.2–1.3 pp. 4–5; legal information p. 2",
+      "verification_level": "document_review",
+      "relevance": "官方 CI 示例将编排服务器与 Windows 工程测试节点分离。"
+    },
+    {
+      "id": "S27",
+      "title": "TIA Portal Test Suite Code Coverage",
+      "url": "https://cache.industry.siemens.com/dl/files/203/109801203/att_1165141/v1/109801203_TestSuiteCodeCoverage_DOC_V1_0_en.pdf",
+      "entry_url": "https://support.industry.siemens.com/cs/ww/en/view/109801203",
+      "version": "V1.0, 01/2024",
+      "locator": "Entry 109801203; §§1.1–1.4 pp. 4–5; §§2.3–2.5 pp. 7–9; legal information p. 2",
+      "verification_level": "document_review",
+      "relevance": "覆盖率 CLI 是独立应用示例，采用前需核对版本并在工程副本评估其转换影响。"
+    },
+    {
+      "id": "S28",
+      "title": "SIMATIC AX — AxUnit-ST",
+      "url": "https://docs.industrial-operations-x.siemens.cloud/r/en-us/ax/introduction/2510/components-overview/axunit-st?contentId=XxlN1XBb6OrsBqFKFMS8Xw",
+      "version": "2510 documentation baseline, 07/2026",
+      "locator": "Introduction / Components overview / AxUnit-ST",
+      "verification_level": "document_review",
+      "relevance": "AxUnit-ST 提供命令行、本地和 CI 单元测试路线，独立于当前仓库执行后端。"
+    },
+    {
+      "id": "S29",
+      "title": "SIMATIC AX — AxUnit FAQ",
+      "url": "https://docs.industrial-operations-x.siemens.cloud/r/en-us/ax/faq/2510/axunit-faq?contentId=ngdCgkYcTZIS1LsNl22gOg",
+      "version": "2510 documentation baseline, 08/2026",
+      "locator": "FAQ / AxUnit FAQ",
+      "verification_level": "document_review",
+      "relevance": "旧 AxUnit 于 2024 年 5 月停止支持，采用前需按选定发行版核对 AxUnit-ST 的包与 CLI。"
+    },
+    {
+      "id": "S30",
+      "title": "WinCC Unified — Using PLCSIM",
+      "url": "https://docs.tia.siemens.cloud/r/en-us/v21/compiling-and-loading-rt-unified/simulating-control-with-plcsim-rt-unified/using-plcsim-rt-unified?contentId=GuECKvKn9EBp3MfrkMcqTg",
+      "version": "V21 documentation",
+      "locator": "Compiling and loading / Simulating control with PLCSIM / Using PLCSIM",
+      "verification_level": "document_review",
+      "relevance": "官方 HMI 与模拟 PLC 联调具有独立连接和验证范围，不能由当前三维画面替代。"
+    },
+    {
+      "id": "S31",
+      "title": "SIMATIC S7-1500V",
+      "url": "https://www.siemens.com/en-us/products/simatic/s7-1500v/",
+      "version": "Live product page, accessed 2026-11-26",
+      "locator": "Product overview",
+      "verification_level": "catalog_review",
+      "relevance": "S7-1500V 是虚拟化生产控制器产品，不能与开发仿真后端混称。"
+    },
+    {
+      "id": "S32",
+      "title": "S7-PLCSIM Advanced API — Interfaces for IInstances",
+      "url": "https://docs.tia.siemens.cloud/r/simatic_et_200sp_manual_collection_frfr_21/general-information/cpu-function-manuals/s7-plcsim-advanced-api/iinstance/interfaces-for-iinstances?contentId=fnxl36GBLhx83IO0PcUbGg",
+      "version": "V21 manual collection",
+      "locator": "IInstance / Interfaces for IInstances",
+      "verification_level": "document_review",
+      "relevance": "实例上电、接口释放与注销存在生命周期约束，清理必须尊重实例所有者。"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "G01",
+      "priority": "P0",
+      "current_scope": "现有合成设备使用归一化行程/扫描，BOOL/REAL 类型化绑定已实现；没有通用工程单位转换合同。",
+      "proposal": "在未来绑定合同中显式记录单位、缩放、偏移、符号和方向，并把映射身份纳入运行证据。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "既有 profile 的归一化单位和扫描语义保持明确。",
+        "新增物理单位需有可审阅转换；单位不兼容或转换缺失时阻止运行。",
+        "独立单位错配反例必须失败，且报告保留映射摘要。"
+      ],
+      "source_ids": [
+        "S02",
+        "S03",
+        "S05"
+      ]
+    },
+    {
+      "id": "G02",
+      "priority": "P0",
+      "current_scope": "现有组件输入已限制单一写入者；尚无 Siemens API、强制值和外部设备的联合写入审计。",
+      "proposal": "扩展单写入者规则到 PLC 输出、plant 输入与显式故障覆盖，分别保留 PLC 命令和施加值。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "正常闭环默认由 plant 写传感器输入并读 PLC 输出。",
+        "冲突写入在预检阶段被拒绝。",
+        "故障覆盖必须有目标、来源、时间范围及原命令值，不能使错误 PLC 输出获得通过。"
+      ],
+      "source_ids": [
+        "S15",
+        "S24"
+      ]
+    },
+    {
+      "id": "G03",
+      "priority": "P0",
+      "current_scope": "native 设备模型和可选 OIP/Jolt 物理桥各自推进其状态；视觉布局不决定控制连接。",
+      "proposal": "声明每个运动自由度的位置计算所有者，避免行为模型、机械引擎和渲染器重复积分。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "每个位置状态只有一个推进所有者。",
+        "同一位置被两套模型推进的场景应被拒绝。",
+        "镜头、帧率和视觉插值变化不改变执行轨迹或断言结果。"
+      ],
+      "source_ids": [
+        "S02",
+        "S03"
+      ]
+    },
+    {
+      "id": "G04",
+      "priority": "P0",
+      "current_scope": "native 以持久 FB 调用计数，OIP 记录自身物理步长，播放速度不提供 PLC 时间语义。",
+      "proposal": "为可选外部后端定义同步点、时钟域、请求/实际步长和采样阶段，分别记录 freeze 与 CPU 模式。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "FB 调用、PLC 扫描、过程映像同步点及物理 tick 不得混记。",
+        "外部时长推进使用实际虚拟经过时间；墙钟 watchdog 单独记录。",
+        "验证边界扫描、暂停恢复和首个同步回调；未执行的定时器或多任务能力仍不可声明支持。"
+      ],
+      "source_ids": [
+        "S01",
+        "S03",
+        "S12",
+        "S13",
+        "S14",
+        "S20",
+        "S21"
+      ]
+    },
+    {
+      "id": "G05",
+      "priority": "P0",
+      "current_scope": "当前 native 会话使用独立持久实例，固定用例在复制会话中执行并清理；没有 Siemens 实例管理。",
+      "proposal": "未来 Siemens 会话记录实例所有权、创建/连接模式、复位策略和配置摘要，并只清理自己拥有的资源。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "新建、复用、异常终止和取消路径均有状态记录。",
+        "不注销或改写外部所有者的实例。",
+        "复用测试验证当前程序身份和初态；状态泄漏反例应失败。"
+      ],
+      "source_ids": [
+        "S18",
+        "S19",
+        "S32"
+      ]
+    },
+    {
+      "id": "G06",
+      "priority": "P0",
+      "current_scope": "当前四个显式 profile 检查单 FB 接口和场景端口；未读取 TIA/PLCSIM 符号表。",
+      "proposal": "外部连接后逐项校验符号存在性、数据类型、成员、方向和配置代次，配置变化后重新绑定。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "不存在的 DB、缺失成员和错误类型均产生明确错误。",
+        "符号刷新成功但目标未找到时不得继续测试。",
+        "报告绑定导出映射与实际实例配置身份，禁止猜测地址后继续。"
+      ],
+      "source_ids": [
+        "S03",
+        "S08",
+        "S16"
+      ]
+    },
+    {
+      "id": "G07",
+      "priority": "P0",
+      "current_scope": "当前源/场景/合同摘要、独立预期、negative controls 及 fail/unknown/not_run 已实现；旧报告不会授予当前验收。",
+      "proposal": "把同一证据边界扩展到未来 Siemens 报告，分离测试作者、实现作者、静态检查和执行裁决。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "正确基线通过，故意错误输出及错误接线均被独立断言识别。",
+        "缺运行时、编译失败、读写失败、零断言及未完成测试均不得映射为 pass。",
+        "保存源/工程/场景/oracle 身份及全部结果树；导入 pass 只作外部证据。"
+      ],
+      "source_ids": [
+        "S17",
+        "S18",
+        "S19",
+        "S20",
+        "S22",
+        "S25"
+      ]
+    },
+    {
+      "id": "G08",
+      "priority": "P1",
+      "current_scope": "当前有限场景可注入卡料、设备和传感器故障；没有 Siemens 模块或站诊断事件执行。",
+      "proposal": "为工艺故障、反馈故障和 PLC 诊断故障分别定义目标、时序、覆盖范围和独立响应断言。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "断开光电、堵转及延迟反馈分别验证控制响应。",
+        "模块拔插、站错误或诊断中断只能由支持且实际运行的后端给出证据。",
+        "故障解除、确认和重新启动分别留痕，不由注入成功推导测试通过。"
+      ],
+      "source_ids": [
+        "S02",
+        "S20",
+        "S24"
+      ]
+    },
+    {
+      "id": "G09",
+      "priority": "P1",
+      "current_scope": "现有信号计算图要求无环；OIP 桥仅验证固定输送/光电/货箱场景。",
+      "proposal": "未来多工位组装另建物料图，独立表示工件身份、转移、阻塞、分支和回流。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "保留信号图的既有 DAG 验证。",
+        "物料回路不得伪装成无延迟信号循环。",
+        "转移和阻塞场景验证物料身份守恒、唯一归属与明确路由。"
+      ],
+      "source_ids": [
+        "S03",
+        "S04"
+      ]
+    },
+    {
+      "id": "G10",
+      "priority": "P1",
+      "current_scope": "已支持七种参数化原子组件与四个显式 profile；尚无通用 Siemens 导出驱动的组件模板生成。",
+      "proposal": "给组件类型增加版本化行为合同，允许 AI 从已批准模板和显式符号映射提出候选组合。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "类型版本、参数、端口、复位/更新合同和故障范围可检查。",
+        "显示名或相同模型外观不能替代接口兼容性。",
+        "未知符号与未决工艺保持阻塞；不因此启动生成 S3/S4。"
+      ],
+      "source_ids": [
+        "S03",
+        "S04",
+        "S05",
+        "S06"
+      ]
+    },
+    {
+      "id": "G11",
+      "priority": "P1",
+      "current_scope": "当前可导出逐扫描轨迹并回看快照；没有跨 PLC/机械状态的完整恢复检查点。",
+      "proposal": "区分证据回放与未来可恢复 checkpoint，只有完整状态和版本一致时才允许继续执行。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "回放不执行 PLC 或推进设备。",
+        "恢复检查点同时包含 PLC、plant、物理、故障、时钟和身份信息。",
+        "恢复后与独立连续执行对照；缺失状态只能浏览，不能标作可恢复。"
+      ],
+      "source_ids": [
+        "S04",
+        "S12",
+        "S24"
+      ]
+    },
+    {
+      "id": "G12",
+      "priority": "P0",
+      "current_scope": "native/OIP 是现有可选工具链范围；Windows、TIA、PLCSIM、SIMIT 和 MCD 均无本轮执行。",
+      "proposal": "保持 Windows worker 可选，并为每个外部后端锁定 CPU、固件、产品/API、操作系统与许可矩阵。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "缺少商业工具时既有 native 路径仍可用，外部能力显示 unavailable/not_run。",
+        "按 Test Suite 与 Advanced 各自的版本/型号限制校验，不使用泛化的 Siemens 支持开关。",
+        "采用 V21 Openness 时使用对应 net48 模块并解析已安装程序集；不分发运行时 DLL。",
+        "并发额度同时满足技术上限与许可权益，版本变更后重新验收。"
+      ],
+      "source_ids": [
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S17",
+        "S18",
+        "S19",
+        "S23",
+        "S26"
+      ]
+    },
+    {
+      "id": "G13",
+      "priority": "P2",
+      "current_scope": "AI 已经通过有限 HTTP/CLI 调用当前仿真；没有 Test Suite Openness、AxUnit-ST 或覆盖率任务执行。",
+      "proposal": "在最小 Test Suite 后端验收后，按明确后端扩展测试工作项和完整结果归一化，再分别评估 AxUnit-ST 与覆盖率。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "执行器返回真实测试数、断言数、失败、未完成项及原始日志，不以进程退出零代替裁决。",
+        "AxUnit-ST 采用前复核选定发行版的包和 CLI；2510 仅作已读基线。",
+        "覆盖率工具仅在可丢弃工程副本评估，覆盖率报告不替代独立预期。"
+      ],
+      "source_ids": [
+        "S20",
+        "S21",
+        "S22",
+        "S26",
+        "S27",
+        "S28",
+        "S29"
+      ]
+    },
+    {
+      "id": "G14",
+      "priority": "P1",
+      "current_scope": "当前 Three.js 视图由执行快照驱动；未执行 WinCC Unified、Unity、NX MCD 或生产控制器。",
+      "proposal": "增强设备状态、信号因果与首个失败的联合观察；未来 HMI 和机械平台联调独立留证。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "所有状态与失败高亮可追溯到同一运行身份和快照。",
+        "HMI 操作回写进入明确的输入路径，不经渲染状态修改 PLC 输出。",
+        "HMI/机械平台未执行时仍为 not_run；S7-1500V 生产部署不混入仿真验收。"
+      ],
+      "source_ids": [
+        "S02",
+        "S03",
+        "S30",
+        "S31"
+      ],
+      "deferred_scope": {
+        "priority": "P2",
+        "capabilities": [
+          "wincc_unified_hmi_validation",
+          "nx_mcd_or_unity_coupling"
+        ],
+        "note": "P1仅补充当前快照可视化；外部HMI/机械适配属于P2，未执行保持not_run。"
+      }
+    },
+    {
+      "id": "G15",
+      "priority": "P0",
+      "current_scope": "本轮仅核对官方文档和目录；没有下载、运行或重新分发 Siemens 示例工程、Unity build 或商业库。",
+      "proposal": "采用官方示例时维护独立来源、版本和许可记录，并用自己的适配代码和测试验证迁移。",
+      "status": "proposed",
+      "acceptance_criteria": [
+        "官方示例包与实际取得文件分别记录版本和摘要，文档列出包名不视作下载验证。",
+        "免费可下载不等于开源；示例、构建产物和源项目的权利分别核对。",
+        "旧示例的空错误处理、运行模式或时钟处理不得直接作为可靠执行器验收依据。"
+      ],
+      "source_ids": [
+        "S01",
+        "S02",
+        "S03",
+        "S05",
+        "S26",
+        "S27"
+      ]
+    }
+  ]
+}

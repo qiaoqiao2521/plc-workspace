@@ -29,3 +29,16 @@ Open Industry Project 官方仓库提供 Part SDK、Three.js/Jolt 设备场景�
 - 进程终止必须展开 finally。实际在 native worker 已加载运行时发送 SIGTERM，OIP adapter 以 error/退出 2 返回，Node 与独立 worker 全部消失；没有将清理成功当程序通过。
 
 旧规范 ST、生成器的固定启停/输送合同、历史八拍源码与投影未改。新推料是独立且明示的合成合同。升级上游前需更新固定来源索引并重新实测接口，当前文档不承诺浮动版本兼容。
+
+## 西门子官方参照与设计补充
+
+完整来源和版本见 [官方仿真基线](../../docs/SIEMENS_SIMULATION_BASELINE.md)，机器索引保存 32 个来源和 15 项 proposed 缺口。
+
+- 109739660 给出 Advanced V7 / TIA V20 的 C# 输送带闭环；默认模式周期事件不是冻结锁步。示例中省略的异常处理、按名称复用实例及人工工程下载仍需适配器补足。
+- 109758943 的 2026 Pick and Place 案例把 PLC、设备行为、机械运动分层，提供 MCD / Unity build 路线；据此提出位置单一计算来源、明确单位与耦合周期。
+- Advanced V8 已明确列入 S7-1200 G2；Supported 表与未限定代际的 Unsupported 措辞需要合读。Test Suite 两个 MLFB 排除是另一层约束。
+- Advanced V8 API 与旧 API 的接口兼容、Runtime Manager 对旧 API 的兼容是不同问题。Openness V21 又有独立的 net48 / 程序集迁移要求。
+- 工艺 Stop、CPU STOP、freeze、故障消除、确认、重启需保持各自语义。API 覆盖 PLC 输出会影响结果可信度，报告需同时追踪程序命令、施加值和实际反馈。
+- SIMIT 类型/实例、宏、ACI 与 CONTEC 提供可组装参考；V11.2 宏不能递归嵌套，材料拓扑也不能直接当控制 DAG 或完整物理模型。
+- Test Suite Application Test、OPC UA System Test、AX 单测、HMI 和代码覆盖率分别对应不同验证范围。条件 RUN / WAIT 结束仍需断言；覆盖率不替代正确性。
+- 新索引是研究与后续设计资料，所有 Siemens 执行状态为 not_run。它不注册 backend、不修改现有 schema、不改变已有合同或通过状态。

@@ -58,3 +58,15 @@ OIP 固定为 `3d888156f38974c8e2105e5e657a9f428fda3cb5`，源码与依赖安装
 扫描次数、归一化行程与 OIP 的 60 Hz / 每次调用间 250 ms 分别记录。没有新增任意 PLC 方言、TON、多任务、掉电保持、LAD 仿真、机械标定、TIA/PLCSIM 或实机/安全验收。规范 ST 及投影保持不变，本次仅复核漂移，没有重新声称运行历史形式证明。
 
 代码和测试入口属于仓库交付；本轮完成云端运行验证，没有发布公网常驻原生执行服务。实际截图为本仓库 Three.js 场景，物理复核证据为独立 headless OIP/Jolt 运行。
+
+## 2026-11-26 官方研究补充
+
+用户追加要求“搜搜西门子官方类似实现，补充全面”后，以已推送的 5693589844173aab6f075402242aff533a401863 为对照，三个子代理分别研究 PLCSIM/API、SIMIT/MCD/Unity 和 Test Suite/Openness，主代理另核对 AX、HMI 及原文中的版本差异。
+
+已新增 [官方仿真基线](../../docs/SIEMENS_SIMULATION_BASELINE.md) 和 [机器来源/缺口索引](../../web/data/simulation/siemens-reference-index.json)，并连接 README、PROJECT、AGENTS 与仿真使用文档。共 32 个来源、15 项 proposed 缺口、66 条缺口来源引用。研究结论覆盖完整案例、产品分层、代际与 API 版本、单位/绑定/时钟、实例所有权、独立判定、可视化与可选 Windows 接入顺序。
+
+交叉审阅修正了四种容易误读的地方：默认周期回调不是冻结锁步；S7-1200 G2 与未限定代际的排除句需要合读；Pick and Place 的“可删除积分器”是设计依据，单一位置权威是仓库推导规则；条件 RUN 的已核对语法属于周期模式。旧示例的包名与页脚差异、AX 发行版迁移、V20 许可与 V21 软件依赖分别保留。
+
+本轮实际检查为 JSON 结构、官方 URL 域名与来源 ID、文档相对链接、构建和构建产物内容一致性，以及变更范围/空白检查。构建成功；32 个来源定义、66 条来源引用有效；索引随既有静态复制规则输出。详细结果见 [研究资料检查记录](evidence/siemens-reference-verification.json)。
+
+运行代码、PLC 源码、scene/contract、原验收报告和第三方适配器没有修改，因而没有重复前轮 31/171 项回归、浏览器或 OIP 执行。没有下载和运行 Siemens 工程/软件，没有注册 Siemens backend、增加 CLI 动作或建立 Windows 服务。所有 Siemens/AX/HMI/实机执行继续为 not_run；本轮资料检查不授予 simulation_case 或任何工程验收。
